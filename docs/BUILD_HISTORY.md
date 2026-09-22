@@ -16,15 +16,26 @@ Therefore:
 - If a new candidate is rebuilt from an older clean milestone for safety, all validated changes after that milestone must be re-applied before that candidate can become the next canonical base.
 - The newest validated build is the practical install/test target.
 
-Current cumulative lineage:
+## Fully verified cumulative lineage
 
-`Original EXE -> validated pre-V200 work -> V200 -> V255A -> V257 -> V258G -> V258M -> V258P -> V258W -> V258Y`
+The untouched retail executable supplied on 2026-09-22 has SHA-256:
 
-The repository currently reproduces the exact byte chain from **V200 to V258Y**. V200 is the surviving re-audited cumulative baseline containing earlier validated work. An untouched retail EXE is still needed to generate and verify a formal `Original -> V200` manifest.
+`e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
+
+The complete validated path is:
+
+`Original -> V200 -> V255A -> V257 -> V258G -> V258M -> V258P -> V258W -> V258Y`
+
+A direct `Original -> V258Y` manifest is also stored and was verified to produce the exact current V258Y executable:
+
+`032889675706926c60c54ea2ced31cbb6703b5b4ac9872f4da27413cc9993f4e`
+
+This closes the previous reproducibility gap. The project can now be reconstructed byte-for-byte from the supplied original retail executable.
 
 ## Validated lineage
 
-- **V200**: re-audited cumulative streaming/HUD baseline. Includes Async32, HUD keep-list extension and streaming FIFO queue-full fix plus previously retained validated work.
+- **Original retail EXE**: canonical untouched source for this project.
+- **V200**: re-audited cumulative streaming/HUD baseline. Includes Async32, HUD keep-list extension, streaming FIFO queue-full fix, and the earlier retained validated work.
 - **V255A**: V200 plus the validated sniper-scope exception. Recovered byte-for-byte from surviving artifacts.
 - **V257**: validated Max Engine baseline. Conservative visibility/LOD increases with no new hook/cave.
 - **V258G**: first sane ObjectiveTray correction rebuilt directly from V257.
