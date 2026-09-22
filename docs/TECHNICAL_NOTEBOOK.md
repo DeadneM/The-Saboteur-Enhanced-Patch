@@ -4,14 +4,17 @@
 
 **V258Y** is the current validated cumulative base.
 
-Executable SHA-256:
+Original retail EXE SHA-256:
+`e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
+
+V258Y EXE SHA-256:
 `032889675706926c60c54ea2ced31cbb6703b5b4ac9872f4da27413cc9993f4e`
 
 ### Non-negotiable build rule
 
 **Every newest validated build must include every retained validated change from the original executable up to that point.**
 
-V258Y is therefore not a minimap-only patch. It is the complete current patch state.
+V258Y is therefore the complete current patch state.
 
 If a candidate is rebuilt from an older milestone to avoid contamination from experiments, that is only an implementation technique. Before it can become the next canonical version, it must reproduce all validated later changes as well.
 
@@ -26,30 +29,37 @@ The minimap placement is validated and **frozen**:
 
 Do not alter these in future builds unless explicitly requested.
 
-## Repository reproducibility verification
+## Full repository reproducibility verification
 
-The canonical byte-patch chain stored in this repository was verified end-to-end on 2026-09-22:
+The previous Original-to-V200 gap is now closed.
+
+The supplied untouched retail executable was compared byte-for-byte against V200 and V258Y.
+
+### Original -> V200
+
+- Source SHA-256: `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
+- Target SHA-256: `9d13022f1e889e5aeb16e97b6012c300ffb7acfa0b72b90971143fe7447fccaf`
+- Changed regions: **211**
+- Changed bytes: **5,274**
+- Verified result: exact V200 match
+
+### Original -> V258Y direct cumulative manifest
+
+- Source SHA-256: `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
+- Target SHA-256: `032889675706926c60c54ea2ced31cbb6703b5b4ac9872f4da27413cc9993f4e`
+- Changed regions: **218**
+- Changed bytes: **5,687**
+- Verified result: exact V258Y match
+
+### Milestone chain
+
+The full milestone route was already verified:
 
 `V200 -> V255A -> V257 -> V258G -> V258M -> V258P -> V258W -> V258Y`
 
-Every manifest passed:
+The direct Original-to-V258Y route and the milestone route both end at the same exact V258Y SHA-256.
 
-- source file-size check
-- source SHA-256 check
-- per-region original-byte verification
-- final target SHA-256 verification
-
-The reconstructed final executable matched V258Y exactly:
-
-`032889675706926c60c54ea2ced31cbb6703b5b4ac9872f4da27413cc9993f4e`
-
-### Current repository gap
-
-The repository does **not yet** have a formal `Original retail EXE -> V200` byte manifest.
-
-V200 is the surviving re-audited cumulative baseline and already contains the validated work that predates it. To make the repository independently reproducible from a completely untouched executable, we need an untouched retail EXE matching the user's game build and then generate/verify the missing `Original -> V200` manifest.
-
-This does **not** mean V258Y is non-cumulative. It means only that the repository's byte-level reconstruction currently begins at V200.
+The two large Original-based manifests are stored as zlib-compressed JSON encoded in base64. `tools/apply_patch.py` supports both standard JSON manifests and `.json.zlib.b64` manifests.
 
 ## Engine baseline: V257 Max Engine
 
