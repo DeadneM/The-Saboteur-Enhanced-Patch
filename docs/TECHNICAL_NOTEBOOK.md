@@ -1,11 +1,21 @@
 # Technical notebook
 
-## Current canonical build
+## Current canonical cumulative build
 
-**V258Y** is the current validated base.
+**V258Y** is the current validated cumulative base.
 
 Executable SHA-256:
 `032889675706926c60c54ea2ced31cbb6703b5b4ac9872f4da27413cc9993f4e`
+
+### Non-negotiable build rule
+
+**Every newest validated build must include every retained validated change from the original executable up to that point.**
+
+V258Y is therefore not a minimap-only patch. It is the complete current patch state.
+
+If a candidate is rebuilt from an older milestone to avoid contamination from experiments, that is only an implementation technique. Before it can become the next canonical version, it must reproduce all validated later changes as well.
+
+Rejected experiments are excluded. Validated fixes are cumulative.
 
 The minimap placement is validated and **frozen**:
 
@@ -33,9 +43,19 @@ The reconstructed final executable matched V258Y exactly:
 
 `032889675706926c60c54ea2ced31cbb6703b5b4ac9872f4da27413cc9993f4e`
 
+### Current repository gap
+
+The repository does **not yet** have a formal `Original retail EXE -> V200` byte manifest.
+
+V200 is the surviving re-audited cumulative baseline and already contains the validated work that predates it. To make the repository independently reproducible from a completely untouched executable, we need an untouched retail EXE matching the user's game build and then generate/verify the missing `Original -> V200` manifest.
+
+This does **not** mean V258Y is non-cumulative. It means only that the repository's byte-level reconstruction currently begins at V200.
+
 ## Engine baseline: V257 Max Engine
 
-V257 is built directly from V255A and changes only 22 bytes. Key values:
+V257 is built directly from V255A and changes only 22 bytes. Those changes are carried forward into V258Y.
+
+Key values:
 
 - StreamCoverage: `6000/1200/1000 -> 8000/1600/1250`
 - Object LOD: `20/40/56/80/120/160/240 -> 25/50/70/100/150/200/300`
@@ -144,5 +164,6 @@ Desired approach:
 - reduce that maximum slightly so the full circular graphic stays inside the viewport
 - do **not** move or rescale the frozen minimap
 - do **not** apply a global HUD safe-frame rewrite
+- build the fix on top of the **full cumulative V258Y state**
 
 Any new candidate must document the exact code path, constants, old/new values, and test result before it becomes a base.
