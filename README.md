@@ -20,7 +20,7 @@ Other current HUD values inherited from the clean V258W rebuild:
 
 ## What this repository contains
 
-This repository intentionally tracks **reproducible patch data, source tooling, hashes, and the technical notebook**, rather than redistributing the copyrighted game executable.
+This repository tracks **reproducible patch data, source tooling, hashes, and the technical notebook** rather than committing the copyrighted game executable itself.
 
 - [`docs/TECHNICAL_NOTEBOOK.md`](docs/TECHNICAL_NOTEBOOK.md): current source of truth, addresses, formulas, engine/HUD findings and next work.
 - [`docs/BUILD_HISTORY.md`](docs/BUILD_HISTORY.md): validated lineage and rejected experiments.
@@ -30,13 +30,13 @@ This repository intentionally tracks **reproducible patch data, source tooling, 
 
 ## Canonical patch chain represented in this repo
 
-- `V200 -> V255A`
-- `V255A -> V257`
-- `V257 -> V258G`
-- `V258G -> V258M`
-- `V258M -> V258P`
-- `V258P -> V258W`
-- `V258W -> V258Y`
+- [`V200 -> V255A`](patches/v200_to_v255a.json)
+- [`V255A -> V257`](patches/v255a_to_v257.json)
+- [`V257 -> V258G`](patches/v257_to_v258g.json)
+- [`V258G -> V258M`](patches/v258g_to_v258m.json)
+- [`V258M -> V258P`](patches/v258m_to_v258p.json)
+- [`V258P -> V258W`](patches/v258p_to_v258w.json)
+- [`V258W -> V258Y`](patches/v258w_to_v258y.json)
 
 Each manifest records:
 
