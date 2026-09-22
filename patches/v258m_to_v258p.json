@@ -1,0 +1,15 @@
+{
+  "format": "saboteur-byte-patch-v1",
+  "from_version": "V258M",
+  "to_version": "V258P",
+  "base_exe_sha256": "27648f1855b7f33fbe407875cb971765f1052336bc767ced28e895041b0704a5",
+  "target_exe_sha256": "24fc25460107f042b633dc772df069138d8ec63cbe172e83b3abec15a4aafdc0",
+  "file_size": 14834176,
+  "changed_byte_count": 88,
+  "regions": [
+    {"offset":"0x0027FBBE","before":"6e0a","after":"d706","length":2},
+    {"offset":"0x00280299","before":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","after":"9c60b89a0c6800e8e8f9ffffdc25b0146800b89a0c6800e81efaffffb8ab0c6800e8cef9ffffdc25b8146800b8ab0c6800e804faffff619de916fdffff","length":61},
+    {"offset":"0x00280672","before":"a8","after":"c0","length":1},
+    {"offset":"0x002806B0","before":"cccccccccccccccccccccccccccccccccccccccccccccccc","after":"000000000000324000000000000048400000000000003e40","length":24}
+  ]
+}
