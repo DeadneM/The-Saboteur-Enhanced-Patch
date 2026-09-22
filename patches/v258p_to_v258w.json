@@ -1,0 +1,22 @@
+{
+  "format": "saboteur-byte-patch-v1",
+  "from_version": "V258P",
+  "to_version": "V258W",
+  "base_exe_sha256": "24fc25460107f042b633dc772df069138d8ec63cbe172e83b3abec15a4aafdc0",
+  "target_exe_sha256": "2b92911e464ebad3c8edece2e2f1a619a5084edf5c66e50527d9f5038e339b10",
+  "file_size": 14834176,
+  "changed_byte_count": 247,
+  "regions": [
+    {"offset":"0x0027FB9F","before":"b87c0b68","after":"e9900700","length":4},
+    {"offset":"0x0027FBA4","before":"e81b000000","after":"9090909090","length":5},
+    {"offset":"0x0028010C","before":"6de6ff","after":"000000","length":3},
+    {"offset":"0x00280128","before":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","after":"9c60b8480e6800e859fbffffdc25c8146800b8480e6800e88ffbffffb8530e6800e83ffbffffdc05d0146800b8530e6800e875fbffff619de9c36ce6ff","length":61},
+    {"offset":"0x002801CC","before":"8b3d3c11f700","after":"e96e03000090","length":6},
+    {"offset":"0x002802D8","before":"cccccccccccccccccccccccccccccccc","after":"abaaaaaaaaea56405555555555d54940","length":16},
+    {"offset":"0x00280334","before":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","after":"b87c0b6800e886f8ffffb80b0d6800e845f9ffffdc05d8106800b80b0d6800e87bf9ffffb8180d6800e82bf9ffffdc05e0106800b8180d6800e861f9ffffe932f8ffff","length":67},
+    {"offset":"0x0028053F","before":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","after":"d98690000000dc25ed136800d99e90000000d98694000000dc05f5136800d99e940000008b3d3c11f700e995ae1000","length":47},
+    {"offset":"0x002805ED","before":"cccccccccccccccccccccccccccccccc","after":"0000000000804e400000000000003f40","length":16},
+    {"offset":"0x002806B8","before":"000000000000","after":"5555555555d5","length":6},
+    {"offset":"0x002806C8","before":"cccccccccccccccccccccccccccccccc","after":"5555555555553440abaaaaaaaaaa2440","length":16}
+  ]
+}
