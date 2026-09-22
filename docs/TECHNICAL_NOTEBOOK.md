@@ -16,6 +16,23 @@ The minimap placement is validated and **frozen**:
 
 Do not alter these in future builds unless explicitly requested.
 
+## Repository reproducibility verification
+
+The canonical byte-patch chain stored in this repository was verified end-to-end on 2026-09-22:
+
+`V200 -> V255A -> V257 -> V258G -> V258M -> V258P -> V258W -> V258Y`
+
+Every manifest passed:
+
+- source file-size check
+- source SHA-256 check
+- per-region original-byte verification
+- final target SHA-256 verification
+
+The reconstructed final executable matched V258Y exactly:
+
+`032889675706926c60c54ea2ced31cbb6703b5b4ac9872f4da27413cc9993f4e`
+
 ## Engine baseline: V257 Max Engine
 
 V257 is built directly from V255A and changes only 22 bytes. Key values:
