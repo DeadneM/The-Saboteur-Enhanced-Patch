@@ -30,19 +30,29 @@ A direct `Original -> V258Y` manifest is also stored and was verified to produce
 
 `032889675706926c60c54ea2ced31cbb6703b5b4ac9872f4da27413cc9993f4e`
 
-This closes the previous reproducibility gap. The project can now be reconstructed byte-for-byte from the supplied original retail executable.
-
 ## Validated lineage
 
 - **Original retail EXE**: canonical untouched source for this project.
-- **V200**: re-audited cumulative streaming/HUD baseline. Includes Async32, HUD keep-list extension, streaming FIFO queue-full fix, and the earlier retained validated work.
-- **V255A**: V200 plus the validated sniper-scope exception. Recovered byte-for-byte from surviving artifacts.
-- **V257**: validated Max Engine baseline. Conservative visibility/LOD increases with no new hook/cave.
-- **V258G**: first sane ObjectiveTray correction rebuilt directly from V257.
-- **V258M**: restores the previously validated V137 dual-layer minimap transform and starts final HUD edge cleanup.
+- **V137**: historical HUD baseline where the dual-layer minimap transform was validated.
+- **V138**: diagnostic swap proved the large garage world icon uses `om_garage_AB`; the minimap `mm_garage_AB` remained separate.
+- **V139**: rejected for world-icon sizing. It targeted `0x00796949`, which was the minimap-side `mm_*` path.
+- **V140A/B**: isolated the real world `om_*` sizing path `0x00797843 -> 0x00790B26 -> 0x00790B34 -> 0x00790B46`. The retained validated world-icon scale became **70%**.
+- **V145A / V146A / V146B / V146D**: vertical world-marker anchor probes. Observations: 2.5 placed the garage marker near the foot; 1.0 near the head; 1.25 near the pelvis. **V146D = 0.50** was explicitly validated by the user as perfect.
+- **V147**: historical validated base combining world `om_*` size **70%** and vertical world anchor **0.50**, with minimap kept separate.
+- **V200**: re-audited cumulative streaming/HUD baseline carrying the retained V147 world-marker work forward, plus Async32, HUD keep-list extension, streaming FIFO queue-full fix, and other earlier validated work.
+- **V255A**: V200 plus the validated sniper-scope exception.
+- **V257**: validated Max Engine baseline.
+- **V258G**: ObjectiveTray correction rebuilt directly from V257.
+- **V258M**: restored the validated V137 dual-layer minimap transform.
 - **V258P**: clean minimap baseline + refined tutorial/objective placement.
-- **V258W**: clean absolute HUD rebuild from V258P, created specifically to end the additive micro-patch chain while preserving the validated cumulative state.
+- **V258W**: clean absolute HUD rebuild.
 - **V258Y**: **current validated cumulative base**. Minimap final placement is user-validated and frozen.
+
+## V259 diagnostic probes rejected
+
+- **V259A**: changed the existing world-marker 70% factor `0.70 -> 0.80` while it was temporarily misidentified as an objective-only edge margin. User reported the clipped blue item was unchanged. **Rejected.**
+- **V259B**: changed shared constant `0x01138348: 95.0 -> 80.0`. User reported no visible change. **Rejected.**
+- Canonical base remains **V258Y**.
 
 ## Frozen values in V258Y
 
@@ -52,9 +62,14 @@ The minimap must not be changed unless the user explicitly reopens it.
 
 - Native/orange layer: **X = 100, Y = 60**
 - Scaleform/black layer: **X = 33.333333333333336, Y = 20**
-- Relationship: 1 HUD-space unit = approximately 3 native/screen units at 4K.
 
-### V258W/V258Y HUD values retained
+### World om_* markers retained from V147
+
+- World icon scale: **70%**
+- Vertical world-anchor correction: **0.50**
+- Minimap `mm_*` assets remain on a separate path.
+
+### Other V258W/V258Y HUD values retained
 
 - Tutorial: X = 35, Y = 30
 - ObjectiveTray local X magnitude = 18
@@ -64,22 +79,22 @@ The minimap must not be changed unless the user explicitly reopens it.
 
 ## Important rejected branches
 
-- **V258A-E**: ObjectiveTray centering/top-right experiments. Diagnostic value only.
-- **V258F**: useful discovery, ObjectiveTray flags `1 -> 0`, but not final by itself.
-- **V258I/J**: **permanently rejected**. Global safe-frame rewrite broke multiple HUD systems. V258I also introduced a stack error in the minimap reroute; V258J fixed the stack issue but not the bad global-layout concept.
-- **V258K/L**: rejected minimap local-translation approach. One minimap layer moved without the other.
-- **V258N/O/Q/R/S/T/U/V/X**: iterative placement experiments. Useful measurements, not canonical bases.
+- **V258A-E**: ObjectiveTray centering/top-right experiments.
+- **V258I/J**: permanently rejected global safe-frame rewrite.
+- **V258K/L**: rejected minimap local-translation approach.
+- **V258N/O/Q/R/S/T/U/V/X**: iterative placement experiments, not canonical bases.
+- **V259A/B**: rejected marker-clamp probes, no visible effect on the reported clipped blue item.
 
 ## Key lessons
 
 1. The latest validated build is always cumulative.
-2. Prefer surgical changes over global HUD rewrites.
-3. A Flash root coordinate is not necessarily the visible edge of the graphic because clips have different registration points/internal padding.
-4. The minimap is dual-layer. The black Scaleform layer and native/orange map layer must move by equal **physical** amounts, not equal numeric values.
-5. Rebuild from a clean validated base instead of stacking many micro-adjustments.
-6. If rebuilding from an older milestone, restore every later validated change before promoting the result.
-7. Every future build README is a technical notebook: base hash, exact values, addresses, formulas, user result, regressions, frozen systems, and next hypotheses.
+2. For world shop/garage icons, distinguish **`om_*` world assets** from **`mm_*` minimap assets**.
+3. Do not touch `0x00796949` for world-icon sizing; that historical path affected minimap markers.
+4. The validated world-marker sizing path is `0x00797843 -> 0x00790B26 -> 0x00790B34 -> 0x00790B46`.
+5. The validated vertical world-anchor correction is a separate surgical hook at `0x0079785D`.
+6. Prefer surgical changes over global HUD rewrites.
+7. Rebuild from a clean validated base instead of stacking experiments.
 
-## Current open issue
+## Current open work
 
-A blue floating/off-screen indicator at the left edge can be partly clipped. The next surgical task is to identify and reduce its maximum screen-edge clamp/radius without touching the frozen V258Y minimap.
+Restart from **V258Y** and audit the merchant world icon `om_shop_AB` specifically before any new patch. The frozen minimap must remain untouched.
