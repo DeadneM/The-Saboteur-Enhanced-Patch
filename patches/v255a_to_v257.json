@@ -1,0 +1,29 @@
+{
+  "format": "saboteur-byte-patch-v1",
+  "from_version": "V255A",
+  "to_version": "V257",
+  "base_exe_sha256": "c2d0a5c17f6b342a1f972819c9c71505d5e31da2705dba1c9f8daa0987ace640",
+  "target_exe_sha256": "ec1cce3970ddb42b5b649144e05426c6e6d38f2079eb6602a302676157220d34",
+  "file_size": 14834176,
+  "changed_byte_count": 22,
+  "regions": [
+    {"offset":"0x000029F6","before":"a0","after":"c8","length":1},
+    {"offset":"0x000029FA","before":"20","after":"48","length":1},
+    {"offset":"0x000029FE","before":"60","after":"8c","length":1},
+    {"offset":"0x00002A02","before":"a0","after":"c8","length":1},
+    {"offset":"0x00002A06","before":"f042","after":"1643","length":2},
+    {"offset":"0x00002A0A","before":"20","after":"48","length":1},
+    {"offset":"0x00002A0E","before":"70","after":"96","length":1},
+    {"offset":"0x00002A6A","before":"48","after":"7a","length":1},
+    {"offset":"0x00002C22","before":"34","after":"70","length":1},
+    {"offset":"0x00002C2E","before":"34","after":"70","length":1},
+    {"offset":"0x00002D12","before":"c842","after":"1643","length":2},
+    {"offset":"0x00BF0C52","before":"61","after":"c8","length":1},
+    {"offset":"0x00C4A245","before":"80bb","after":"00fa","length":2},
+    {"offset":"0x00C4A24A","before":"96","after":"c8","length":1},
+    {"offset":"0x00C4A24D","before":"007a","after":"409c","length":2},
+    {"offset":"0x00D137D2","before":"7a","after":"a0","length":1},
+    {"offset":"0x00D137D6","before":"7a","after":"a0","length":1},
+    {"offset":"0x00D137DA","before":"7a","after":"a0","length":1}
+  ]
+}
