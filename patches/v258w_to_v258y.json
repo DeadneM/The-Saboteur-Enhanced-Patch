@@ -1,0 +1,15 @@
+{
+  "format": "saboteur-byte-patch-v1",
+  "from_version": "V258W",
+  "to_version": "V258Y",
+  "base_exe_sha256": "2b92911e464ebad3c8edece2e2f1a619a5084edf5c66e50527d9f5038e339b10",
+  "target_exe_sha256": "032889675706926c60c54ea2ced31cbb6703b5b4ac9872f4da27413cc9993f4e",
+  "file_size": 14834176,
+  "changed_byte_count": 17,
+  "regions": [
+    {"offset":"0x002805F2","before":"804e","after":"0059","length":2},
+    {"offset":"0x002805FB","before":"3f","after":"4e","length":1},
+    {"offset":"0x002806C8","before":"55555555555534","after":"abaaaaaaaaaa40","length":7},
+    {"offset":"0x002806D0","before":"abaaaaaaaaaa24","after":"00000000000034","length":7}
+  ]
+}
