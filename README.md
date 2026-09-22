@@ -76,6 +76,10 @@ Other current HUD values retained in cumulative V258Y:
 5. If rebuilding from an older milestone, re-apply all later validated changes before promotion.
 6. Treat the README/notebook as a laboratory log: base hashes, addresses, constants, formulas, test results, failures, regressions, frozen systems, and next hypotheses.
 7. A build is not a new base until validated in-game.
+8. **For every newly validated build, commit both**:
+   - a delta manifest from the previous canonical build to the new build;
+   - a direct cumulative manifest from the original retail EXE to the new build.
+   This keeps the latest release independently reproducible from vanilla at all times.
 
 ## Current next target
 
