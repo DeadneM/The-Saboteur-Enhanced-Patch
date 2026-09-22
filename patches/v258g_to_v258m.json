@@ -1,0 +1,16 @@
+{
+  "format": "saboteur-byte-patch-v1",
+  "from_version": "V258G",
+  "to_version": "V258M",
+  "base_exe_sha256": "42177a2e4cff9831741b12ccddcb7603e0b66a555d58d5d99b7109a81b10e888",
+  "target_exe_sha256": "27648f1855b7f33fbe407875cb971765f1052336bc767ced28e895041b0704a5",
+  "file_size": 14834176,
+  "changed_byte_count": 87,
+  "regions": [
+    {"offset":"0x0027FBBE","before":"2a04","after":"6e0a","length":2},
+    {"offset":"0x002805C9","before":"b8f20b68","after":"e9920000","length":4},
+    {"offset":"0x00280630","before":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","after":"9c60b89a0c6800e851f6ffffdc25a8146800b89a0c6800e887f6ffff619de999f9ffff","length":35},
+    {"offset":"0x00280660","before":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","after":"dd05a8146800b8f20b6800e863f6ffffdd05a8146800b8fe0b6800e853f6ffff5be905f5ffff","length":38},
+    {"offset":"0x002806A8","before":"cccccccccccccccc","after":"0000000000804140","length":8}
+  ]
+}
