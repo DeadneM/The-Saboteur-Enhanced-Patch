@@ -12,168 +12,158 @@ V258Y EXE SHA-256:
 
 ### Non-negotiable build rule
 
-**Every newest validated build must include every retained validated change from the original executable up to that point.**
+Every newest validated build includes every retained validated change from the original executable up to that point. Rejected probes are excluded.
 
-V258Y is therefore the complete current patch state.
-
-If a candidate is rebuilt from an older milestone to avoid contamination from experiments, that is only an implementation technique. Before it can become the next canonical version, it must reproduce all validated later changes as well.
-
-Rejected experiments are excluded. Validated fixes are cumulative.
-
-The minimap placement is validated and **frozen**:
+The minimap placement is validated and frozen:
 
 - Native/orange X = `100`
 - Native/orange Y = `60`
 - Scaleform/black X = `33.333333333333336`
 - Scaleform/black Y = `20`
 
-Do not alter these in future builds unless explicitly requested.
-
 ## Full repository reproducibility verification
 
-The previous Original-to-V200 gap is now closed.
+Both the milestone route and the direct Original-to-V258Y manifest reconstruct the exact V258Y SHA-256.
 
-The supplied untouched retail executable was compared byte-for-byte against V200 and V258Y.
+## Merchant / garage world-marker audit recovered from historical work
 
-### Original -> V200
+### Asset families
 
-- Source SHA-256: `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
-- Target SHA-256: `9d13022f1e889e5aeb16e97b6012c300ffb7acfa0b72b90971143fe7447fccaf`
-- Changed regions: **211**
-- Changed bytes: **5,274**
-- Verified result: exact V200 match
+The shop/garage system keeps world and minimap assets explicitly separate:
 
-### Original -> V258Y direct cumulative manifest
+- `om_shop_AB`     = world merchant/shop icon
+- `mm_shop_AB`     = minimap merchant/shop icon
+- `om_garage_AB`   = world garage icon
+- `mm_garage_AB`   = minimap garage icon
+- `om_garage2_AB`  = second world garage variant
+- `mm_garage2_AB`  = second minimap garage variant
 
-- Source SHA-256: `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
-- Target SHA-256: `032889675706926c60c54ea2ced31cbb6703b5b4ac9872f4da27413cc9993f4e`
-- Changed regions: **218**
-- Changed bytes: **5,687**
-- Verified result: exact V258Y match
+Current V258Y string locations:
 
-### Milestone chain
+| Asset | String VA | Raw |
+|---|---:|---:|
+| om_shop_AB | 0x010483B8 | 0x00C475B8 |
+| mm_shop_AB | 0x010483C4 | 0x00C475C4 |
+| om_garage_AB | 0x010483D0 | 0x00C475D0 |
+| mm_garage_AB | 0x010483E0 | 0x00C475E0 |
+| om_garage2_AB | 0x010483F0 | 0x00C475F0 |
+| mm_garage2_AB | 0x01048400 | 0x00C47600 |
 
-The full milestone route was already verified:
+### Loader proof
 
-`V200 -> V255A -> V257 -> V258G -> V258M -> V258P -> V258W -> V258Y`
+Loader routine around `0x009E1710` selects the pair by shop/garage type:
 
-The direct Original-to-V258Y route and the milestone route both end at the same exact V258Y SHA-256.
+- garage2:
+  - `0x009E179C` pushes `om_garage2_AB`
+  - `0x009E17C1` pushes `mm_garage2_AB`
+- garage:
+  - `0x009E17D7` pushes `om_garage_AB`
+  - `0x009E17FC` pushes `mm_garage_AB`
+- shop/merchant:
+  - `0x009E1812` pushes `om_shop_AB`
+  - `0x009E1837` pushes `mm_shop_AB`
 
-The two large Original-based manifests are stored as zlib-compressed JSON encoded in base64. `tools/apply_patch.py` supports both standard JSON manifests and `.json.zlib.b64` manifests.
+When the marker record is created:
 
-## Engine baseline: V257 Max Engine
+- `0x009E188F: mov [eax], esi` stores the **world `om_*` asset**
+- `0x009E189B: mov [eax+0x0C], edi` stores the **minimap `mm_*` asset**
 
-V257 is built directly from V255A and changes only 22 bytes. Those changes are carried forward into V258Y.
+This confirms the separation structurally, not just by string names.
 
-Key values:
+Historical V138 independently proved this in-game: swapping `om_garage_AB -> om_shop_AB` changed the large world garage icon while the minimap garage icon remained unchanged.
 
-- StreamCoverage: `6000/1200/1000 -> 8000/1600/1250`
-- Object LOD: `20/40/56/80/120/160/240 -> 25/50/70/100/150/200/300`
-- Foliage: `200 -> 250`
-- Shadow-caster floors: `180 -> 240`
-- Particle LOD: `100 -> 150`
-- FarScene x3: `250 -> 320`
-- Decal visibility squared: `14400 -> 25600`
+### Validated world-marker size path
 
-Intentionally retained:
+Historical V139 targeted `0x00796949` and altered minimap `mm_*` markers, so that path must not be reused for world icons.
 
-- streaming buffer 128 MiB
-- async reads 32
-- merged read 8 MiB
-- coalescing 384 KiB
-- V200 queue-full fix
-- palettepack 0
-- shadow maps 4096
-- environment maps 2048
-- AF16
-- CSM 5
-- native 100% sniper scope exception from V255A
+The validated world `om_*` path is:
 
-Do not blindly increase the following without a new audit:
+`0x00797843 -> 0x00790B26 -> 0x00790B34 -> 0x00790B46`
 
-- streaming buffer above 128 MiB
-- async above 32
-- envmaps above 2048
-- shadow maps above 4096
-- thread worker count
-- RenderSlice globally
-- generic/simple caps without reachability proof
-- population/crowd limits without isolation
+Relevant original logic:
 
-Future engine audit targets after HUD cleanup include real internal caps/pools/drawlists/queues such as OdinDrawlist, DetailObjects Drawlist, Foliage, Decals Drawlist, ParticleDrawlist, WSSimpleRenderObject, WSSceneBox, WSStreamingManager and scene-submission caps.
+- `0x00790B26` resolves the world marker asset
+- `0x00790B34` reads the asset width at `[eax+0x18]`
+- shifts it right once to get half width
+- `0x00790B46` originally multiplies by the runtime marker scale
 
-## HUD architecture discoveries
+V258Y retains the historical world-marker hook:
 
-### Generic high-resolution scaler
+`0x00790B46 -> 0x00681000`
 
-The active custom HUD scaler is around VA `0x006809C4`.
+Cave:
 
-Descriptor fields:
+- `0x00681000: fmul [esp+0x2B4]`
+- `0x00681007: fmul [0x00681020]`
+- `0x0068100D: jmp 0x00790B4D`
 
-- `+0x00` xscale
-- `+0x04` yscale
-- `+0x08` x
-- `+0x0C` y
-- `+0x10` width
-- `+0x14` height
-- `+0x18` anchor flags
+Constant:
 
-Anchor flags:
+- VA `0x00681020`
+- raw `0x00280220`
+- value `0.70f`
+- bytes `33 33 33 3F`
 
-- bit 0 = right
-- bit 1 = bottom
+This is the validated **70% world `om_*` marker scale** carried from the V140/V147 line.
 
-Known descriptors:
+### Validated vertical world-marker anchor
 
-- Tutorial raw `0x0027FD28`, flags 0
-- Mail raw `0x0027FD44`, flags 2
-- ObjectiveTray raw `0x0027FD60`, flags location `0x0027FD78`
-- Inventory raw `0x0027FD7C`, flags 3
-- RaceHUD raw `0x0027FD98`, flags 3
-- Pickup raw `0x0027FDB4`, flags 3
+Original code:
 
-At 4K, the scaler selects 70%. Width thresholds observed in the active path around VA `0x00681380`:
+- `0x0079785D: fld [eax+0x1C]`
+- `0x00797860: fstp [ecx+0x04]`
 
-- `<1000`: 100%
-- `1000-1399`: 90%
-- `1400-1999`: 80%
-- `>=2000`: 70%
+V258Y retains the historical vertical-anchor hook:
 
-### ObjectiveTray
+`0x0079785D -> 0x00681100`
 
-Useful discovery from V258F:
+Cave:
 
-- raw `0x0027FD78`: flags `1 -> 0`
+- `0x00681100: fld [eax+0x1C]`
+- `0x00681103: fsub [0x00681130]`
+- `0x00681109: fstp [ecx+0x04]`
+- `0x0068110C: jmp 0x00797863`
 
-This stops the custom width-based post-layout right-edge repositioning while preserving scale.
+Constant:
 
-V258G also neutralized an earlier WSHUDManager X offset at:
+- VA `0x00681130`
+- raw `0x00280330`
+- value `0.50f`
+- bytes `00 00 00 3F`
 
-- VA `0x009BDAEE`
-- raw `0x005BCCEE`
+Historical in-game probes:
 
-### Minimap
+- V145A, 2.5: garage marker near the foot
+- V146A, 1.0: near the head
+- V146B, 1.25: near the pelvis
+- V146D, 0.50: user verdict **"c'est parfait là"**
 
-The minimap is not a normal generic HUD root. It has two synchronized layers:
+V147 therefore became the historical validated world-marker baseline with:
 
-1. Scaleform/black outer HUD layer
-2. Native/orange map layer
+- world `om_*` scale = **70%**
+- vertical anchor correction = **0.50**
+- minimap kept separate
 
-Historical V137 established the correct strategy: transform both around the same bottom-left reference. Moving only one layer creates the characteristic bug where the orange map no longer follows the outer black circle.
+Those exact two corrections are still present in V258Y.
 
-Current V258Y uses the 1:3 coordinate-space relationship described above.
+## V259A / V259B rejected
 
-## Current next task: blue floating indicator
+- V259A changed the existing `0.70` world-marker factor to `0.80` while it had been temporarily misidentified as an objective-only edge parameter. User reported the clipped blue item was unchanged.
+- V259B changed `0x01138348: 95.0 -> 80.0`. User reported no visible change.
 
-Observed symptom: a blue floating/off-screen marker at the left edge is slightly clipped by the screen boundary.
+Neither is part of the canonical state. Restart point is V258Y.
 
-Desired approach:
+## Current interpretation
 
-- surgical only
-- identify the actual screen-edge clamp / maximum radial distance for this marker
-- reduce that maximum slightly so the full circular graphic stays inside the viewport
-- do **not** move or rescale the frozen minimap
-- do **not** apply a global HUD safe-frame rewrite
-- build the fix on top of the **full cumulative V258Y state**
+The merchant/garage world-icon system itself is no longer unknown. Its asset selection, world/minimap split, 70% size hook, and 0.50 vertical anchor are all identified and already present in the canonical build.
 
-Any new candidate must document the exact code path, constants, old/new values, and test result before it becomes a base.
+Therefore the next merchant-specific test should not touch:
+
+- minimap `mm_*`
+- global HUD safe frame
+- `0x01138348`
+- the 70% size factor unless intentionally changing icon size
+
+For a request to **raise** merchant/garage world markers, the surgical control is the existing vertical-anchor constant at `0x00681130`. Lowering the magnitude below 0.50 moves the anchor upward relative to the historical validated position.
+
+The separate clipped blue indicator remains a different unresolved item until its exact asset/path is identified.
