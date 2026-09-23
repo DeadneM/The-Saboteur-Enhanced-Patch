@@ -1,0 +1,25 @@
+{
+  "designation": "v1Pv259",
+  "versions": {
+    "patcher": 1,
+    "payload": 259
+  },
+  "file": "Saboteur.exe",
+  "supported_sources": {
+    "original": {
+      "label": "Original retail",
+      "size": 14834176,
+      "sha256": "e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6"
+    },
+    "v258y": {
+      "label": "V258Y validated",
+      "size": 14834176,
+      "sha256": "032889675706926c60c54ea2ced31cbb6703b5b4ac9872f4da27413cc9993f4e"
+    },
+    "v259": {
+      "label": "V259 target",
+      "size": 14834176,
+      "sha256": "8f9883883abab91ae029b078326e93751664204e75ebb2f83044ae014d13fc0b"
+    }
+  }
+}

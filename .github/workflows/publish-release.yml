@@ -1,0 +1,74 @@
+name: Publish Patcher Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate designation
+        shell: pwsh
+        run: |
+          $m = Get-Content HASHES_V259.json -Raw | ConvertFrom-Json
+          $designation = [string]$m.designation
+          $releaseDesignation = (Get-Content release/VERSION -Raw).Trim()
+          if ($releaseDesignation -ne $designation) { throw "release/VERSION mismatch" }
+          "DESIGNATION=$designation" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "EXE_NAME=The_Saboteur_Enhanced_Patcher_$designation" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "TAG=$designation" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: "x64"
+      - run: python -m pip install --disable-pip-version-check pyinstaller==6.16.0
+      - run: python installer/Saboteur_Enhanced_Patcher.py --verify-payloads
+      - run: python installer/make_version_info.py
+      - name: Build release EXE
+        shell: pwsh
+        run: |
+          pyinstaller `
+            --noconfirm `
+            --clean `
+            --onefile `
+            --console `
+            --name "$env:EXE_NAME" `
+            --version-file installer/version_info.txt `
+            --add-data "installer/payloads;payloads" `
+            installer/Saboteur_Enhanced_Patcher.py
+      - name: Create SHA-256 manifest
+        shell: pwsh
+        run: |
+          $exe = "dist/$env:EXE_NAME.exe"
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $env:EXE_NAME.exe" | Set-Content dist/SHA256SUMS.txt -Encoding ascii
+          "RELEASE_SHA256=$hash" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $exe = "dist/$env:EXE_NAME.exe"
+          $notes = @"
+          # The Saboteur Enhanced Patch $env:DESIGNATION
+
+          Unified cumulative Windows patcher targeting validated V259.
+
+          - Detects exact retail, V258Y, or already-installed V259
+          - Uses bundled direct SABDP1 byte deltas
+          - Verifies source and target SHA-256
+          - Creates backups only after source recognition
+          - Uses staged replacement with rollback
+          - Contains no retail game executable
+          - Patcher SHA-256: $env:RELEASE_SHA256
+          "@
+          gh release view $env:TAG --repo ${{ github.repository }} *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:TAG $exe dist/SHA256SUMS.txt --clobber --repo ${{ github.repository }}
+          } else {
+            gh release create $env:TAG $exe dist/SHA256SUMS.txt --repo ${{ github.repository }} --target "$env:GITHUB_SHA" --title "Enhanced Patch $env:DESIGNATION" --notes $notes
+          }

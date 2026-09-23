@@ -1,0 +1,57 @@
+name: Build Windows Patcher
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "installer/**"
+      - "release/VERSION"
+      - "HASHES_V259.json"
+      - ".github/workflows/build-patcher.yml"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read designation
+        shell: pwsh
+        run: |
+          $m = Get-Content HASHES_V259.json -Raw | ConvertFrom-Json
+          $designation = [string]$m.designation
+          if ($designation -notmatch '^v\d+Pv\d+$') { throw "Invalid designation: $designation" }
+          "DESIGNATION=$designation" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "EXE_NAME=The_Saboteur_Enhanced_Patcher_$designation" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: "x64"
+      - run: python -m pip install --disable-pip-version-check pyinstaller==6.16.0
+      - name: Verify embedded payload metadata
+        run: python installer/Saboteur_Enhanced_Patcher.py --verify-payloads
+      - name: Generate version metadata
+        run: python installer/make_version_info.py
+      - name: Build standalone patcher
+        shell: pwsh
+        run: |
+          pyinstaller `
+            --noconfirm `
+            --clean `
+            --onefile `
+            --console `
+            --name "$env:EXE_NAME" `
+            --version-file installer/version_info.txt `
+            --add-data "installer/payloads;payloads" `
+            installer/Saboteur_Enhanced_Patcher.py
+      - name: SHA-256
+        shell: pwsh
+        run: Get-FileHash "dist/$env:EXE_NAME.exe" -Algorithm SHA256 | Format-List
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.EXE_NAME }}
+          path: dist/${{ env.EXE_NAME }}.exe
+          if-no-files-found: error
+          compression-level: 0
