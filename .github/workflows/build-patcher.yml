@@ -7,7 +7,7 @@ on:
     paths:
       - "installer/**"
       - "release/VERSION"
-      - "HASHES_V259.json"
+      - "HASHES_V260.json"
       - ".github/workflows/build-patcher.yml"
 
 jobs:
@@ -20,7 +20,7 @@ jobs:
       - name: Read designation
         shell: pwsh
         run: |
-          $m = Get-Content HASHES_V259.json -Raw | ConvertFrom-Json
+          $m = Get-Content HASHES_V260.json -Raw | ConvertFrom-Json
           $designation = [string]$m.designation
           if ($designation -notmatch '^v\d+Pv\d+$') { throw "Invalid designation: $designation" }
           "DESIGNATION=$designation" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
