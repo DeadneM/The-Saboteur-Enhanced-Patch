@@ -1,0 +1,47 @@
+{
+  "format": "saboteur-byte-patch-v1",
+  "from_version": "V258Y",
+  "to_version": "V259",
+  "base_exe_sha256": "032889675706926c60c54ea2ced31cbb6703b5b4ac9872f4da27413cc9993f4e",
+  "target_exe_sha256": "8f9883883abab91ae029b078326e93751664204e75ebb2f83044ae014d13fc0b",
+  "file_size": 14834176,
+  "changed_byte_count": 69,
+  "regions": [
+    {
+      "offset": "0x00280332",
+      "before": "003f",
+      "after": "803e",
+      "length": 2
+    },
+    {
+      "offset": "0x00280600",
+      "before": "cccccccccccccccccccccccccccccccccccccccccc",
+      "after": "d944244cd805a4146800d95804d95808e99d651100",
+      "length": 21
+    },
+    {
+      "offset": "0x00280686",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "d944242c837c245c007506d805a4146800d9581ce909043600",
+      "length": 25
+    },
+    {
+      "offset": "0x002806A4",
+      "before": "cccccccc",
+      "after": "0000803e",
+      "length": 4
+    },
+    {
+      "offset": "0x00396BA8",
+      "before": "d944244cd95804d95808",
+      "after": "e9539aeeff9090909090",
+      "length": 10
+    },
+    {
+      "offset": "0x005E0AA1",
+      "before": "d944242cd9581c",
+      "after": "e9e0fbc9ff9090",
+      "length": 7
+    }
+  ]
+}
