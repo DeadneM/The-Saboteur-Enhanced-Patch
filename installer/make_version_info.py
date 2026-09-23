@@ -2,7 +2,7 @@
 import json
 from pathlib import Path
 
-m=json.loads(Path("HASHES_V259.json").read_text(encoding="utf-8"))
+m=json.loads(Path("HASHES_V260.json").read_text(encoding="utf-8"))
 designation=m["designation"]
 patcher=int(m["versions"]["patcher"])
 payload=int(m["versions"]["payload"])
