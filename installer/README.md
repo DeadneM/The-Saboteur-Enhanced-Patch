@@ -6,6 +6,7 @@ Current designation: `v1Pv259`
 
 - patcher generation: **v1P**
 - cumulative game payload: **v259**
+- Windows artifact: **The_Saboteur_Enhanced_Patcher_v1Pv259.exe**
 
 ## Detection
 
