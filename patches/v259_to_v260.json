@@ -1,0 +1,23 @@
+{
+  "format": "saboteur-byte-patch-v1",
+  "from_version": "V259",
+  "to_version": "V260",
+  "base_exe_sha256": "8f9883883abab91ae029b078326e93751664204e75ebb2f83044ae014d13fc0b",
+  "target_exe_sha256": "a90acc384bab67b7ac54bb973a81852ab2f8bce232d9215cc569af5f5d725440",
+  "file_size": 14834176,
+  "changed_byte_count": 4,
+  "regions": [
+    {
+      "offset": "0x0058C9CA",
+      "before": "9001",
+      "after": "2003",
+      "length": 2
+    },
+    {
+      "offset": "0x0058DB99",
+      "before": "9001",
+      "after": "2003",
+      "length": 2
+    }
+  ]
+}
