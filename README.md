@@ -3,7 +3,43 @@
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
 > **Current validated cumulative build: V259**  
-> V259 promotes the validated V259E behavior unchanged.
+> **Current Windows patcher: v1Pv259**
+
+## Windows patcher
+
+The project now uses the same distribution model as the Call of Juarez: Gunslinger patch:
+
+`The_Saboteur_Enhanced_Patcher_v1Pv259.exe`
+
+Patcher generation:
+
+- **v1P**
+
+Cumulative game payload:
+
+- **V259**
+
+Supported exact source states:
+
+- untouched retail `Saboteur.exe`
+- validated V258Y
+- V259 itself, detected as already installed
+
+The patcher refuses unknown or modified executables.
+
+It bundles compact direct `SABDP1` deltas, not a retail game executable. Before installation it verifies the source SHA-256 and every original byte region, reconstructs V259, verifies the exact V259 SHA-256, creates a backup, stages replacement with rollback, then verifies the installed file again.
+
+Expected V259 target SHA-256:
+
+`8f9883883abab91ae029b078326e93751664204e75ebb2f83044ae014d13fc0b`
+
+The Windows build is produced by GitHub Actions using Python 3.12 and PyInstaller 6.16.0. The first verified CI build completed successfully.
+
+Patcher CI-build SHA-256:
+
+`bd6a74fc911829e99df7a43c7a70d54eecc561933e3b3bceceb8b0b81b8b3733`
+
+See [`installer/README.md`](installer/README.md) for installer architecture and [`.github/workflows/build-patcher.yml`](.github/workflows/build-patcher.yml) for the reproducible Windows build.
 
 ## Golden rule: every current build is cumulative
 
@@ -21,7 +57,7 @@ Current V259 EXE SHA-256:
 
 ## V259 validation
 
-V259 is based on the V259E candidate that was validated in-game.
+V259 promotes the in-game validated V259E behavior unchanged.
 
 Validated world-marker behavior:
 
@@ -31,8 +67,6 @@ Validated world-marker behavior:
 - Resistance HQ / Cross of Lorraine `om_HQ_AB`: dedicated +0.25 Y correction
 - garage markers remain on the validated generic path
 - minimap remains frozen and separate
-
-The user validated V259E with: **"oui tres bien on valide"**.
 
 ## Reproducible cumulative paths
 
@@ -52,20 +86,12 @@ The user validated V259E with: **"oui tres bien on valide"**.
 - [`V258W -> V258Y`](patches/v258w_to_v258y.json)
 - [`V258Y -> V259`](patches/v258y_to_v259.json)
 
-A direct Original -> V259 cumulative manifest was generated and verified locally against the final V259 SHA-256.
-
 ## Frozen minimap
 
 Do not change unless explicitly reopened:
 
 - Native/orange: **X = 100, Y = 60**
 - Scaleform/black: **X = 33.333333333333336, Y = 20**
-
-## Other retained HUD values
-
-- Tutorial: `X=35`, `Y=30`
-- ObjectiveTray: X magnitude `18`, Y magnitude `49.666666666666664`
-- Inventory/ammo: `X=+91.66666666666667`, `Y=+51.666666666666664`
 
 ## Development rules
 
@@ -74,11 +100,11 @@ Do not change unless explicitly reopened:
 3. Warn before any global or intrusive approach.
 4. Rejected experiments never become part of the canonical base.
 5. Every future candidate starts from V259 or reproduces V259 exactly before adding a new change.
-6. Every validated build updates the technical notebook, build history and hashes.
+6. Every validated build updates the patcher payload, technical notebook, build history and hashes.
 
 ## Current open work
 
-The separate clipped blue edge indicator remains unresolved and must be audited independently from the now-validated merchant/garage/HQ world-marker work.
+The separate clipped blue edge indicator remains unresolved and must be audited independently from the validated merchant/garage/HQ world-marker work.
 
 ## Disclaimer
 
