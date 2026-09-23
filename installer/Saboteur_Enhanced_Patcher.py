@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
-"""The Saboteur Enhanced Patch v1Pv259 - cumulative Windows patcher."""
+"""The Saboteur Enhanced Patch v1Pv260 - cumulative Windows patcher."""
 import base64, hashlib, json, os, shutil, sys, tempfile, time, traceback, zlib
 from pathlib import Path
 
 PATCHER_VERSION=1
-PAYLOAD_VERSION=259
-DESIGNATION="v1Pv259"
+PAYLOAD_VERSION=260
+DESIGNATION="v1Pv260"
 GAME_EXE="Saboteur.exe"
-TARGET_SHA="8f9883883abab91ae029b078326e93751664204e75ebb2f83044ae014d13fc0b"
+TARGET_SHA="a90acc384bab67b7ac54bb973a81852ab2f8bce232d9215cc569af5f5d725440"
 TARGET_SIZE=14834176
 ORIGINAL_SHA="e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6"
 V258Y_SHA="032889675706926c60c54ea2ced31cbb6703b5b4ac9872f4da27413cc9993f4e"
-PAYLOADS={ORIGINAL_SHA:("Original retail","retail_to_v259.sabdp1"),V258Y_SHA:("V258Y validated","v258y_to_v259.sabdp1")}
+V259_SHA="8f9883883abab91ae029b078326e93751664204e75ebb2f83044ae014d13fc0b"
+PAYLOADS={
+    ORIGINAL_SHA:("Original retail","retail_to_v260.sabdp1"),
+    V258Y_SHA:("V258Y validated","v258y_to_v260.sabdp1"),
+    V259_SHA:("V259 validated","v259_to_v260.sabdp1"),
+}
 
 def h(b): return hashlib.sha256(b).hexdigest()
 def hf(p):
@@ -87,7 +92,11 @@ def install(p,data):
     finally: stage.unlink(missing_ok=True)
 
 def verify_payloads():
-    for label,name in [("Retail -> V259","retail_to_v259.sabdp1"),("V258Y -> V259","v258y_to_v259.sabdp1")]:
+    for label,name in [
+        ("Retail -> V260","retail_to_v260.sabdp1"),
+        ("V258Y -> V260","v258y_to_v260.sabdp1"),
+        ("V259 -> V260","v259_to_v260.sabdp1"),
+    ]:
         d=payload(name); assert d["target_sha256"]==TARGET_SHA and d["target_size"]==TARGET_SIZE
         for off,b,a in d["regions"]: assert off>=0 and len(bytes.fromhex(b))==len(bytes.fromhex(a))
         print(f"[OK] {label}: {len(d['regions'])} regions")
@@ -105,7 +114,7 @@ def main():
         k=PAYLOADS.get(s)
         if not k:
             log(f,""); log(f,"[ERROR] Unsupported or modified Saboteur.exe."); log(f,"Accepted exact SHA-256 states:")
-            log(f,f"  Original retail: {ORIGINAL_SHA}"); log(f,f"  V258Y:           {V258Y_SHA}"); log(f,f"  V259 target:     {TARGET_SHA}")
+            log(f,f"  Original retail: {ORIGINAL_SHA}"); log(f,f"  V258Y:           {V258Y_SHA}"); log(f,f"  V259:            {V259_SHA}"); log(f,f"  V260 target:     {TARGET_SHA}")
             log(f,"No files were changed and no backup was created."); return 3
         label,name=k; log(f,f"[OK] Source recognized: {label}"); log(f,f"[ .. ] Building cumulative V{PAYLOAD_VERSION} in memory...")
         out=rebuild(src,name); log(f,f"[OK] Reconstructed target SHA-256: {h(out)}")
