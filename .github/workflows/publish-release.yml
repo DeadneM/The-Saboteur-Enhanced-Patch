@@ -14,7 +14,7 @@ jobs:
       - name: Validate designation
         shell: pwsh
         run: |
-          $m = Get-Content HASHES_V259.json -Raw | ConvertFrom-Json
+          $m = Get-Content HASHES_V260.json -Raw | ConvertFrom-Json
           $designation = [string]$m.designation
           $releaseDesignation = (Get-Content release/VERSION -Raw).Trim()
           if ($releaseDesignation -ne $designation) { throw "release/VERSION mismatch" }
@@ -56,10 +56,11 @@ jobs:
           $notes = @"
           # The Saboteur Enhanced Patch $env:DESIGNATION
 
-          Unified cumulative Windows patcher targeting validated V259.
+          Unified cumulative Windows patcher targeting validated V260.
 
-          - Detects exact retail, V258Y, or already-installed V259
+          - Detects exact retail, V258Y, V259, or already-installed V260
           - Uses bundled direct SABDP1 byte deltas
+          - Includes the validated 800-decal active cap and matching pool
           - Verifies source and target SHA-256
           - Creates backups only after source recognition
           - Uses staged replacement with rollback
