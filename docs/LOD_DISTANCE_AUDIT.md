@@ -1,6 +1,6 @@
 # LOD / draw-distance audit
 
-This document records the current renderer-distance map discovered during the V275+ audit.
+This document records the renderer-distance map discovered during the V275+ audit.
 
 ## SliceQuality
 
@@ -21,34 +21,16 @@ Validated cumulative state after V275/V277:
 - Slice 3 far bound: **300**
 - final outer endpoint: **1500**
 
-The runtime adjustment loop around VA `0x00643030` updates the first four slice records but does not overwrite the static upper bounds patched by V275/V277.
+The runtime adjustment loop around VA `0x00643030` does not overwrite the static upper bounds patched by V275/V277.
 
 ## ClipRange
 
-Native values:
-
-- index 0 = 180.0
-- index 1 = 270.0
-- index 2 = 360.0
-- index 3 = 1500.0
-
-High uses `ClipRange = 3`.
-
-V275 chose 1500 for the High outer endpoint specifically because it is already the engine's native High ClipRange value.
+Native values: 180, 270, 360, 1500. High uses `ClipRange = 3`.
 
 ## ObjectQuality / human LOD
 
-Vanilla High:
-
-- 70 -> 150
-- 150 -> 300
-
-Validated V276 High:
-
-- 100 -> 300
-- 300 -> 600
-
-Runtime thresholds are written into `0x0111772C/30/34/38` and consumed by the human camera/distance update path.
+Vanilla High: 70/150/300.  
+Validated V276 High: **100/300/600**.
 
 Low/Medium remain unchanged.
 
@@ -61,49 +43,37 @@ Parser record layout:
 - +0x03 ShadowSlice
 - +0x04 LODDIST float
 
-ModelInfo supports tags including:
-
-- `RENDERSLICE0..4`
-- `ZPASSSLICE0..4`
-- `SHADOWSLICE0..4`
-- `LODDISTxx`
-- `ZCULL`
-- `FOLIAGE`
-- `ALWAYSRENDER`
-
-The default LODDIST was 1000.0. V278 changes only the ModelInfo default source to native 1500.0. Explicit `LODDIST25/30` overrides remain unchanged.
+V278 changes only the default LODDIST source 1000 -> 1500. Explicit `LODDIST25/30` overrides remain unchanged.
 
 ## ShadowSlice
 
-No independent High shadow-distance table was found.
-
-ShadowSlice is a model classification/mask that uses the same slice-class distance system. Therefore V277's class-3 extension from 100 to 300 also affects models classified as SHADOWSLICE3.
-
-A separate "ShadowDistance" build was intentionally rejected as duplicate/non-independent.
+No independent High shadow-distance table was found. ShadowSlice uses the same slice classes, so V277's class-3 extension also affects SHADOWSLICE3.
 
 ## TextureQuality
 
-Native mapping:
+Native mapping: 0 -> 128 px, 1 -> 256 px, 2 -> 512 px, 3 -> 32768 px. No artificial quality 4 is needed.
 
-- 0 -> max 128 px
-- 1 -> max 256 px
-- 2 -> max 512 px
-- 3 -> max 32768 px
+## WSDetailSystem
 
-Therefore quality 3 already behaves as a practical original-resolution/no-downscale mode for retail assets. No artificial quality 4 is used.
+A dedicated world-detail/decor distance exists at `WSDetailSystem + 0x218`.
+
+Vanilla logic:
+
+- VA `0x007ECD20`: initialize to 100.0
+- VA `0x007ECDC3`: compare against a hard maximum of 100.0
+- VA `0x007ECDD0`: if over the ceiling, restore 100.0
+
+This explains why changing only the initial value cannot stick.
+
+V280A, currently under test, redirects those three local accesses to existing native 500.0 constants. It does not touch the lower clamp, WSHuman, RenderSlice, VeryFarSceneTerrain, shaders or shared 100 constants.
 
 ## Water
 
-Developer tuner exposes:
-
-- Water LOD Dist = 7.0
-- Water LOD Scale = 0.02
-
-These remain untouched.
+Developer tuner exposes Water LOD Dist = 7.0 and Water LOD Scale = 0.02. Untouched.
 
 ## VeryFarScene / FarFarScene
 
-Distinct systems/labels observed:
+Distinct systems observed:
 
 - DetailSystem
 - VeryFarScene
@@ -111,25 +81,26 @@ Distinct systems/labels observed:
 - VeryFarSceneMonuments
 - FarFarScene GeometryDisk
 
-VeryFarSceneTerrain uses two internal profiles with different parameters but a shared 5000.0 distance source. V279 redirects only the four terrain-specific loads to the engine's native 10000.0 constant.
+V279 redirects only four VeryFarSceneTerrain-specific loads from 5000 to native 10000. Monuments and DetailSystem remain separate.
 
-V279 does **not** alter:
+### GeometryDisk finding
 
-- VeryFarSceneMonuments
-- DetailSystem
-- shared global 5000.0
-- FarFarScene GeometryDisk
+Historical V233A/V233B was recovered and compared byte-for-byte:
 
-The developer tuner exposes:
+- both archives contain **identical Saboteur.exe files**
+- V233A changed only `tuner.txt`: `OuterRadius=25`
+- V233B changed only `tuner.txt`: `OuterRadius=400`
+
+Therefore the old visual effect proves the tuner parameter is live, but it does **not** reveal a native EXE patch site.
+
+Loading the full developer tuner would re-inject more than a thousand parameters, so that method is deliberately kept outside the canonical EXE lineage. A native owner/storage path must be proven before GeometryDisk is promoted into a normal cumulative build.
+
+The tuner values remain:
 
 - `FarFarScene.FarFarScene.GeometryDisk.OuterRadius = 100`
 - RadialSegments = 8
 - CircularSegments = 8
 
-The GeometryDisk value is the next audit target, but it must not be assumed to be world draw distance until its consumers are proven.
-
 ## Distant red-prop issue
 
-The historical red distant-prop/fallback issue remains a separate investigation.
-
-Current working hypothesis is compatible with a representation/streaming boundary, but V275-V279 are not described as a guaranteed fix for it. The fallback path should not be globally disabled merely to hide red proxies, because that can remove the prop instead of fixing its far representation.
+The distant red-prop/fallback issue remains separate. Neutralizing the fallback can hide the red proxy by removing the prop, which is not considered a real fix.
