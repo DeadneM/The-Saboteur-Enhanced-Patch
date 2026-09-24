@@ -2,17 +2,15 @@
 
 ## Current canonical cumulative build
 
-**V260**
+**V279**
 
-Original retail EXE SHA-256:
+Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
 
-V260 EXE SHA-256:
-`a90acc384bab67b7ac54bb973a81852ab2f8bce232d9215cc569af5f5d725440`
+V279 EXE SHA-256:  
+`db2ac0f79b2fcace02ac32d77bdea32c5d9591f6bee56715e9e1976f81999b0a`
 
-## Cumulative rule
-
-Every future candidate starts from V260, or reproduces V260 exactly before adding an experiment.
+Every future candidate starts from V279 or reproduces V279 exactly before adding an experiment.
 
 ## Frozen minimap
 
@@ -28,154 +26,202 @@ Every future candidate starts from V260, or reproduces V260 exactly before addin
 - shop/pistol `om_shop_AB` extra Y correction = +0.25
 - HQ/Cross `om_HQ_AB` extra Y correction = +0.25
 
-## Validated V260: WSDecal hard cap
+## V261 - WSPhysicsParticle
 
-The first post-HUD capacity audit found a genuine retained-object ceiling.
+- pool 1000 -> 2000 at VA `0x009DB5D2`
+- matching runtime ceiling 1000 -> 2000 at VA `0x009DB66B`
+- object size `0x90` = 144 bytes
+- extra contiguous storage: 144,000 bytes (~140.62 KiB)
 
-### Pool
+## V262 - Havok TOI
 
-`0x0098D7C9`
+VA `0x00AC53AD`
 
-V259:
-`push 0x190` = 400 WSDecal objects
+`C7 46 64 00 02 00 00` -> `C7 46 64 00 04 00 00`
 
-V260:
-`push 0x320` = 800
+SizeOfToiEventQueue: 512 -> 1024.
 
-Object size:
-`0x210` = 528 bytes
+## V263 - WSParticleRender arenas
 
-### Runtime enforcement
+Allocation sites:
 
-`0x0098E997`
+- VA `0x006E7B83`: 4500 x 68 -> 9000 x 68
+- VA `0x006E7BAD`: 1000 x 68 -> 2000 x 68
+- VA `0x006E7B9C`: 500 x 68 -> 1000 x 68
 
-V259:
-`cmp ecx,0x190`
+Matching cap sites include:
 
-When the active count reaches 400, the code removes/destroys the oldest active decal before creating a replacement.
+- `0x006E3F72`, `0x006E4066`, `0x006E40CD` for the 4500 class
+- `0x006E4097` for the 1000 class
+- `0x006E40FA`, `0x006E412E`, `0x006E416A` for the 499/500 class
 
-V260:
-`cmp ecx,0x320`
+The paired allocation/runtime limits were raised together.
 
-### Memory impact
+## V264 - WSPhGridObject
 
-- 400 × 528 = 211,200 bytes
-- 800 × 528 = 422,400 bytes
-- increase = 211,200 bytes (~206.25 KiB)
+- fixed contiguous pool: 1000 -> 2000
+- object size: `0x38` = 56 bytes
+- capacity fields: `0x0132AF78`, `0x0132AF7C`
+- active counter: `0x0132AF80`
+- active-cap checks: `0x006CC64C`, `0x006CCB30`, `0x006CCDD2`
+- implementation uses a surgical trampoline/code cave; 43 EXE bytes differ from V263
+- neighboring WSHKCreationDataContainer remains 1000
+- extra contiguous storage: 56,000 bytes (~54.69 KiB)
 
-### Validation
+## V265 - WSParticleRender sort scratch
 
-V260A was validated in-game and promoted to canonical V260.
+- Scratch A VA `0x006E7BBE`: `0x8CA0` -> `0x11940` (4500 x 8 -> 9000 x 8)
+- Scratch B VA `0x006E7BCF`: `0x1F40` -> `0x3E80` (1000 x 8 -> 2000 x 8)
+- +44,000 bytes
+- 5 effective EXE bytes changed
 
-## Continued cap audit: WSPhysicsParticle
+## V266 - WSActivateSphere
 
-A second paired pool/runtime ceiling has been identified.
+VA `0x009AE7E6`
 
-### Class identification
+`mov eax,0x100` -> `mov eax,0x200`
 
-At the allocator setup near `0x009DB5A0`:
+Fixed pool: 256 -> 512.
 
-First pool:
-- type: `WSPhysicsParticleEffect`
-- object size: `0x348`
-- initial capacity: `0x40` = 64
+## V267 - WSParticleInfoData
 
-Second pool:
-- type: `WSPhysicsParticle`
-- object size: `0x90` = 144 bytes
-- initial capacity: `0x3E8` = 1000
+- VA `0x009D3173`
+- `B8 78 05 00 00` -> `B8 F0 0A 00 00`
+- 1400 -> 2800
+- object size `0x7C` = 124 bytes
+- +173,600 bytes (~169.53 KiB)
 
-### Runtime total
+## V268 - WSParkingSpace
 
-Function around `0x009DB5F0` recomputes a total into:
+- VA `0x0090706E`
+- `B8 20 00 00 00` -> `B8 40 00 00 00`
+- 32 -> 64
+- object size `0x54` = 84 bytes
+- +2,688 bytes
 
-`[manager + 0xA0]`
+## V269 - WallPoint / WallSegment
 
-It traverses active effect entries, calls the per-effect count/update routine, and accumulates the returned quantity into this field.
+- WallPoint VA `0x009F6B91`: 50 -> 100, object size `0x38`
+- WallSegment VA `0x009F6BDE`: 50 -> 100, object size `0x34`
+- total extra storage ~5.27 KiB
 
-### Proven runtime ceiling
+## V270 - WSLuaCall
 
-At:
+- pool object `0x0132B970`
+- init VA `0x009F6C74`
+- `mov eax,20` -> `mov eax,40`
+- object size `0x110` = 272 bytes
+- +5,440 bytes
 
-`0x009DB66B`
+Audit note: the historical Stream Sleep candidate is a no-op here; the modern lineage already contains `Sleep(0)`.
 
-V260 code:
+## V271 - WSDamageSphere
 
-`cmp dword ptr [ebx+0xA0],0x3E8`
+- pool `0x0132B700`
+- object size `0x9C`
+- RAW `0x00B86764`: DWORD 512 -> 1024
+- effective byte RAW `0x00B86765: 02 -> 04`
+- +79,872 bytes
 
-followed by:
+## V272 - WSReadJob / WSUncompressJob
 
-`jae 0x009DB73C`
+Shared source:
 
-Therefore once the current total reaches 1000, the pending particle-processing loop stops creating additional WSPhysicsParticle instances.
+- VA `0x0162F336`
+- RAW `0x00E17D36`
+- `BF B0 04 00 00` -> `BF 60 09 00 00`
+- 1200/1200 -> 2400/2400
+- total extra storage ~98.44 KiB
 
-The branch target calls:
+## V273 - WSInventoryStateStow
 
-`0x009DB490`
+- pool `0x0132B908`
+- object size `0x24`
+- VA `0x00FD0AF4`
+- RAW `0x00BCFCF4`
+- 32 -> 64
+- one effective byte `20 -> 40`
+- +1.125 KiB
 
-which removes/drains the remaining pending entries.
+## V274 - PblCRCTreeNode
 
-This is behavioral suppression, not just preallocation.
+- pool `0x01502800`
+- object size `0x14`
+- VA `0x016055F2`
+- RAW `0x00DEDFF2`
+- `push 40000` -> `push 60000`
+- links use WORD indices with `0xFFFF` sentinel; 60000 deliberately remains below the 16-bit edge
+- +400,000 bytes (~390.625 KiB)
 
-### V261A candidate
+## V275 - SliceQuality High outer endpoint
 
-Built directly from canonical V260.
+High table base: VA `0x01120AD8`
 
-Changes:
+Final High slice endpoint:
 
-1. WSPhysicsParticle pool:
-   - VA `0x009DB5D2`
-   - 1000 -> 2000
+- VA `0x01120B0C`
+- RAW `0x00D1F50C`
+- 500.0 -> 1500.0
 
-2. Runtime hard ceiling:
-   - VA `0x009DB66B`
-   - 1000 -> 2000
+The runtime update loop rewrites only the first four slice records and does not overwrite this final endpoint.
 
-Object-size impact:
+## V276 - ObjectQuality High humans
 
-- extra 1000 × 144 bytes
-- +144,000 bytes
-- ~140.62 KiB
+High-only constants:
 
-V261A SHA-256:
-`01a048563d10464e54a844bc9be10e12daa33363d9ceee80d3e761728832ddac`
+- VA `0x004037FC` / RAW `0x000029FC`: 70 -> 100
+- VA `0x00403804` / RAW `0x00002A04`: 150 -> 300
+- VA `0x0040380C` / RAW `0x00002A0C`: 300 -> 600
 
-### Deliberately untouched
+Low and Medium remain unchanged.
 
-The nearby `WSPhysicsParticleEffect` pool of 64 objects is not changed. No matching hard active-effect ceiling of 64 has yet been proven.
+## V277 - RenderSlice3 High
 
-## Rejected/non-cap interpretations retained
+- VA `0x01120B00`
+- RAW `0x00D1F500`
+- 100.0 -> 300.0
 
-### OdinDrawlist / Win32Drawlist
+ModelInfo uses RENDERSLICE3 heavily for urban props. The runtime slice adjustment does not overwrite this upper boundary.
 
-Vertex/index and command storage grow dynamically. Drawlist registration values are not proven scene-object capacities.
+ShadowSlice uses the same slice-distance classes, so SHADOWSLICE3 also benefits from this class extension.
 
-### WSSimpleRenderObject
+## V278 - ModelInfo default LODDIST
 
-Initial pool 9000, but allocator can spill to additional allocations. Not a hard visibility cap.
+The shared global 1000.0 constant is deliberately not modified.
 
-### WSSceneBox
+Only the ModelInfo initializer load is redirected:
 
-15/50 thresholds choose spatial-tree setup/merge behavior rather than dropping objects.
+- VA `0x00638F2D`
+- RAW `0x0023812D`
+- from `fld [0x00F7D630]` (1000.0)
+- to `fld [0x0040382C]` (native ClipRange High 1500.0)
 
-### Foliage
+Explicit `LODDIST25/30` model overrides still replace the default afterward.
 
-20-entry cache trimming and 120-item cleanup budgets are maintenance behavior, not proven render caps.
+## V279 - VeryFarSceneTerrain
 
-## Reproducibility
+The shared global 5000.0 constant is deliberately not modified.
 
-V259 -> V260:
-- 2 changed regions
-- 4 changed bytes
+Four VeryFarSceneTerrain-specific `fld` instructions are redirected from native 5000.0 at `0x00FC8A5C` to native 10000.0 at `0x00F7D960`:
 
-Original -> V260:
-- 223 changed regions
-- 5,758 changed bytes
-- exact V260 target hash verified locally
+- VA `0x008014CB` / RAW `0x004006CB`
+- VA `0x008014F7` / RAW `0x004006F7`
+- VA `0x00801526` / RAW `0x00400726`
+- VA `0x00801A8B` / RAW `0x00400C8B`
+
+VeryFarSceneMonuments and DetailSystem remain untouched.
+
+## Rejected / deliberately untouched patterns
+
+- spill-enabled generic pools where capacity is only a reserve
+- WSAICorpse 20, because a separate inline 20-pointer manager array makes a pool-only increase unsafe
+- TextureQuality above 3, because quality 3 already maps to a 32768-pixel limit
+- a duplicate standalone ShadowSlice distance build after V277
+- global shared 1000.0 / 5000.0 constants where a local redirection is possible
 
 ## Current open work
 
-1. Validate V261A.
-2. Continue auditing streaming queues/pending-delete limits and other true pools.
-3. Do not alter the frozen minimap.
-4. Keep the clipped blue edge indicator separate from engine-cap work.
+1. Audit FarFarScene GeometryDisk radius and whether it is a real coverage limit.
+2. Continue VeryFarSceneMonuments / DetailSystem ownership analysis.
+3. Keep distant red-prop fallback work separate.
+4. Do not alter the frozen minimap.
