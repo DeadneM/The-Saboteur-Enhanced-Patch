@@ -2,13 +2,13 @@
 
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
-> **Current validated cumulative build: V279**  
+> **Current validated cumulative build: V280**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current test candidate: V280A — WSDetailSystem 100 -> 500**
+> **Current test candidate: V281A — WSDetailSystem 500 -> 1000**
 
 ## Current canonical build
 
-V279 is the complete validated cumulative game state.
+V280 is the complete validated cumulative game state.
 
 Original retail EXE SHA-256:
 
@@ -57,9 +57,9 @@ Important findings:
 - ModelInfo per-model `LODDIST25/30` overrides remain untouched by V278.
 - The historical V233 `FarFarScene.GeometryDisk.OuterRadius` 25/400 A/B changed only `tuner.txt`, not the EXE. It is therefore kept out of the canonical EXE lineage until a native owner/storage path is proven.
 
-## Current V280A test
+## Validated V280
 
-V280A revisits the previously isolated **WSDetailSystem** distance correctly on the modern V279 base.
+V280 revisits the previously isolated **WSDetailSystem** distance correctly on the modern V279 base.
 
 `WSDetailSystem + 0x218` is initialized to 100.0 and independently clamped to a maximum of 100.0. V280A redirects all three local accesses to existing native 500.0 constants:
 
@@ -69,11 +69,30 @@ V280A revisits the previously isolated **WSDetailSystem** distance correctly on 
 
 No shared constant is modified and no code cave is used.
 
-V280A EXE SHA-256:
+V280 EXE SHA-256:
 
 `d9d08f6c5aaa50435dd26909f0e969428bb880c3a30df14acc011e97167a6978`
 
-V280A remains test-only until in-game validation.
+V280 was validated in-game and is now canonical.
+
+## Current V281A test
+
+V281A starts from validated V280 and raises only the same proven WSDetailSystem distance field and matching clamp:
+
+- `WSDetailSystem + 0x218`: 500 -> 1000
+- VA `0x007ECD20`: initial value -> native float 1000.0 at `0x00F7D630`
+- VA `0x007ECDC3`: maximum comparison -> native double 1000.0 at `0x010A45B8`
+- VA `0x007ECDD0`: clamp replacement -> native float 1000.0
+
+No global constant and no code cave is modified.
+
+V281A EXE SHA-256:
+
+`2125cf72e5a0743e468f50f3c2e33651d292173e81d8e92b471a83925dc76549`
+
+Audit corrections made before V281A:
+- the historical V236 +0xC04/+0xC08/+0xC0C fields are **not** WSDetailSystem; the real DetailSystem object is only 0x240 bytes.
+- VeryFarSceneMonuments has inline 256-entry structures and no proven independent global distance scalar; a pool-only expansion is structurally unsafe and rejected.
 
 See [docs/LOD_DISTANCE_AUDIT.md](docs/LOD_DISTANCE_AUDIT.md) for the detailed map.
 
@@ -103,7 +122,7 @@ Reason: the public patcher is fail-closed. It will not be retargeted until direc
 
 ## Current open work
 
-- Validate V280A WSDetailSystem 500.
+- Validate V281A WSDetailSystem 1000.
 - Continue VeryFarSceneMonuments / DetailSystem / FarFarScene ownership audit.
 - Keep the distant red-prop fallback investigation separate from general draw-distance work.
 - Regenerate verified cumulative patcher payloads after the next public patcher sync point.
