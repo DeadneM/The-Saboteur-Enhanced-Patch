@@ -4,7 +4,7 @@ Experimental PC enhancement patch for **The Saboteur**, developed through static
 
 > **Current validated cumulative build: V279**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current development axis: far-scene / LOD / draw-distance audit**
+> **Current test candidate: V280A — WSDetailSystem 100 -> 500**
 
 ## Current canonical build
 
@@ -43,21 +43,37 @@ The generic fixed-pool sweep is now effectively exhausted. Spill-enabled reserve
 
 ## V275 -> V279 LOD / draw-distance lineage
 
-The current visual-distance work is deliberately split into isolated builds:
-
 - **V275** — SliceQuality High outer range: 500 -> 1500.
 - **V276** — ObjectQuality High human ranges: 70/150/300 -> 100/300/600.
 - **V277** — High RenderSlice3 far bound: 100 -> 300.
 - **V278** — ModelInfo default LODDIST: 1000 -> 1500, using a local source redirection rather than modifying the shared global 1000 constant.
-- **V279** — VeryFarSceneTerrain dedicated distance: 5000 -> 10000, by redirecting only four terrain-specific loads to the engine's native 10000 constant.
+- **V279** — VeryFarSceneTerrain dedicated distance: 5000 -> 10000, redirecting only four terrain-specific loads to the engine's native 10000 constant.
 
 Important findings:
 
-- `SliceQuality = 0` is the **High** profile. Higher numeric indices are not higher quality.
-- `TextureQuality = 3` already maps to a practical no-downscale ceiling (32768 px), so no fake "TextureQuality 4" patch is used.
+- `SliceQuality = 0` is the **High** profile.
+- `TextureQuality = 3` already maps to a practical no-downscale ceiling (32768 px).
 - ShadowSlice uses the same slice-class distance system; V277 already extends class-3 shadow reach.
 - ModelInfo per-model `LODDIST25/30` overrides remain untouched by V278.
-- VeryFarSceneTerrain is patched independently from VeryFarSceneMonuments and DetailSystem.
+- The historical V233 `FarFarScene.GeometryDisk.OuterRadius` 25/400 A/B changed only `tuner.txt`, not the EXE. It is therefore kept out of the canonical EXE lineage until a native owner/storage path is proven.
+
+## Current V280A test
+
+V280A revisits the previously isolated **WSDetailSystem** distance correctly on the modern V279 base.
+
+`WSDetailSystem + 0x218` is initialized to 100.0 and independently clamped to a maximum of 100.0. V280A redirects all three local accesses to existing native 500.0 constants:
+
+- VA `0x007ECD20`: initial value 100 -> 500
+- VA `0x007ECDC3`: maximum comparison 100 -> 500
+- VA `0x007ECDD0`: clamp replacement 100 -> 500
+
+No shared constant is modified and no code cave is used.
+
+V280A EXE SHA-256:
+
+`d9d08f6c5aaa50435dd26909f0e969428bb880c3a30df14acc011e97167a6978`
+
+V280A remains test-only until in-game validation.
 
 See [docs/LOD_DISTANCE_AUDIT.md](docs/LOD_DISTANCE_AUDIT.md) for the detailed map.
 
@@ -72,13 +88,7 @@ Do not change unless explicitly reopened:
 
 The repository patcher is still intentionally pinned to **V260 / v1Pv260**.
 
-Reason: the public patcher is fail-closed. It will not be retargeted to V279 until direct upgrade payloads are regenerated and verified against exact supported source executables. Documentation may advance ahead of the public patcher; safety verification may not.
-
-Current patcher designation:
-
-`The_Saboteur_Enhanced_Patcher_v1Pv260.exe`
-
-It recognizes exact known hashes, verifies every patch region and final SHA-256, stages replacement with rollback, and never bundles the retail game executable.
+Reason: the public patcher is fail-closed. It will not be retargeted until direct upgrade payloads are regenerated and verified against exact supported source executables. Documentation may advance ahead of the public patcher; safety verification may not.
 
 ## Development rules
 
@@ -86,15 +96,15 @@ It recognizes exact known hashes, verifies every patch region and final SHA-256,
 2. Prefer surgical, isolated binary changes.
 3. Warn before any global or intrusive approach.
 4. Rejected experiments never enter the canonical base.
-5. Future candidates start from V279 or reproduce V279 exactly first.
+5. Future candidates start from the latest validated build or reproduce it exactly first.
 6. Patch proven hard caps, queues, LOD gates or subsystem values only after control-flow / ownership proof.
 7. Do not modify shared constants globally when a local instruction/source can be redirected instead.
 8. Keep the cumulative README / technical notebook sufficiently detailed to reconstruct the work without relying on chat history.
 
 ## Current open work
 
-- Continue VeryFarScene / DetailSystem / FarFarScene coverage audit.
-- Audit the FarFarScene GeometryDisk radius before changing it.
+- Validate V280A WSDetailSystem 500.
+- Continue VeryFarSceneMonuments / DetailSystem / FarFarScene ownership audit.
 - Keep the distant red-prop fallback investigation separate from general draw-distance work.
 - Regenerate verified cumulative patcher payloads after the next public patcher sync point.
 
