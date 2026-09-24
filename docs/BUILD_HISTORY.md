@@ -4,67 +4,71 @@
 
 **The newest validated build is always the complete cumulative patch.**
 
-Current canonical cumulative build: **V260**
+Current canonical cumulative build: **V279**
 
-Original retail EXE SHA-256:
+Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
 
-V260 EXE SHA-256:
-`a90acc384bab67b7ac54bb973a81852ab2f8bce232d9215cc569af5f5d725440`
+V279 EXE SHA-256:  
+`db2ac0f79b2fcace02ac32d77bdea32c5d9591f6bee56715e9e1976f81999b0a`
 
-## Validated lineage
+## Earlier validated lineage
 
 - **V137**: dual-layer minimap transform validated.
-- **V138**: proved world `om_*` and minimap `mm_*` shop/garage assets are separate.
-- **V140/V147**: world `om_*` scale 70%.
-- **V146D/V147**: historical world vertical anchor 0.50.
+- **V138**: world `om_*` and minimap `mm_*` assets proven separate.
+- **V140/V147**: world marker scale 70%.
 - **V200**: cumulative streaming/HUD baseline.
 - **V255A**: native 100% sniper-scope exception.
 - **V257**: Max Engine baseline.
 - **V258G/M/P/W/Y**: ObjectiveTray/minimap/final HUD lineage.
-- **V259**: final world-marker geometry, shop/pistol and HQ/Cross corrections.
-- **V260**: validated active decal-cap improvement:
-  - active WSDecal ceiling 400 -> 800
-  - matching WSDecal pool 400 -> 800
+- **V259**: final world-marker geometry.
+- **V260**: WSDecal active ceiling + pool 400 -> 800.
 
-## V260 candidate history
+## Validated engine-cap lineage
 
-- **V260A**: built directly from V259.
-- Proven hard cap at `0x0098E997`: active decal count 400.
-- Matching WSDecal pool at `0x0098D7C9`: 400 objects.
-- Candidate raised both to 800.
-- User verdict: **"cest valider on continu"**.
-- V260A behavior is promoted unchanged as canonical **V260**.
+| Build | Validated change |
+|---|---|
+| V261 | WSPhysicsParticle 1000 -> 2000 + matching runtime cap |
+| V262 | Havok TOI queue 512 -> 1024 |
+| V263 | WSParticleRender arenas A/B/C: 4500/1000/500 -> 9000/2000/1000 |
+| V264 | WSPhGridObject 1000 -> 2000 + three active-count gates |
+| V265 | WSParticleRender sort scratch 4500/1000 -> 9000/2000 |
+| V266 | WSActivateSphere 256 -> 512 |
+| V267 | WSParticleInfoData 1400 -> 2800 |
+| V268 | WSParkingSpace 32 -> 64 |
+| V269 | WallPoint / WallSegment 50/50 -> 100/100 |
+| V270 | WSLuaCall 20 -> 40 |
+| V271 | WSDamageSphere 512 -> 1024 |
+| V272 | WSReadJob / WSUncompressJob 1200/1200 -> 2400/2400 |
+| V273 | WSInventoryStateStow 32 -> 64 |
+| V274 | PblCRCTreeNode 40000 -> 60000 |
 
-## V261 candidate history
+V274 closed the straightforward generic fixed-pool sweep. Spill-enabled reserves are not treated as hard limits, and inline-layout pools such as WSAICorpse remain rejected where increasing capacity would desynchronize manager layout.
 
-- **V261A TEST**: current test candidate.
-- Identified class: `WSPhysicsParticle`.
-- Pool initialization:
-  - `0x009DB5D2`
-  - 1000 -> 2000
-- Matching runtime ceiling:
-  - `0x009DB66B`
-  - `cmp [ebx+0xA0],1000`
-  - jumps out when total is >=1000
-- The exit path calls `0x009DB490`, which drains/removes pending entries instead of continuing particle creation.
-- The nearby 64-object `WSPhysicsParticleEffect` pool remains untouched because no matching hard 64-effect ceiling has been proven.
-- V261A is **not canonical** until in-game validation.
+## Validated LOD / distance lineage
+
+| Build | Validated change |
+|---|---|
+| V275 | SliceQuality High final outer range 500 -> 1500 |
+| V276 | ObjectQuality High human ranges 70/150/300 -> 100/300/600 |
+| V277 | RenderSlice3 High far bound 100 -> 300 |
+| V278 | ModelInfo default LODDIST 1000 -> 1500 |
+| V279 | VeryFarSceneTerrain dedicated range 5000 -> 10000 |
+
+## Important audit conclusions
+
+- `SliceQuality=0` is the High table.
+- `TextureQuality=3` is already effectively unrestricted for retail assets.
+- ShadowSlice shares the slice distance system; no fake duplicate shadow-distance build was created after V277.
+- Per-model `LODDIST25/30` overrides remain intact.
+- V279 modifies only VeryFarSceneTerrain-specific loads; Monuments and DetailSystem remain separate.
+- The old proposed `Sleep(1) -> Sleep(0)` streaming change is a no-op in the modern lineage because V270 already contains `Sleep(0)`.
 
 ## Frozen minimap
 
 - Native/orange: X = 100, Y = 60
 - Scaleform/black: X = 33.333333333333336, Y = 20
 
-## Audit guardrails
+## Next rule
 
-Not currently treated as hard visibility/render caps:
-
-- OdinDrawlist/Win32Drawlist registration values
-- WSSimpleRenderObject 9000 initial pool
-- WSSceneBox 15/50 spatial thresholds
-- Foliage 20-entry trim threshold
-- Foliage 120-item cleanup budget
-- WSPhysicsParticleEffect 64-object initial pool
-
-Future validated work starts from **V260**.
+Future candidates start from **V279** or reproduce it exactly first.
