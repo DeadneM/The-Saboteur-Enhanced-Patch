@@ -1,22 +1,48 @@
 # Hash ledger
 
-Hashes recorded through 2026-09-23. ZIP hashes identify the archive; EXE hashes identify the executable inside it.
+Hashes recorded through 2026-09-24. EXE hashes identify the exact executable state.
 
-| Build | Archive | ZIP SHA-256 | EXE SHA-256 |
-|---|---|---|---|
-| Original retail EXE | `&Orig&Saboteur.exe` | — | `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6` |
-| V200 | `Saboteur_V200_BASE_REAUDITED.zip` | `87f7e7474817ac7d5fea683b255d0d4689e781bc3212958251adfcd59b0c7089` | `9d13022f1e889e5aeb16e97b6012c300ffb7acfa0b72b90971143fe7447fccaf` |
-| V255A | `Saboteur_V255A_RECOVERED_EXACT.zip` | `6c99691b5f36565289461c58880fa74de31482e503b74c976e109c8de12782c3` | `c2d0a5c17f6b342a1f972819c9c71505d5e31da2705dba1c9f8daa0987ace640` |
-| V257 | `Saboteur_V257_MAX_ENGINE_FromV255A.zip` | `27b0cacb549317df1ccdafd51a66c903f8c83098eea81d4fbbf29f847b687529` | `ec1cce3970ddb42b5b649144e05426c6e6d38f2079eb6602a302676157220d34` |
-| V258Y | `Saboteur_V258Y_HUD_MinimapNative100_60_FromV258W.zip` | `b7a2063e8708aa86c728396f8caea2eea5430915b8419aa80f239974ca3f6df3` | `032889675706926c60c54ea2ced31cbb6703b5b4ac9872f4da27413cc9993f4e` |
-| V259 | `Saboteur_V259_Validated_Cumulative.zip` | `421ee0a933012c998b1dcbbab4dbb0d76ad89521215db98e5ac48b9752b74a75` | `8f9883883abab91ae029b078326e93751664204e75ebb2f83044ae014d13fc0b` |
-| **V260 canonical** | `Saboteur_V260_Validated_Cumulative.zip` | `c1f471f97ec5640eded2e7e1cc8b2b0acbb47e05d1083effc7822cc9564fadfd` | `a90acc384bab67b7ac54bb973a81852ab2f8bce232d9215cc569af5f5d725440` |
-| V261A TEST | `Saboteur_V261A_TEST_PhysicsParticleCap2000_FromV260.zip` | `1d6211cdb86a7af26ab34fc488f00ba63fff0041a215d8cd03a9b7c0e5551fe2` | `01a048563d10464e54a844bc9be10e12daa33363d9ceee80d3e761728832ddac` |
+| Build | EXE SHA-256 |
+|---|---|
+| Original retail | `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6` |
+| V200 | `9d13022f1e889e5aeb16e97b6012c300ffb7acfa0b72b90971143fe7447fccaf` |
+| V255A | `c2d0a5c17f6b342a1f972819c9c71505d5e31da2705dba1c9f8daa0987ace640` |
+| V257 | `ec1cce3970ddb42b5b649144e05426c6e6d38f2079eb6602a302676157220d34` |
+| V258Y | `032889675706926c60c54ea2ced31cbb6703b5b4ac9872f4da27413cc9993f4e` |
+| V259 | `8f9883883abab91ae029b078326e93751664204e75ebb2f83044ae014d13fc0b` |
+| V260 | `a90acc384bab67b7ac54bb973a81852ab2f8bce232d9215cc569af5f5d725440` |
+| V261 | `01a048563d10464e54a844bc9be10e12daa33363d9ceee80d3e761728832ddac` |
+| V262 | `298d81012eee6a49372fc5302beb08c6331c52f87889d323f734376bf0ca2a6b` |
+| V263 | `0a8dcd8a55169dc084eee07a59b0d6d3f748f478c883e1d3d73b8a412b67248d` |
+| V264 | `2f96de632e562bbf3e9e4da20b153c4940b6f655a6d4674b4d959529eac911b6` |
+| V265 | `a092ed1a52ac196a80628ccd904b9d25cc60dce04522d77ff18494fe127994d9` |
+| V266 | `a88a076867c60f8f9444742955d50231449dfb01b4059c596eef3c3a49c6088d` |
+| V267 | `6e11c721909a56c901384188d05e63c484c0099e2ffa6e92e63f20cc94875c4f` |
+| V268 | `42c318f78b274387110200f41c0869e6902b1bbceb3ccddcdd04adac9243b152` |
+| V269 | `fcbb8050ea3008ce2722b1fdc0b113fcda3855eaf0e0a4fe5c630dcad0b59871` |
+| V270 | `12d711a4d43bfde1d12210d2d4eacd24c4e46553241c27d3f92131562ec7c704` |
+| V271 | `b46f6881f6079b5189dfe963718fe94be3e204892c1a7a84cd377ec886a34663` |
+| V272 | `9df67b9cc41162a2ef9aed24e658c6825c8e3803b3296cc5cba6824c27b12dd7` |
+| V273 | `bad38b4b925247d8e0ed178cadec05f53a03239cabddf1731bfdf393eeb2fb98` |
+| V274 | `5824c457bc8eb6094de1f576e1ccac97abdb60394d0ec0022b4bdee6fba52640` |
+| V275 | `308590d722f19467825b7e1e2dde7e66cc8ac40ef28c2f9493cf958c02f9c364` |
+| V276 | `291e3e2d337fcf5b6eea040f9ad5251e7f05bcaae695089a1c9b65d5f4994943` |
+| V277 | `5d404bea3ad22e15c33f2c7d7b99629e05ef1b678927554353e73ca969f9743a` |
+| V278 | `272bed592c43bea18765463e77a424e308b66be62d23aabd84d07daab336368a` |
+| **V279 canonical** | `db2ac0f79b2fcace02ac32d77bdea32c5d9591f6bee56715e9e1976f81999b0a` |
 
-## Direct cumulative manifests
+## Recent test ZIP hashes
 
-- `Original -> V200`: 211 changed regions, 5,274 changed bytes.
-- `Original -> V258Y`: 218 changed regions, 5,687 changed bytes.
-- `Original -> V259`: 221 changed regions, 5,754 changed bytes.
-- `Original -> V260`: 223 changed regions, 5,758 changed bytes.
-- `V259 -> V260`: 2 changed regions, 4 changed bytes.
+| Build | ZIP SHA-256 |
+|---|---|
+| V271A | `0acaa87becee57d3622ada9a25669efaa43bde79e8fcb5a1d8e79adc0dc1c2ea` |
+| V272A | `0292d20fcc29911bae2d5eb8f2d5b6f082fbe0c4262cb5ecacc1b01c2d1bab99` |
+| V273A | `a9b39689e99c4affc4e271a655f9cc2c9a29c02cbaaf33ec0fcf92b4367736a2` |
+| V274A | `62251014c7becf7f332e0e1effa647d7c8bb013c7af43a001cf7142d42272a3d` |
+| V275A | `c3ba9e299c9af24f3316768a4b9b40f507634db606a01eee778b0ce9ad8b9dd1` |
+| V276A | `5c69cfad174ec17297bdbf6d239005cf4a392d8c82f4bb2c3acdba8d19b5ebcb` |
+| V277A | `dddd965a5bfd493aaa117a37ac29514b92e88f4112d46ada14f8a40f2a00438f` |
+| V278A | `49957acb0fc054b14e02c55f865881afecaecf6611837585f49e9758eb271cb7` |
+| V279A | `d3d9e791d1fa0f53c147659911d10a334970f6e7950d6375695e95f3abd3dabe` |
+
+The repository does not distribute retail or patched game executables. These hashes are forensic identifiers.
