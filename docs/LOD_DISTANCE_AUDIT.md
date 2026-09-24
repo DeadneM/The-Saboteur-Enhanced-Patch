@@ -65,7 +65,21 @@ Vanilla logic:
 
 This explains why changing only the initial value cannot stick.
 
-V280A, currently under test, redirects those three local accesses to existing native 500.0 constants. It does not touch the lower clamp, WSHuman, RenderSlice, VeryFarSceneTerrain, shaders or shared 100 constants.
+Validated V280 redirects those three local accesses to existing native 500.0 constants.
+
+V281A then raises only the same local initial/max/reset values from 500 to 1000 using native constants:
+- float 1000.0 at `0x00F7D630`
+- double 1000.0 at `0x010A45B8`
+
+The lower clamp remains 10.0. The neighboring +0x21C float remains at its native 10.0 / 0..75 clamp because its semantic role is not yet proven as draw distance.
+
+### Rejected historical V236 attribution
+
+The old V236 label that described offsets +0xC04/+0xC08/+0xC0C as WSDetailSystem was disproven. The real DetailSystem registration allocates only `0x240` bytes and binds constructor `0x00440A90`, so offsets beyond +0x240 cannot belong to that class. The historical 10/10/20 experiment is excluded from the modern lineage.
+
+### VeryFarSceneMonuments audit
+
+The true Monuments registration allocates `0x6898` bytes and reaches its own constructor path. No independent global draw-distance scalar analogous to VeryFarSceneTerrain's distance was proven. Two inline structures contain 256 entries with a hard `0x100` check; because those arrays are embedded in the object layout, increasing the count alone would invalidate layout assumptions. This candidate is rejected as non-surgical.
 
 ## Water
 
