@@ -1,0 +1,21 @@
+{
+  "generated": "2026-09-24",
+  "canonical_build": "V279",
+  "original_retail_exe_sha256": "e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6",
+  "v279_exe_sha256": "db2ac0f79b2fcace02ac32d77bdea32c5d9591f6bee56715e9e1976f81999b0a",
+  "v279_test_zip": "Saboteur_V279A_TEST_VeryFarSceneTerrain10000_FromV278A.zip",
+  "v279_test_zip_sha256": "d3d9e791d1fa0f53c147659911d10a334970f6e7950d6375695e95f3abd3dabe",
+  "lineage": {
+    "V270": "12d711a4d43bfde1d12210d2d4eacd24c4e46553241c27d3f92131562ec7c704",
+    "V271": "b46f6881f6079b5189dfe963718fe94be3e204892c1a7a84cd377ec886a34663",
+    "V272": "9df67b9cc41162a2ef9aed24e658c6825c8e3803b3296cc5cba6824c27b12dd7",
+    "V273": "bad38b4b925247d8e0ed178cadec05f53a03239cabddf1731bfdf393eeb2fb98",
+    "V274": "5824c457bc8eb6094de1f576e1ccac97abdb60394d0ec0022b4bdee6fba52640",
+    "V275": "308590d722f19467825b7e1e2dde7e66cc8ac40ef28c2f9493cf958c02f9c364",
+    "V276": "291e3e2d337fcf5b6eea040f9ad5251e7f05bcaae695089a1c9b65d5f4994943",
+    "V277": "5d404bea3ad22e15c33f2c7d7b99629e05ef1b678927554353e73ca969f9743a",
+    "V278": "272bed592c43bea18765463e77a424e308b66be62d23aabd84d07daab336368a",
+    "V279": "db2ac0f79b2fcace02ac32d77bdea32c5d9591f6bee56715e9e1976f81999b0a"
+  },
+  "note": "Repository contains hashes/manifests and patcher source, not retail or patched game executables. Public patcher remains v1Pv260 until V279 direct payloads are regenerated and verified."
+}
