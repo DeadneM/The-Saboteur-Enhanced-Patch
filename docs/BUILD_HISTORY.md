@@ -4,7 +4,7 @@
 
 **The newest validated build is always the complete cumulative patch.**
 
-Current canonical cumulative build: **V279**
+Current canonical cumulative build: **V280**
 
 Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
@@ -53,7 +53,14 @@ V274 closed the straightforward generic fixed-pool sweep. Spill-enabled reserves
 | V276 | ObjectQuality High human ranges 70/150/300 -> 100/300/600 |
 | V277 | RenderSlice3 High far bound 100 -> 300 |
 | V278 | ModelInfo default LODDIST 1000 -> 1500 |
-| V279 | VeryFarSceneTerrain dedicated range 5000 -> 10000 |
+| V279 | VeryFarSceneTerrain dedicated range 5000 -> 10000 |\n| V280 | WSDetailSystem maximum detail distance 100 -> 500 |
+
+## Current candidate
+
+**V281A TEST** starts from validated V280 and raises only the proven WSDetailSystem +0x218 maximum detail distance from 500 to 1000, including initial value, maximum comparison, and clamp replacement.
+
+V281A EXE SHA-256:
+`2125cf72e5a0743e468f50f3c2e33651d292173e81d8e92b471a83925dc76549`
 
 ## Important audit conclusions
 
@@ -71,4 +78,4 @@ V274 closed the straightforward generic fixed-pool sweep. Spill-enabled reserves
 
 ## Next rule
 
-Future candidates start from **V279** or reproduce it exactly first.
+Future candidates start from **V280** or reproduce it exactly first.
