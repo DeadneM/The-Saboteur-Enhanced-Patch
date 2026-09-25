@@ -153,7 +153,9 @@ Each build redirects only the absolute operand of the compare at VA `0x009EE461`
 
 V292 advances the same compare to the unique engine-native double 800.0 at `0x00FD8CF8` and is validated. No native double 700.0 or 750.0 exists.
 
-V293A advances that same local compare to the unique native double 900.0 at `0x00F82660`. The compare remains at VA `0x009EE461`, and exactly three operand bytes change from V292.
+V293 advances that same local compare to the unique native double 900.0 at `0x00F82660` and is validated.
+
+V294A advances the same compare to the unique native double 1000.0 at `0x010A45B8` / RAW `0x00CA37B8`. The PE section mapping was explicitly verified. The compare remains at VA `0x009EE461`; exactly four operand bytes change from V293. The 1000.0 constant is referenced only, not edited.
 
 The neighboring candidate-type-5 path compares the same resource ratio against 10.0, but semantic ownership remains unproven. It remains untouched.
 
