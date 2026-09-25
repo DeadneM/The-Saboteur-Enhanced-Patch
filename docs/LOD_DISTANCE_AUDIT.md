@@ -250,7 +250,7 @@ Patched fields:
 - record3 far VA 0x01120B00 / RAW 0x00D1F500: 300 -> 1200
 - record4 far VA 0x01120B0C / RAW 0x00D1F50C: 1500 -> 6000
 
-User reported no obvious visible improvement or regression in V298, but explicitly requested that these increases remain in all later builds. V298 is therefore the retained distance baseline.
+User reported no obvious visible improvement or regression in V298, but explicitly requested that these increases remain in all later builds. V298 became the retained distance baseline at that point. V302 now supersedes it as the retained cumulative baseline.
 
 ## WTF / distant red-material branch
 
@@ -268,3 +268,37 @@ V299A is a surgical resolution test only:
 - all WTF palette/color and intensity semantics untouched
 
 If V299A changes the red-material bug, low-resolution WTF spatial interpolation becomes strongly implicated. If it is identical, the next work should target the WTF material/color calculation rather than the influence-grid resolution.
+
+
+## V302 retained High table and near-object-pop closure tests
+
+V302 is the current retained baseline.
+
+It starts from V298 and scales the retained High/Q0 distance structure coherently:
+- effective Slice0 far: 24.9765625
+- effective Slice1 far: 124.8828125
+- effective Slice2 far: 312.20703125
+- Slice3 far: 1873.2421875
+- Slice4 start: 124.8828125
+- outer/final far: 9366.2109375
+
+V302 EXE SHA-256:
+`db96ff3f6f8e38acdd262a87b0bb0ded7c604abca82e86e2501a12347f512459`
+
+Validation:
+- scenery OK
+- distant red issue still visible
+
+### Q2 diagnostics
+
+Subsequent tests proved that Q2 is a live SliceQuality profile in the problematic scene:
+- Q1 Slice4.first only: no red change, scenery OK
+- Q2 Slice4.first 80 -> 125: red hidden, scenery broken
+- Q2 Slice4.first 80 -> 124.8828125: scenery broken
+- entire Q2 table x1.5625: scenery broken
+- Q2 RENDERSLICE3 terminal far 50 -> 200: no visible improvement to the very-near object pop
+
+Conclusion:
+1. Q2 Slice4 is coupled to scene visibility strongly enough that using it to hide the red symptom is not viable.
+2. The newly reported ~3 m object pop is not controlled by Q2 record2 far / RENDERSLICE3.
+3. Future audit must look beyond the already-pushed global SliceQuality bands and identify object-family-specific visibility gates, per-instance/detail culling, model bounds/size classifiers, activation spheres, or other short-range systems.
