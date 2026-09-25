@@ -4,15 +4,15 @@
 
 **The newest validated build is always the complete cumulative patch.**
 
-Current retained cumulative build: **V298**
+Current retained cumulative build: **V302**
 
 Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
 
-V291 EXE SHA-256:  
-`05555941326fdf66253f166037eb0a51b9aa04aaa45cf1de61721fdb152bc9b2`
+V302 EXE SHA-256:  
+`db96ff3f6f8e38acdd262a87b0bb0ded7c604abca82e86e2501a12347f512459`
 
-Current candidate: **V299A**
+Current work: **complete object draw-distance audit from V302**
 
 V292A EXE SHA-256:  
 `aad83b503c6a8ae9159a9b960e602c0eade4417bd76d5de82c66c2cc05b5bc28`
@@ -129,7 +129,7 @@ Fallback ladder if unstable: 100000 -> 10000 -> 5000 -> 2000.
 
 ## Next rule
 
-Future candidates start from **V298** or reproduce it exactly first.
+Future candidates start from **V302** or reproduce it exactly first.
 
 
 ## Current V297A x4 candidate
@@ -174,3 +174,36 @@ V299A is built directly from V298 and preserves its RenderSlice table. It target
 V299A EXE SHA-256: `46ddd1d3b146166b0220d7f0337db3c726500988863d4eb5d13554d3ee4a1abf`
 
 The previous post-V296 HighPalette x4 and 1e9 stress experiments are not retained.
+
+
+## Retained V302 and rejected V303-V308
+
+V302 is now the retained cumulative baseline.
+
+V302 starts directly from V298. V299-V301 are excluded. It scales the retained High SliceQuality distance structure coherently by 1.56103515625:
+
+- Slice0 far: 24.9765625
+- Slice1 far: 124.8828125
+- Slice2 far: 312.20703125
+- Slice3 far: 1873.2421875
+- Slice4 start: 124.8828125
+- outer/final far: 9366.2109375
+
+V302 EXE SHA-256:
+`db96ff3f6f8e38acdd262a87b0bb0ded7c604abca82e86e2501a12347f512459`
+
+User validation:
+- scenery: OK
+- distant red issue: still visible
+
+Rejected after V302:
+- V303: all-profile Slice4.first historical test; red hidden, scenery broken.
+- V304A: Q1+Q2+Q3 Slice4.first; red hidden, scenery broken.
+- V304B: Q4 only; red visible, scenery degraded.
+- V305A: Q1 only; red visible, scenery OK.
+- V305B: Q2 only; red hidden, scenery broken.
+- V306A: Q2 threshold 124.8828125; scenery broken.
+- V307A: coherent Q2 x1.5625 table; scenery broken.
+- V308A: Q2 RENDERSLICE3 far 50 -> 200; no visible improvement to the very-near prop pop.
+
+Conclusion: V303-V308 are diagnostic branches only and must not be inherited.
