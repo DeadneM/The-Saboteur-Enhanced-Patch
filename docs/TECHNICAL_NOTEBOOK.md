@@ -607,3 +607,63 @@ V303-V307 proved that moving Q2 Slice4.first into the ~124.88-125 region can hid
 V308 changed only Q2 record2 far (RENDERSLICE3 terminal far) from 50 to 200. The user's short-range object pop remained unchanged. Therefore the observed ~3 m pop in the supplied garage/workshop capture is not explained by that Q2 RENDERSLICE3 far bound.
 
 All V303-V308 branches are rejected. Future binary work starts from V302.
+
+
+## Complete near-object display-distance audit after V308
+
+V308 changed active-Q2 record2 far from 50 to 200 and produced no visible movement of the short-range prop pop shown in the supplied garage/workshop capture. V308 is rejected.
+
+The follow-up static audit found a separate per-model hard-cull layer in WSModel.
+
+### WSModel automatic size policy
+
+`WSModel+0x58` is used as a size/radius-like metric by the model classifier and by proximity-sphere callers.
+
+Automatic render-mask thresholds:
+- <0.3 -> 0x03
+- <0.6 -> 0x07
+- <4.0 -> 0x0F
+- >=4.0 -> 0x1F
+
+Independent camera-depth fields:
+- constructor A8 = 10000
+- constructor AC = 10000
+- for metric <1.5: A8 = 20 + 60*metric
+- for metric <5.0: AC = 15 + 20*metric
+
+Runtime function VA `0x00638710` compares camera-forward depth against A8 and sets the model render mask to zero when exceeded. AC controls a secondary low-nibble/shadow mask cutoff.
+
+This means a tiny model can be killed by a per-model hard distance before enlarged SliceQuality, ModelInfo or streaming ranges become relevant.
+
+Candidate one-byte A/B, not yet built:
+- VA `0x0063954E`
+- RAW `0x0023874E`
+- `7A 1A -> EB 1A`
+- effect: skip only the small-model A8 rewrite and retain default A8=10000
+- AC/shadow formula remains native
+
+### WSSphereActivator
+
+Separate from V266 pool capacity, the real activation sphere creation at VA `0x0068EF80` clamps:
+`effective_radius = min(requested_radius*1.05, 2.06)`
+
+This is a genuine ~2-unit engine limit. Current callers and lifetime behavior make it look like a transient spatial activation/query system, not yet a proven static-prop renderer owner. Do not globally raise it without a focused diagnostic because it may affect gameplay/physics/AI/triggers.
+
+### Current distance-limit priority
+
+Already pushed / unlikely to explain the ~3m pop:
+- SliceQuality global tables
+- Q2 RENDERSLICE3 far
+- ObjectQuality human distances
+- ModelInfo default LODDIST
+- VeryFarSceneTerrain
+- WSDetailSystem
+- streaming coverage
+- HighPalette resource priority
+
+Still relevant:
+1. WSModel A8 size-derived hard visibility cutoff — strongest candidate
+2. object-family-specific activation / WSSphereActivator — secondary
+3. global occlusion/indoor culling — secondary and intrusive to disable
+4. automatic size-to-RenderSlice classifier for models with no ModelInfo entry
+5. VeryFarSceneMonuments / FarFarScene for genuinely distant world objects, not the present indoor few-metre symptom
