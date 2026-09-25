@@ -209,3 +209,18 @@ The tuner values remain:
 ## Distant red-prop issue
 
 The distant red-prop/fallback issue remains separate. Neutralizing the fallback can hide the red proxy by removing the prop, which is not considered a real fix.
+
+
+### HighPalette branch closure candidate
+
+V296 validates 1600.0.
+
+V297A closes the HighPalette branch with a deliberate x4 stress step:
+- 1600 -> 6400
+- native 6400.0 at VA `0x01011D00`
+- same compare VA `0x009EE461`
+- 2 effective operand bytes changed
+
+A x10 target of 16000.0 was considered but rejected because no native double 16000.0 exists. Injecting a custom constant would violate the current surgical rule when a clean x4 native step exists.
+
+The 1e9 threshold experiment is rejected as excessive and excluded.
