@@ -130,3 +130,18 @@ Fallback ladder if unstable: 100000 -> 10000 -> 5000 -> 2000.
 ## Next rule
 
 Future candidates start from **V296** or reproduce it exactly first.
+
+
+## Current V297A x4 candidate
+
+Final HighPalette stress step:
+
+- 1600 -> 6400 (x4)
+- compare VA `0x009EE461`
+- source VA `0x010140A8 -> 0x01011D00`
+- exactly 2 effective EXE bytes
+- 6400.0 exists exactly once as a native double
+- 16000.0 is absent as a native double
+- no cave / no injected data / no forced branch
+
+The abandoned 1,000,000,000 experiment is rejected as excessive and is excluded from the canonical lineage.
