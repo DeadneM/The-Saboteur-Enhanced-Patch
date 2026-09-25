@@ -74,3 +74,9 @@ Hashes recorded through 2026-09-25. EXE hashes identify the exact executable sta
 | V297A EXTREME | `b50a7878b3c34fff450fc1d1c10ddca8a392094ff84b148dd64491c8982ec916` |
 
 The repository does not distribute retail or patched game executables. These hashes are forensic identifiers.
+
+
+| **V296 canonical** | `2c40dfe0953b300d2da65ea6cdf1f7d02df50cb013dabe7101a51199b4208b5f` |
+| V297A x4 TEST | `c6099fe01719881fb5439948d2498458c6baa916fcd411e1b2b1f7f8588f20c5` |
+
+V297A x4 ZIP SHA-256: `bd5edbf38f3718c9b22ae01710f658c0aecde451a3e4f29732bafbb6cacadfdb`
