@@ -106,6 +106,13 @@ V282A modifies only `coverage[2]` at VA `0x0104B04C` / RAW `0x00C4A24C` from 125
 
 This is intentionally narrower than historical V231A, which multiplied all three tiers at once. Runtime impact can still be substantial because doubling a 2D radius may expose roughly four times the area to the High grid.
 
+Validated V282 therefore has:
+- Low radius 16
+- Medium radius ~26.67
+- High radius 100
+
+V283A modifies only `coverage[1]` at VA `0x0104B048` / RAW `0x00C4A248` from 1600 to 3200, producing a Medium radius of ~53.33 cells. Low remains 8000 and High remains 2500.
+
 ## Water
 
 Developer tuner exposes Water LOD Dist = 7.0 and Water LOD Scale = 0.02. Untouched.
