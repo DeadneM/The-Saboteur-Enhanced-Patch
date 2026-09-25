@@ -4,7 +4,7 @@ Experimental PC enhancement patch for **The Saboteur**, developed through static
 
 > **Current validated cumulative build: V295**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current test candidate: pending V296A**
+> **Current test candidate: V296A — HighPalette priority threshold 1500 -> 1600**
 
 ## Current canonical build
 
@@ -376,6 +376,27 @@ V295A ZIP SHA-256:
 
 There are two native double 1500.0 values. V295A deliberately references the copy in `.rdata` at VA `0x010207E0`, not the copy embedded in `.text`.
 
+## Current V296A test
+
+V296A starts from validated V295 and advances only the same proven SS_HighPalette compare:
+
+- metric remains `resource[+0x1F8] / resource[+0x1F4]`
+- compare site remains VA `0x009EE461`
+- V295 source: native double 1500.0 at `0x010207E0`
+- V296A source: unique native double 1600.0 at `0x010140A8`
+- source RAW for 1600.0: `0x00C132A8`
+- no shared constant is modified
+- no code cave, padding data, or injected constant
+- exactly 3 effective EXE bytes change
+
+V296A EXE SHA-256:
+
+`2c40dfe0953b300d2da65ea6cdf1f7d02df50cb013dabe7101a51199b4208b5f`
+
+V296A ZIP SHA-256:
+
+`6376d2bae8479885e33ba56cb75a1da4162db77b9b908eb0e5006c33c4e1db46`
+
 See [docs/LOD_DISTANCE_AUDIT.md](docs/LOD_DISTANCE_AUDIT.md) for the detailed map.
 
 ## Frozen minimap
@@ -404,7 +425,7 @@ Reason: the public patcher is fail-closed. It will not be retargeted until direc
 
 ## Current open work
 
-- Build and validate V296A HighPalette priority threshold 1600.
+- Validate V296A HighPalette priority threshold 1600.
 - Continue VeryFarSceneMonuments / DetailSystem / FarFarScene ownership audit.
 - Keep the distant red-prop fallback investigation separate from general draw-distance work.
 - Regenerate verified cumulative patcher payloads after the next public patcher sync point.
