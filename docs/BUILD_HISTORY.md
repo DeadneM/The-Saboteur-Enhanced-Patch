@@ -4,7 +4,7 @@
 
 **The newest validated build is always the complete cumulative patch.**
 
-Current canonical cumulative build: **V292**
+Current canonical cumulative build: **V293**
 
 Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
@@ -12,7 +12,7 @@ Original retail EXE SHA-256:
 V291 EXE SHA-256:  
 `05555941326fdf66253f166037eb0a51b9aa04aaa45cf1de61721fdb152bc9b2`
 
-Current candidate: **V293A**
+Current candidate: **V294A**
 
 V292A EXE SHA-256:  
 `aad83b503c6a8ae9159a9b960e602c0eade4417bd76d5de82c66c2cc05b5bc28`
@@ -70,14 +70,15 @@ V292A EXE SHA-256:
 | V290 | SS_HighPalette threshold 400 -> 500 |
 | V291 | SS_HighPalette threshold 500 -> 650 |\n| V292 | SS_HighPalette threshold 650 -> 800 |
 
-## Current V293A candidate
+## Current V294A candidate
 
-V293A starts from canonical V292 and changes only the already-proven SS_HighPalette local comparison:
+V294A starts from canonical V293 and changes only the already-proven SS_HighPalette local comparison:
 
 - compare instruction: VA `0x009EE461`, RAW `0x005ED661`
-- V292 source: native double 800.0 at VA `0x00FD8CF8`
-- V293A source: native double 900.0 at VA `0x00F82660`
-- exactly 3 EXE bytes change
+- V293 source: native double 900.0 at VA `0x00F82660`
+- V294A source: unique native double 1000.0 at VA `0x010A45B8`
+- RAW 1000.0 source: `0x00CA37B8`
+- exactly 4 EXE bytes change
 - no code cave
 - no injected data
 - no global constant modified
@@ -101,4 +102,4 @@ V293A starts from canonical V292 and changes only the already-proven SS_HighPale
 
 ## Next rule
 
-Future candidates start from **V292** or reproduce it exactly first.
+Future candidates start from **V293** or reproduce it exactly first.
