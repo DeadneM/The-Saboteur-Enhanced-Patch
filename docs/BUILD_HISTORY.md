@@ -4,7 +4,7 @@
 
 **The newest validated build is always the complete cumulative patch.**
 
-Current canonical cumulative build: **V296**
+Current retained cumulative build: **V298**
 
 Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
@@ -12,7 +12,7 @@ Original retail EXE SHA-256:
 V291 EXE SHA-256:  
 `05555941326fdf66253f166037eb0a51b9aa04aaa45cf1de61721fdb152bc9b2`
 
-Current candidate: **V296A**
+Current candidate: **V299A**
 
 V292A EXE SHA-256:  
 `aad83b503c6a8ae9159a9b960e602c0eade4417bd76d5de82c66c2cc05b5bc28`
@@ -129,7 +129,7 @@ Fallback ladder if unstable: 100000 -> 10000 -> 5000 -> 2000.
 
 ## Next rule
 
-Future candidates start from **V296** or reproduce it exactly first.
+Future candidates start from **V298** or reproduce it exactly first.
 
 
 ## Current V297A x4 candidate
@@ -145,3 +145,32 @@ Final HighPalette stress step:
 - no cave / no injected data / no forced branch
 
 The abandoned 1,000,000,000 experiment is rejected as excessive and is excluded from the canonical lineage.
+
+## Retained V298
+
+V298 starts from V296 and retains a user-requested all-High RenderSlice increase. Corrected semantics: ModelInfo RENDERSLICE n is converted to (1 << n) - 1, so the old V277 label overstated what its record-3 change did for RENDERSLICE3 objects.
+
+Effective High distance targets in V298:
+- Slice0 far 16
+- Slice1 far 80
+- Slice2 far 200
+- Slice3 far 1200
+- outer/final far 6000
+
+V298 EXE SHA-256: `57878890c4b9ba3bb9705109b4b216623d226b28598b3a187cf4b2795574a09a`
+
+The user reported no obvious visual improvement or regression, but explicitly requested that these Slice increases be kept in all future builds. V298 is therefore the retained cumulative base.
+
+## Current V299A candidate
+
+V299A is built directly from V298 and preserves its RenderSlice table. It targets only WSWillToFightGrid low-resolution occupation data:
+
+- CPU influence-grid dimension 256 -> 1024 via local source redirection
+- LowResWorldWTF 256x256 -> 1024x1024
+- LowResWorldWTFVertex 256x256 -> 1024x1024
+- no WTF palette/color/intensity constants changed
+- 8 effective EXE bytes changed versus V298
+
+V299A EXE SHA-256: `46ddd1d3b146166b0220d7f0337db3c726500988863d4eb5d13554d3ee4a1abf`
+
+The previous post-V296 HighPalette x4 and 1e9 stress experiments are not retained.
