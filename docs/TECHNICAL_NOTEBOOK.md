@@ -468,3 +468,23 @@ Fallback ladder if the extreme test fails:
 2. 10000
 3. 5000
 4. 2000
+
+
+### V296 - validated
+
+HighPalette local threshold 1500 -> 1600 using the unique native double at VA `0x010140A8`.
+
+### V297A x4 final HighPalette test
+
+User-directed strategy change: stop micro-incrementing this threshold. Use one meaningful multiplier and then move on.
+
+- threshold: 1600 -> 6400 (x4)
+- compare VA `0x009EE461`
+- RAW `0x005ED661`
+- V296 source `0x010140A8`
+- V297A source `0x01011D00`
+- exactly 2 effective EXE bytes change
+- 6400.0 is unique as a native double
+- 16000.0 is absent as a native double
+
+The experimental 1e9 idea is explicitly rejected as excessive and must not be restored.
