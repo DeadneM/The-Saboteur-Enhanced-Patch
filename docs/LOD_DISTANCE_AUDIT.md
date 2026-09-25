@@ -148,6 +148,11 @@ Validated progression:
 - V289: 400.0, validated
 - V290: 500.0, validated
 - V291: 650.0, validated
+- V292: 800.0, validated
+- V293: 900.0, validated
+- V294: 1000.0, validated
+- V295: 1500.0, validated
+- V296: 1600.0, validated
 
 Each build redirects only the absolute operand of the compare at VA `0x009EE461`; the referenced native constants are not modified.
 
@@ -160,6 +165,10 @@ V294 advances the same compare to the unique native double 1000.0 at `0x010A45B8
 V295 is validated at 1500.0 using the read-only .rdata copy at VA `0x010207E0`.
 
 V296A advances the same local compare to the unique native double 1600.0 at VA `0x010140A8` / RAW `0x00C132A8`. The compare remains at VA `0x009EE461`; exactly three operand bytes change from V295. The 1600.0 constant is referenced only, not edited.
+
+V297A EXTREME replaces incremental tuning with an upper-bound stress test. The same compare is redirected to the engine-native double 1,000,000,000.0 at VA `0x00F86DE0` / RAW `0x00B85FE0`. This is intended to make the HighPalette threshold effectively non-limiting for ordinary metric values while preserving the original compare and control flow.
+
+If the extreme value causes instability or excessive memory/frame-time cost, planned fallback values using the same isolated operand are 100000, 10000, 5000, and 2000.
 
 The neighboring candidate-type-5 path compares the same resource ratio against 10.0, but semantic ownership remains unproven. It remains untouched.
 
