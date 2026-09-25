@@ -2,7 +2,7 @@
 
 ## Current canonical cumulative build
 
-**V292**
+**V293**
 
 Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
@@ -10,7 +10,7 @@ Original retail EXE SHA-256:
 V279 EXE SHA-256:  
 `db2ac0f79b2fcace02ac32d77bdea32c5d9591f6bee56715e9e1976f81999b0a`
 
-Every future candidate starts from V292 or reproduces V292 exactly before adding an experiment.
+Every future candidate starts from V293 or reproduces V293 exactly before adding an experiment.
 
 ## Frozen minimap
 
@@ -366,7 +366,7 @@ V292A EXE SHA-256:
 V292 was validated in game and is now canonical.
 
 
-### V293A candidate
+### V293 - validated
 
 V293A advances only the proven SS_HighPalette local comparison from native 800.0 to native 900.0.
 
@@ -382,4 +382,24 @@ V293A advances only the proven SS_HighPalette local comparison from native 800.0
 V293A EXE SHA-256:
 `e8f4177caab596f2aaca8a0c7da1bc43f1601bbc15efab325045974b8aabbb92`
 
-V293A remains test-only until explicit in-game validation.
+V293 was validated in game and is now canonical.
+
+
+### V294A candidate
+
+V294A advances only the proven SS_HighPalette local comparison from native 900.0 to the unique native 1000.0.
+
+- compare VA `0x009EE461`
+- RAW `0x005ED661`
+- V293 source `0x00F82660` = 900.0
+- V294A source `0x010A45B8` = 1000.0
+- 1000.0 RAW location `0x00CA37B8`
+- instruction `DC 1D 60 26 F8 00 -> DC 1D B8 45 0A 01`
+- effective changes: 4 operand bytes
+- PE section mapping verified explicitly
+- no code cave, no injected data, no global constant modification
+
+V294A EXE SHA-256:
+`888cae2157ff38570f56e8eb6ee974cc45892b2cc84f78f3cf3c465ee4c741f8`
+
+V294A remains test-only until explicit in-game validation.
