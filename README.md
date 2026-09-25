@@ -2,13 +2,13 @@
 
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
-> **Current validated cumulative build: V293**  
+> **Current validated cumulative build: V294**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current test candidate: V294A — HighPalette priority threshold 900 -> 1000**
+> **Current test candidate: V295A — HighPalette priority threshold 1000 -> 1500**
 
 ## Current canonical build
 
-V293 is the complete validated cumulative game state.
+V294 is the complete validated cumulative game state.
 
 Original retail EXE SHA-256:
 
@@ -332,9 +332,9 @@ V293A ZIP SHA-256:
 
 `9069d70bdfcdc7e3e71642cb58af0e2be0955a384ce45ed70549d3a7dedc106d`
 
-## Current V294A test
+## Validated V294
 
-V294A starts from validated V293 and advances only the same proven SS_HighPalette compare:
+V294 advances only the same proven SS_HighPalette compare:
 
 - metric remains `resource[+0x1F8] / resource[+0x1F4]`
 - compare site remains VA `0x009EE461`
@@ -346,13 +346,35 @@ V294A starts from validated V293 and advances only the same proven SS_HighPalett
 - no code cave, padding data, or injected constant
 - exactly 4 effective EXE bytes change
 
-V294A EXE SHA-256:
+V294 EXE SHA-256:
 
 `888cae2157ff38570f56e8eb6ee974cc45892b2cc84f78f3cf3c465ee4c741f8`
 
 V294A ZIP SHA-256:
 
 `2c745ca8066f1bdf4f9b1f5a4aa13f3707bd01928871d28c340afe51c8246ed3`
+
+## Current V295A test
+
+V295A starts from validated V294 and advances only the same proven SS_HighPalette compare:
+
+- metric remains `resource[+0x1F8] / resource[+0x1F4]`
+- compare site remains VA `0x009EE461`
+- V294 source: native double 1000.0 at `0x010A45B8`
+- V295A source: read-only native double 1500.0 at `0x010207E0`
+- no shared constant is modified
+- no code cave, padding data, or injected constant
+- exactly 3 effective EXE bytes change
+
+V295A EXE SHA-256:
+
+`5ed95c8d052e130b0593c28b1f85e306f846784bd012a7614cb586dddcb918a9`
+
+V295A ZIP SHA-256:
+
+`305d16c12b01c0c5f17f375822a64443c341fa15634183f1d7a06a9beae5713f`
+
+There are two native double 1500.0 values. V295A deliberately references the copy in `.rdata` at VA `0x010207E0`, not the copy embedded in `.text`.
 
 See [docs/LOD_DISTANCE_AUDIT.md](docs/LOD_DISTANCE_AUDIT.md) for the detailed map.
 
@@ -382,7 +404,7 @@ Reason: the public patcher is fail-closed. It will not be retargeted until direc
 
 ## Current open work
 
-- Validate V294A HighPalette priority threshold 1000.
+- Validate V295A HighPalette priority threshold 1500.
 - Continue VeryFarSceneMonuments / DetailSystem / FarFarScene ownership audit.
 - Keep the distant red-prop fallback investigation separate from general draw-distance work.
 - Regenerate verified cumulative patcher payloads after the next public patcher sync point.
