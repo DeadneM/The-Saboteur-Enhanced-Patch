@@ -139,6 +139,12 @@ Patch:
 
 No global 80.0 constant, palette data, streaming-grid radius or fallback logic is modified.
 
+Validated V285 confirms the local 80.0 -> 160.0 redirection is stable in game.
+
+V286A advances that same compare from the native 160.0 source at `0x00FA4110` to an existing native double 200.0 at `0x00F7B778`. The instruction stays at VA `0x009EE461`; only its absolute operand changes, for exactly three effective EXE bytes.
+
+The neighboring candidate-type-5 path compares the same resource ratio against 10.0, but currently enters SS_DynamicLoading rather than a directly proven SS_LowPalette state. It remains untouched until ownership is demonstrated.
+
 ## Water
 
 Developer tuner exposes Water LOD Dist = 7.0 and Water LOD Scale = 0.02. Untouched.
