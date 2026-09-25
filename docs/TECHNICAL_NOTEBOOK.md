@@ -422,3 +422,23 @@ V295A EXE SHA-256:
 `5ed95c8d052e130b0593c28b1f85e306f846784bd012a7614cb586dddcb918a9`
 
 V295 was validated in game and is now canonical.
+
+
+### V296A candidate
+
+V296A advances only the proven SS_HighPalette local comparison from native 1500.0 to native 1600.0.
+
+- compare VA `0x009EE461`
+- RAW `0x005ED661`
+- V295 source `0x010207E0` = 1500.0
+- V296A source `0x010140A8` = 1600.0
+- source RAW `0x00C132A8`
+- instruction `DC 1D E0 07 02 01 -> DC 1D A8 40 01 01`
+- effective changes: 3 operand bytes
+- no code cave, no injected data, no global constant modification
+- relative threshold increase: +6.67%
+
+V296A EXE SHA-256:
+`2c40dfe0953b300d2da65ea6cdf1f7d02df50cb013dabe7101a51199b4208b5f`
+
+V296A remains test-only until explicit in-game validation.
