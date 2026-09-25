@@ -139,23 +139,21 @@ Patch:
 
 No global 80.0 constant, palette data, streaming-grid radius or fallback logic is modified.
 
-Validated V285 confirms the local 80.0 -> 160.0 redirection is stable in game.
+Validated progression:
 
-V286A advances that same compare from the native 160.0 source at `0x00FA4110` to an existing native double 200.0 at `0x00F7B778`. The instruction stays at VA `0x009EE461`; only its absolute operand changes, for exactly three effective EXE bytes.
+- V285: 160.0, validated
+- V286: 200.0, validated
+- V287: 250.0, validated
+- V288: 300.0, validated
+- V289: 400.0, validated
+- V290: 500.0, validated
+- V291: 650.0, validated
 
-The neighboring candidate-type-5 path compares the same resource ratio against 10.0, but currently enters SS_DynamicLoading rather than a directly proven SS_LowPalette state. It remains untouched until ownership is demonstrated.
+Each build redirects only the absolute operand of the compare at VA `0x009EE461`; the referenced native constants are not modified.
 
-Validated V286 confirms the 160.0 -> 200.0 source redirection is stable in game.
-Validated V287 confirms the 200.0 -> 250.0 step is also stable.
+V292A advances the same compare to the unique engine-native double 800.0 at `0x00FD8CF8`. No native double 700.0 or 750.0 exists, so 800.0 is the next clean native step after 650.0. Exactly three operand bytes change from V291.
 
-Validated V288 confirms the HighPalette 300.0 threshold is stable in game.
-Validated V289 confirms the HighPalette 400.0 threshold is also stable in game.\nValidated V290 confirms the HighPalette 500.0 threshold is also stable in game.
-
-V289 uses engine-native double 400.0 at `0x00FAA2D0` and is validated.
-
-V290 uses engine-native double 500.0 at `0x00F97DE0` and is validated.\n\nV291A advances the same compare to engine-native double 650.0 at `0x00FEF000`. The HighPalette compare remains at VA `0x009EE461`; exactly three operand bytes change from V290. No native double 600.0 exists, which is why 650.0 is the next clean native step.
-
-V287A advances the same compare from native 200.0 at `0x00F7B778` to the unique engine-native double 250.0 at `0x00F97DD8`. The instruction remains at VA `0x009EE461`; exactly three operand bytes change. No second HighPalette threshold requires coordination.
+The neighboring candidate-type-5 path compares the same resource ratio against 10.0, but semantic ownership remains unproven. It remains untouched.
 
 ## Water
 
