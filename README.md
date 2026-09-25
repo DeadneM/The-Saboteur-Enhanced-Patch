@@ -2,13 +2,13 @@
 
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
-> **Current validated cumulative build: V295**  
+> **Current validated cumulative build: V296**  
 > **Current Windows patcher source/CI target: v1Pv260**  
 > **Current test candidate: V296A — HighPalette priority threshold 1500 -> 1600**
 
 ## Current canonical build
 
-V295 is the complete validated cumulative game state.
+V296 is the complete validated cumulative game state.
 
 Original retail EXE SHA-256:
 
@@ -376,9 +376,9 @@ V295A ZIP SHA-256:
 
 There are two native double 1500.0 values. V295A deliberately references the copy in `.rdata` at VA `0x010207E0`, not the copy embedded in `.text`.
 
-## Current V296A test
+## Validated V296
 
-V296A starts from validated V295 and advances only the same proven SS_HighPalette compare:
+V296 advances only the same proven SS_HighPalette compare:
 
 - metric remains `resource[+0x1F8] / resource[+0x1F4]`
 - compare site remains VA `0x009EE461`
@@ -389,13 +389,36 @@ V296A starts from validated V295 and advances only the same proven SS_HighPalett
 - no code cave, padding data, or injected constant
 - exactly 3 effective EXE bytes change
 
-V296A EXE SHA-256:
+V296 EXE SHA-256:
 
 `2c40dfe0953b300d2da65ea6cdf1f7d02df50cb013dabe7101a51199b4208b5f`
 
 V296A ZIP SHA-256:
 
 `6376d2bae8479885e33ba56cb75a1da4162db77b9b908eb0e5006c33c4e1db46`
+
+## Current V297A EXTREME test
+
+V297A starts from validated V296 and intentionally replaces incremental tuning with an upper-bound stress test of the same proven SS_HighPalette comparison:
+
+- metric remains `resource[+0x1F8] / resource[+0x1F4]`
+- compare site remains VA `0x009EE461`
+- V296 source: native double 1600.0 at `0x010140A8`
+- V297A source: native double 1,000,000,000.0 at `0x00F86DE0`
+- no branch forcing
+- no shared constant is modified
+- no code cave, padding data, or injected constant
+- exactly 4 effective EXE bytes change
+
+V297A EXE SHA-256:
+
+`990cb7d7fad5b78ed272675f0a50c522c7509c1ab03b496f7fc2014a746ab94e`
+
+V297A ZIP SHA-256:
+
+`b50a7878b3c34fff450fc1d1c10ddca8a392094ff84b148dd64491c8982ec916`
+
+If the extreme threshold causes crashes, VRAM pressure, or frame-time regressions, fallback candidates are 100000, 10000, 5000, then 2000 using the same isolated local operand.
 
 See [docs/LOD_DISTANCE_AUDIT.md](docs/LOD_DISTANCE_AUDIT.md) for the detailed map.
 
