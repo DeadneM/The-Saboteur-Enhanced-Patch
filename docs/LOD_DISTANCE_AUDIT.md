@@ -118,6 +118,27 @@ Validated V283 therefore has:
 
 V284A modifies only `coverage[0]` at VA `0x0104B044` / RAW `0x00C4A244` from 8000 to 16000, producing a Low radius of 32 cells. Medium remains 3200 and High remains 2500.
 
+## HighPalette per-resource priority
+
+The resource-priority classifier around VA `0x009EE2B0` has a six-way candidate-type jump table. Candidate type 4 reaches the path at VA `0x009EE424`.
+
+That path computes:
+
+`metric = resource[+0x1F8] / resource[+0x1F4]`
+
+and compares the result at VA `0x009EE461` against a double threshold. In V284 the source is the shared native 80.0 constant at `0x00FB54B0`.
+
+Historical V232 proved this compare can be isolated, but used a private 320.0 double stored in executable padding. V285A improves the method by redirecting only this one compare to an existing native 160.0 double at `0x00FA4110`.
+
+Patch:
+- VA `0x009EE461`
+- RAW `0x005ED661`
+- operand source `0x00FB54B0 -> 0x00FA4110`
+- threshold `80.0 -> 160.0`
+- exactly 3 effective bytes
+
+No global 80.0 constant, palette data, streaming-grid radius or fallback logic is modified.
+
 ## Water
 
 Developer tuner exposes Water LOD Dist = 7.0 and Water LOD Scale = 0.02. Untouched.
