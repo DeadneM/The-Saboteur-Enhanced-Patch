@@ -4,18 +4,18 @@
 
 **The newest validated build is always the complete cumulative patch.**
 
-Current canonical cumulative build: **V290**
+Current canonical cumulative build: **V291**
 
 Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
 
-V288 EXE SHA-256:  
-`88ccee9b4eb11115a4cfe2981f4f46e59766c97d0c170dcbb67321118d315213`
+V291 EXE SHA-256:  
+`05555941326fdf66253f166037eb0a51b9aa04aaa45cf1de61721fdb152bc9b2`
 
-Current candidate: **V291A**
+Current candidate: **V292A**
 
-V289A EXE SHA-256:  
-`ad1874548a8c4c6381ad982b1d6ed48fe653d97a43314a518de57963e964774c`
+V292A EXE SHA-256:  
+`aad83b503c6a8ae9159a9b960e602c0eade4417bd76d5de82c66c2cc05b5bc28`
 
 ## Earlier validated lineage
 
@@ -65,19 +65,23 @@ V289A EXE SHA-256:
 | V285 | SS_HighPalette threshold 80 -> 160 |
 | V286 | SS_HighPalette threshold 160 -> 200 |
 | V287 | SS_HighPalette threshold 200 -> 250 |
-| V288 | SS_HighPalette threshold 250 -> 300 |\n| V289 | SS_HighPalette threshold 300 -> 400 |\n| V290 | SS_HighPalette threshold 400 -> 500 |
+| V288 | SS_HighPalette threshold 250 -> 300 |
+| V289 | SS_HighPalette threshold 300 -> 400 |
+| V290 | SS_HighPalette threshold 400 -> 500 |
+| V291 | SS_HighPalette threshold 500 -> 650 |
 
-## Current V291A candidate
+## Current V292A candidate
 
-V291A starts from canonical V290 and changes only the already-proven SS_HighPalette local comparison:
+V292A starts from canonical V291 and changes only the already-proven SS_HighPalette local comparison:
 
 - compare instruction: VA `0x009EE461`, RAW `0x005ED661`
-- V290 source: native double 500.0 at VA `0x00F97DE0`
-- V291A source: native double 650.0 at VA `0x00FEF000`
+- V291 source: native double 650.0 at VA `0x00FEF000`
+- V292A source: native double 800.0 at VA `0x00FD8CF8`
 - exactly 3 EXE bytes change
 - no code cave
 - no injected data
 - no global constant modified
+- no native double 700.0 or 750.0 exists
 
 ## Important audit conclusions
 
@@ -98,4 +102,4 @@ V291A starts from canonical V290 and changes only the already-proven SS_HighPale
 
 ## Next rule
 
-Future candidates start from **V290** or reproduce it exactly first.
+Future candidates start from **V291** or reproduce it exactly first.
