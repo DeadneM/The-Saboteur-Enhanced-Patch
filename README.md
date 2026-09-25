@@ -2,13 +2,13 @@
 
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
-> **Current validated cumulative build: V283**  
+> **Current validated cumulative build: V284**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current test candidate: V284A — Streaming Low coverage 8000 -> 16000**
+> **Current test candidate: V285A — HighPalette priority threshold 80 -> 160**
 
 ## Current canonical build
 
-V283 is the complete validated cumulative game state.
+V284 is the complete validated cumulative game state.
 
 Original retail EXE SHA-256:
 
@@ -135,9 +135,9 @@ V283 EXE SHA-256:
 
 `6c1c582045219bc1d5d7a4c5124f30f69fd65504136ff488f89a30c64adcde72`
 
-## Current V284A test
+## Validated V284
 
-V284A starts from validated V283 and changes only the LOW-quality streaming-grid coverage:
+V284 changes only the LOW-quality streaming-grid coverage:
 
 - cell sizes remain 500 / 60 / 25
 - Low coverage: 8000 -> 16000
@@ -151,9 +151,27 @@ Patch:
 - float `8000.0 -> 16000.0`
 - exactly 2 effective EXE bytes change
 
-V284A EXE SHA-256:
+V284 EXE SHA-256:
 
 `6ee4a938ac322f7d7e8d327811d823220bde34dd044852f41b7f306c8b63d518`
+
+## Current V285A test
+
+V285A starts from validated V284 and changes only the per-resource priority threshold in the SS_HighPalette candidate path:
+
+- runtime metric: resource[+0x1F8] / resource[+0x1F4]
+- HighPalette compare site: VA `0x009EE461`
+- V284 threshold source: native double 80.0 at `0x00FB54B0`
+- V285A threshold source: native double 160.0 at `0x00FA4110`
+- no shared constant is modified
+- no private padding / code cave is used
+- exactly 3 effective EXE bytes change
+
+V285A EXE SHA-256:
+
+`f2967a6863e07354311e3f84f070212031935f51b1714f6dc9ab5933433a15bc`
+
+This replaces the historical V232 technique for future work. V232 tested 320.0 by storing a private double in executable padding; V285A instead reuses an existing engine-native 160.0 value for a cleaner x2 test.
 
 See [docs/LOD_DISTANCE_AUDIT.md](docs/LOD_DISTANCE_AUDIT.md) for the detailed map.
 
@@ -183,7 +201,7 @@ Reason: the public patcher is fail-closed. It will not be retargeted until direc
 
 ## Current open work
 
-- Validate V284A Streaming Low coverage 16000.
+- Validate V285A HighPalette priority threshold 160.
 - Continue VeryFarSceneMonuments / DetailSystem / FarFarScene ownership audit.
 - Keep the distant red-prop fallback investigation separate from general draw-distance work.
 - Regenerate verified cumulative patcher payloads after the next public patcher sync point.
