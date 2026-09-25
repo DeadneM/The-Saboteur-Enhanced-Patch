@@ -2,7 +2,7 @@
 
 ## Current canonical cumulative build
 
-**V294**
+**V295**
 
 Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
@@ -10,7 +10,7 @@ Original retail EXE SHA-256:
 V279 EXE SHA-256:  
 `db2ac0f79b2fcace02ac32d77bdea32c5d9591f6bee56715e9e1976f81999b0a`
 
-Every future candidate starts from V294 or reproduces V294 exactly before adding an experiment.
+Every future candidate starts from V295 or reproduces V295 exactly before adding an experiment.
 
 ## Frozen minimap
 
@@ -405,7 +405,7 @@ V294A EXE SHA-256:
 V294A remains test-only until explicit in-game validation.
 
 
-### V295A candidate
+### V295 - validated
 
 V295A advances only the proven SS_HighPalette local comparison from native 1000.0 to native 1500.0.
 
@@ -421,4 +421,4 @@ A second native double 1500.0 exists at VA `0x00403818` inside `.text`; V295A de
 V295A EXE SHA-256:
 `5ed95c8d052e130b0593c28b1f85e306f846784bd012a7614cb586dddcb918a9`
 
-V295A remains test-only until explicit in-game validation.
+V295 was validated in game and is now canonical.
