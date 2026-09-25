@@ -2,7 +2,7 @@
 
 ## Current canonical cumulative build
 
-**V289**
+**V290**
 
 Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
@@ -10,7 +10,7 @@ Original retail EXE SHA-256:
 V279 EXE SHA-256:  
 `db2ac0f79b2fcace02ac32d77bdea32c5d9591f6bee56715e9e1976f81999b0a`
 
-Every future candidate starts from V289 or reproduces V289 exactly before adding an experiment.
+Every future candidate starts from V290 or reproduces V290 exactly before adding an experiment.
 
 ## Frozen minimap
 
@@ -312,7 +312,7 @@ V289 was validated in game and is now canonical.
 - distant red-prop fallback: separate investigation
 
 
-### V290A candidate
+### V290 - validated
 
 V290A advances only the proven SS_HighPalette local comparison from native 400.0 to native 500.0.
 
@@ -326,4 +326,22 @@ V290A advances only the proven SS_HighPalette local comparison from native 400.0
 
 V290A EXE SHA-256: `f27a94661eb446508ccbbbed6057fd36261ca877f5e54d4d5ccfae0dfb9fa5a8`
 
-V290A remains test-only until explicit in-game validation.
+V290 was validated in game and is now canonical.
+
+
+### V291A candidate
+
+V291A advances only the proven SS_HighPalette local comparison from native 500.0 to native 650.0.
+
+- compare VA `0x009EE461`
+- RAW `0x005ED661`
+- V290 source `0x00F97DE0` = 500.0
+- V291A source `0x00FEF000` = 650.0
+- instruction `DC 1D E0 7D F9 00 -> DC 1D 00 F0 FE 00`
+- effective changes: 3 operand bytes
+- no code cave, no injected data, no global constant modification
+- no native double 600.0 exists, so 650.0 is the next clean native step
+
+V291A EXE SHA-256: `05555941326fdf66253f166037eb0a51b9aa04aaa45cf1de61721fdb152bc9b2`
+
+V291A remains test-only until explicit in-game validation.
