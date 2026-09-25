@@ -2,13 +2,13 @@
 
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
-> **Current validated cumulative build: V296**  
+> **Current retained cumulative build: V298**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current test candidate: V296A — HighPalette priority threshold 1500 -> 1600**
+> **Current test candidate: V299A — WTF low-resolution grid 256x256 -> 1024x1024**
 
 ## Current canonical build
 
-V296 is the complete validated cumulative game state.
+V298 is the current retained cumulative game state. It keeps V296 plus the user-requested all-RenderSlice High distance increase.
 
 Original retail EXE SHA-256:
 
@@ -397,9 +397,9 @@ V296A ZIP SHA-256:
 
 `6376d2bae8479885e33ba56cb75a1da4162db77b9b908eb0e5006c33c4e1db46`
 
-## Current V297A EXTREME test
+## Rejected V297 HighPalette stress tests
 
-V297A starts from validated V296 and intentionally replaces incremental tuning with an upper-bound stress test of the same proven SS_HighPalette comparison:
+The post-V296 HighPalette stress experiments are not retained in the cumulative lineage. The 1e9 experiment was rejected as excessive; the later x4/6400 candidate was superseded when work moved to RenderSlice and WTF rendering.
 
 - metric remains `resource[+0x1F8] / resource[+0x1F4]`
 - compare site remains VA `0x009EE461`
@@ -421,6 +421,49 @@ V297A ZIP SHA-256:
 If the extreme threshold causes crashes, VRAM pressure, or frame-time regressions, fallback candidates are 100000, 10000, 5000, then 2000 using the same isolated local operand.
 
 See [docs/LOD_DISTANCE_AUDIT.md](docs/LOD_DISTANCE_AUDIT.md) for the detailed map.
+
+
+## Retained V298 — all High RenderSlice distances
+
+V298 is retained for all future builds at the user's request. A corrected audit proved that ModelInfo RENDERSLICE n is converted to (1 << n) - 1; therefore a model marked RENDERSLICE3 is bounded by slices 0+1+2, which explained the observed ~50-unit pop-in wall.
+
+V298 raises the effective High RenderSlice distance chain to approximately:
+
+- Slice0 far: 4 -> 16
+- Slice1 far: 20 -> 80
+- Slice2 far: 50 -> 200
+- Slice3 far: 300 -> 1200
+- outer/final far: 1500 -> 6000
+
+Only five effective EXE bytes differ from V296.
+
+V298 EXE SHA-256:
+
+`57878890c4b9ba3bb9705109b4b216623d226b28598b3a187cf4b2795574a09a`
+
+V298 ZIP SHA-256:
+
+`ce05ce809f549b6710316e89246679f4e09edde6a92e7f9d1d78d46a45adf445`
+
+## Current V299A test — WSWillToFightGrid low-res WTF 1024
+
+The distant red-material investigation is now focused on the game's native occupation / Will to Fight pipeline. Static audit proved that the live PC path uses WSWillToFightGrid resources LowResWorldWTF and LowResWorldWTFVertex, both created at 256x256, plus a matching 8-bit CPU influence buffer sampled bilinearly and normalized by 255.
+
+V299A keeps all V298 RenderSlice changes and increases only this WTF spatial representation:
+
+- CPU/grid dimension source: 256 -> 1024
+- LowResWorldWTF: 256x256 -> 1024x1024
+- LowResWorldWTFVertex: 256x256 -> 1024x1024
+- WTF colors, greyscale, ambient/diffuse values and intensity range remain untouched
+- exactly 8 effective EXE bytes change versus V298
+
+V299A EXE SHA-256:
+
+`46ddd1d3b146166b0220d7f0337db3c726500988863d4eb5d13554d3ee4a1abf`
+
+V299A ZIP SHA-256:
+
+`93203c84582697bfa1ce2bde1419474ed4ffb180ad428e857b90118e99686e50`
 
 ## Frozen minimap
 
@@ -448,9 +491,9 @@ Reason: the public patcher is fail-closed. It will not be retargeted until direc
 
 ## Current open work
 
-- Validate V296A HighPalette priority threshold 1600.
+- Validate V299A WTF low-resolution grid 1024 using the same occupied-zone / metallic-surface test locations.
 - Continue VeryFarSceneMonuments / DetailSystem / FarFarScene ownership audit.
-- Keep the distant red-prop fallback investigation separate from general draw-distance work.
+- Continue the distant red-material investigation through WSWillToFightGrid / WTF material calculations if V299A does not change the bug.
 - Regenerate verified cumulative patcher payloads after the next public patcher sync point.
 
 ## Disclaimer
