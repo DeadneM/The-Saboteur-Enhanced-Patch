@@ -111,7 +111,12 @@ Validated V282 therefore has:
 - Medium radius ~26.67
 - High radius 100
 
-V283A modifies only `coverage[1]` at VA `0x0104B048` / RAW `0x00C4A248` from 1600 to 3200, producing a Medium radius of ~53.33 cells. Low remains 8000 and High remains 2500.
+Validated V283 therefore has:
+- Low radius 16
+- Medium radius ~53.33
+- High radius 100
+
+V284A modifies only `coverage[0]` at VA `0x0104B044` / RAW `0x00C4A244` from 8000 to 16000, producing a Low radius of 32 cells. Medium remains 3200 and High remains 2500.
 
 ## Water
 
