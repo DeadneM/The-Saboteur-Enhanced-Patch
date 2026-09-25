@@ -2,13 +2,13 @@
 
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
-> **Current validated cumulative build: V287**  
+> **Current validated cumulative build: V288**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current test candidate: V288A — HighPalette priority threshold 250 -> 300**
+> **Current test candidate: V289A — HighPalette priority threshold 300 -> 400**
 
 ## Current canonical build
 
-V287 is the complete validated cumulative game state.
+V288 is the complete validated cumulative game state.
 
 Original retail EXE SHA-256:
 
@@ -209,9 +209,9 @@ V287 EXE SHA-256:
 
 The neighboring type-5 threshold remains untouched because its semantic ownership is still not proven.
 
-## Current V288A test
+## Validated V288
 
-V288A starts from validated V287 and advances only the same SS_HighPalette compare:
+V288 advances only the same SS_HighPalette compare:
 
 - metric remains `resource[+0x1F8] / resource[+0x1F4]`
 - compare site remains VA `0x009EE461`
@@ -221,11 +221,33 @@ V288A starts from validated V287 and advances only the same SS_HighPalette compa
 - no code cave, padding data, or injected constant
 - exactly 2 effective EXE bytes change
 
-V288A EXE SHA-256:
+V288 EXE SHA-256:
 
 `88ccee9b4eb11115a4cfe2981f4f46e59766c97d0c170dcbb67321118d315213`
 
 The neighboring type-5 threshold remains untouched because its semantic ownership is still not proven.
+
+## Current V289A test
+
+V289A starts from validated V288 and advances only the same proven SS_HighPalette compare:
+
+- metric remains `resource[+0x1F8] / resource[+0x1F4]`
+- compare site remains VA `0x009EE461`
+- V288 source: native double 300.0 at `0x00F94648`
+- V289A source: native double 400.0 at `0x00FAA2D0`
+- no shared constant is modified
+- no code cave, padding data, or injected constant
+- exactly 3 effective EXE bytes change
+
+V289A EXE SHA-256:
+
+`ad1874548a8c4c6381ad982b1d6ed48fe653d97a43314a518de57963e964774c`
+
+V289A ZIP SHA-256:
+
+`5f4f0d3263607228d98bd9be3d517ab0f3fdc36588eea5ba35b7899eefa18d0f`
+
+There is no native double 350.0 in the executable, so 400.0 is the next clean native step after validated 300.0.
 
 See [docs/LOD_DISTANCE_AUDIT.md](docs/LOD_DISTANCE_AUDIT.md) for the detailed map.
 
@@ -255,7 +277,7 @@ Reason: the public patcher is fail-closed. It will not be retargeted until direc
 
 ## Current open work
 
-- Validate V288A HighPalette priority threshold 300.
+- Validate V289A HighPalette priority threshold 400.
 - Continue VeryFarSceneMonuments / DetailSystem / FarFarScene ownership audit.
 - Keep the distant red-prop fallback investigation separate from general draw-distance work.
 - Regenerate verified cumulative patcher payloads after the next public patcher sync point.
