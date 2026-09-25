@@ -2,13 +2,13 @@
 
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
-> **Current validated cumulative build: V281**  
+> **Current validated cumulative build: V282**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current test candidate: V282A — Streaming High coverage 1250 -> 2500**
+> **Current test candidate: V283A — Streaming Medium coverage 1600 -> 3200**
 
 ## Current canonical build
 
-V281 is the complete validated cumulative game state.
+V282 is the complete validated cumulative game state.
 
 Original retail EXE SHA-256:
 
@@ -94,9 +94,9 @@ Audit corrections made before V281A:
 - the historical V236 +0xC04/+0xC08/+0xC0C fields are **not** WSDetailSystem; the real DetailSystem object is only 0x240 bytes.
 - VeryFarSceneMonuments has inline 256-entry structures and no proven independent global distance scalar; a pool-only expansion is structurally unsafe and rejected.
 
-## Current V282A test
+## Validated V282
 
-V282A starts from validated V281 and changes only the HIGH-quality streaming-grid coverage:
+V282 changes only the HIGH-quality streaming-grid coverage:
 
 - cell-size table: 500 / 60 / 25, unchanged
 - coverage table in V281: 8000 / 1600 / 1250
@@ -111,9 +111,29 @@ Patch:
 
 The historical V231 stress test multiplied all three tiers. V282A deliberately avoids that global method and isolates only the High tier.
 
-V282A EXE SHA-256:
+V282 EXE SHA-256:
 
 `f9188b4c7e30a513ae40106ff46c3da7640664314c96677ffe8f0b96a75990bd`
+
+## Current V283A test
+
+V283A starts from validated V282 and changes only the MEDIUM-quality streaming-grid coverage:
+
+- cell sizes remain 500 / 60 / 25
+- Low coverage remains 8000
+- Medium coverage: 1600 -> 3200
+- High coverage remains 2500
+- Medium radius: ~26.67 -> ~53.33 cells
+
+Patch:
+- VA `0x0104B048`
+- RAW `0x00C4A248`
+- float `1600.0 -> 3200.0`
+- exactly 2 effective EXE bytes change
+
+V283A EXE SHA-256:
+
+`6c1c582045219bc1d5d7a4c5124f30f69fd65504136ff488f89a30c64adcde72`
 
 See [docs/LOD_DISTANCE_AUDIT.md](docs/LOD_DISTANCE_AUDIT.md) for the detailed map.
 
@@ -143,7 +163,7 @@ Reason: the public patcher is fail-closed. It will not be retargeted until direc
 
 ## Current open work
 
-- Validate V282A Streaming High coverage 2500.
+- Validate V283A Streaming Medium coverage 3200.
 - Continue VeryFarSceneMonuments / DetailSystem / FarFarScene ownership audit.
 - Keep the distant red-prop fallback investigation separate from general draw-distance work.
 - Regenerate verified cumulative patcher payloads after the next public patcher sync point.
