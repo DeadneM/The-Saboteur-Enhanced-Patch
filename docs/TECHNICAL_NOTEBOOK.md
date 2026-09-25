@@ -575,3 +575,35 @@ V299A EXE SHA-256:
 `46ddd1d3b146166b0220d7f0337db3c726500988863d4eb5d13554d3ee4a1abf`
 
 V299A remains test-only pending in-game comparison of the exact same occupied-zone grey-metal surfaces.
+
+
+## V302 retained baseline and post-V302 diagnostics
+
+### V302 retained
+
+Base: V298.
+
+Rejected V299-V301 diagnostics are excluded.
+
+High SliceQuality fields:
+- RAW 0x00D1F4E4: 16 -> 24.9765625
+- RAW 0x00D1F4F0: 80 -> 124.8828125
+- RAW 0x00D1F4FC: 200 -> 312.20703125
+- RAW 0x00D1F500: 1200 -> 1873.2421875
+- RAW 0x00D1F508: 80 -> 124.8828125
+- RAW 0x00D1F50C: 6000 -> 9366.2109375
+
+V302 EXE SHA-256:
+`db96ff3f6f8e38acdd262a87b0bb0ded7c604abca82e86e2501a12347f512459`
+
+User validation:
+- scenery remains correct
+- distant red issue remains visible
+
+### Post-V302 SliceQuality diagnostics
+
+V303-V307 proved that moving Q2 Slice4.first into the ~124.88-125 region can hide the red symptom but breaks scenery. Scaling the entire Q2 table by the same factor also breaks scenery, so the problem is not merely a discontinuity between neighboring Q2 records.
+
+V308 changed only Q2 record2 far (RENDERSLICE3 terminal far) from 50 to 200. The user's short-range object pop remained unchanged. Therefore the observed ~3 m pop in the supplied garage/workshop capture is not explained by that Q2 RENDERSLICE3 far bound.
+
+All V303-V308 branches are rejected. Future binary work starts from V302.
