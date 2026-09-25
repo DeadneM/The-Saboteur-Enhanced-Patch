@@ -4,7 +4,7 @@
 
 **The newest validated build is always the complete cumulative patch.**
 
-Current canonical cumulative build: **V294**
+Current canonical cumulative build: **V295**
 
 Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
@@ -12,7 +12,7 @@ Original retail EXE SHA-256:
 V291 EXE SHA-256:  
 `05555941326fdf66253f166037eb0a51b9aa04aaa45cf1de61721fdb152bc9b2`
 
-Current candidate: **V295A**
+Current candidate: **pending V296A**
 
 V292A EXE SHA-256:  
 `aad83b503c6a8ae9159a9b960e602c0eade4417bd76d5de82c66c2cc05b5bc28`
@@ -68,11 +68,11 @@ V292A EXE SHA-256:
 | V288 | SS_HighPalette threshold 250 -> 300 |
 | V289 | SS_HighPalette threshold 300 -> 400 |
 | V290 | SS_HighPalette threshold 400 -> 500 |
-| V291 | SS_HighPalette threshold 500 -> 650 |\n| V292 | SS_HighPalette threshold 650 -> 800 |
+| V291 | SS_HighPalette threshold 500 -> 650 |\n| V292 | SS_HighPalette threshold 650 -> 800 |\n| V293 | SS_HighPalette threshold 800 -> 900 |\n| V294 | SS_HighPalette threshold 900 -> 1000 |\n| V295 | SS_HighPalette threshold 1000 -> 1500 |
 
-## Current V295A candidate
+## Validated V295
 
-V295A starts from canonical V294 and changes only the already-proven SS_HighPalette local comparison:
+V295 changes only the already-proven SS_HighPalette local comparison:
 
 - compare instruction: VA `0x009EE461`, RAW `0x005ED661`
 - V294 source: native double 1000.0 at VA `0x010A45B8`
@@ -101,4 +101,4 @@ V295A starts from canonical V294 and changes only the already-proven SS_HighPale
 
 ## Next rule
 
-Future candidates start from **V294** or reproduce it exactly first.
+Future candidates start from **V295** or reproduce it exactly first.
