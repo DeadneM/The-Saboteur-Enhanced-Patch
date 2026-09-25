@@ -89,3 +89,22 @@ V297A x4 ZIP SHA-256: `bd5edbf38f3718c9b22ae01710f658c0aecde451a3e4f29732bafbb6c
 | V299A candidate | `46ddd1d3b146166b0220d7f0337db3c726500988863d4eb5d13554d3ee4a1abf` | `93203c84582697bfa1ce2bde1419474ed4ffb180ad428e857b90118e99686e50` |
 
 Post-V296 HighPalette 1e9 and 6400 stress candidates are not retained in the cumulative lineage.
+
+
+## V299-V308 diagnostic ledger
+
+| Build | EXE SHA-256 | Status |
+|---|---|---|
+| V299A | `46ddd1d3b146166b0220d7f0337db3c726500988863d4eb5d13554d3ee4a1abf` | Rejected diagnostic |
+| V300A | `581b0d68fc5d94d2e6370473b5b214e847b401e66d73dcf12f462333ecd66153` | Rejected diagnostic |
+| V301A | `be998f99fed818a549dd39a09012b1936c46acdc05e08d6c1b56509484905edd` | Rejected diagnostic |
+| V302 | `db96ff3f6f8e38acdd262a87b0bb0ded7c604abca82e86e2501a12347f512459` | **Retained / validated baseline** |
+| V303A | `a7f6e35af1b027988c4566333e9029e7309228e88bedd2ee526b78eff020c2c6` | Rejected diagnostic |
+| V304A | `163636c0062d8c2728350902ee94147e2250966326d73cc8fe59e6ab34d9c580` | Rejected diagnostic |
+| V304B | `6e2edc8790916b3adb9c3d06ce9375f8baa9f5391491f3a3c0c751d3fe639005` | Rejected diagnostic |
+| V305A | `d97c570f96cf43e27b4017540ebfb514cac395381feeb86816aa3be227d3ea5d` | Rejected diagnostic |
+| V305B | `5d522746e695386755908c9711dbc8914432c9923882de3537d3fef57e968871` | Rejected diagnostic |
+| V305C | `6cad8b7f03796259a4c81f206f24df171853a38b24783f1017ea12dc2a8e5bd5` | Diagnostic, not retained |
+| V306A | `a927ec45ef553e371e6463213247061b51c01ba5047702d08cd7eb06669ee686` | Rejected diagnostic |
+| V307A | `dab34960eaee521d2266218bf3818ef4020fde8652d15f7ee669855d508ea2b3` | Rejected diagnostic |
+| V308A | `e659e002531a9cbecc22a945c59213bc464fa7e6fd9efafe8e9c7482746ea602` | Rejected, no visible pop improvement |
