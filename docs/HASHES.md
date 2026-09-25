@@ -41,8 +41,13 @@ Hashes recorded through 2026-09-25. EXE hashes identify the exact executable sta
 | V288 | `88ccee9b4eb11115a4cfe2981f4f46e59766c97d0c170dcbb67321118d315213` |
 | V289 | `ad1874548a8c4c6381ad982b1d6ed48fe653d97a43314a518de57963e964774c` |
 | V290 | `f27a94661eb446508ccbbbed6057fd36261ca877f5e54d4d5ccfae0dfb9fa5a8` |
-| **V291 canonical** | `05555941326fdf66253f166037eb0a51b9aa04aaa45cf1de61721fdb152bc9b2` |
-| V292A TEST | `aad83b503c6a8ae9159a9b960e602c0eade4417bd76d5de82c66c2cc05b5bc28` |
+| V291 | `05555941326fdf66253f166037eb0a51b9aa04aaa45cf1de61721fdb152bc9b2` |
+| V292 | `aad83b503c6a8ae9159a9b960e602c0eade4417bd76d5de82c66c2cc05b5bc28` |
+| V293 | `e8f4177caab596f2aaca8a0c7da1bc43f1601bbc15efab325045974b8aabbb92` |
+| V294 | `888cae2157ff38570f56e8eb6ee974cc45892b2cc84f78f3cf3c465ee4c741f8` |
+| V295 | `5ed95c8d052e130b0593c28b1f85e306f846784bd012a7614cb586dddcb918a9` |
+| **V296 canonical** | `2c40dfe0953b300d2da65ea6cdf1f7d02df50cb013dabe7101a51199b4208b5f` |
+| V297A EXTREME TEST | `990cb7d7fad5b78ed272675f0a50c522c7509c1ab03b496f7fc2014a746ab94e` |
 
 ## Recent test ZIP hashes
 
@@ -66,5 +71,6 @@ Hashes recorded through 2026-09-25. EXE hashes identify the exact executable sta
 | V294A | `2c745ca8066f1bdf4f9b1f5a4aa13f3707bd01928871d28c340afe51c8246ed3` |
 | V295A | `305d16c12b01c0c5f17f375822a64443c341fa15634183f1d7a06a9beae5713f` |
 | V296A | `6376d2bae8479885e33ba56cb75a1da4162db77b9b908eb0e5006c33c4e1db46` |
+| V297A EXTREME | `b50a7878b3c34fff450fc1d1c10ddca8a392094ff84b148dd64491c8982ec916` |
 
 The repository does not distribute retail or patched game executables. These hashes are forensic identifiers.
