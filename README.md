@@ -2,13 +2,13 @@
 
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
-> **Current validated cumulative build: V286**  
+> **Current validated cumulative build: V287**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current test candidate: V287A — HighPalette priority threshold 200 -> 250**
+> **Current test candidate: V288A — HighPalette priority threshold 250 -> 300**
 
 ## Current canonical build
 
-V286 is the complete validated cumulative game state.
+V287 is the complete validated cumulative game state.
 
 Original retail EXE SHA-256:
 
@@ -191,9 +191,9 @@ V286 EXE SHA-256:
 
 The neighboring type-5 threshold remains untouched because its ownership cannot yet be proven cleanly as SS_LowPalette.
 
-## Current V287A test
+## Validated V287
 
-V287A starts from validated V286 and advances only the same SS_HighPalette compare:
+V287 advances only the same SS_HighPalette compare:
 
 - metric remains `resource[+0x1F8] / resource[+0x1F4]`
 - compare site remains VA `0x009EE461`
@@ -203,9 +203,27 @@ V287A starts from validated V286 and advances only the same SS_HighPalette compa
 - no code cave, padding data, or injected constant
 - exactly 3 effective EXE bytes change
 
-V287A EXE SHA-256:
+V287 EXE SHA-256:
 
 `ee446ee76b6356371d4ad76f9125331c939d09b6da32890ebf02d0c5ffc93590`
+
+The neighboring type-5 threshold remains untouched because its semantic ownership is still not proven.
+
+## Current V288A test
+
+V288A starts from validated V287 and advances only the same SS_HighPalette compare:
+
+- metric remains `resource[+0x1F8] / resource[+0x1F4]`
+- compare site remains VA `0x009EE461`
+- V287 source: native double 250.0 at `0x00F97DD8`
+- V288A source: native double 300.0 at `0x00F94648`
+- no shared constant is modified
+- no code cave, padding data, or injected constant
+- exactly 2 effective EXE bytes change
+
+V288A EXE SHA-256:
+
+`88ccee9b4eb11115a4cfe2981f4f46e59766c97d0c170dcbb67321118d315213`
 
 The neighboring type-5 threshold remains untouched because its semantic ownership is still not proven.
 
@@ -237,7 +255,7 @@ Reason: the public patcher is fail-closed. It will not be retargeted until direc
 
 ## Current open work
 
-- Validate V287A HighPalette priority threshold 250.
+- Validate V288A HighPalette priority threshold 300.
 - Continue VeryFarSceneMonuments / DetailSystem / FarFarScene ownership audit.
 - Keep the distant red-prop fallback investigation separate from general draw-distance work.
 - Regenerate verified cumulative patcher payloads after the next public patcher sync point.
