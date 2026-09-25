@@ -2,7 +2,7 @@
 
 ## Current canonical cumulative build
 
-**V279**
+**V288**
 
 Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
@@ -10,7 +10,7 @@ Original retail EXE SHA-256:
 V279 EXE SHA-256:  
 `db2ac0f79b2fcace02ac32d77bdea32c5d9591f6bee56715e9e1976f81999b0a`
 
-Every future candidate starts from V279 or reproduces V279 exactly before adding an experiment.
+Every future candidate starts from V288 or reproduces V288 exactly before adding an experiment.
 
 ## Frozen minimap
 
@@ -225,3 +225,88 @@ VeryFarSceneMonuments and DetailSystem remain untouched.
 2. Continue VeryFarSceneMonuments / DetailSystem ownership analysis.
 3. Keep distant red-prop fallback work separate.
 4. Do not alter the frozen minimap.
+
+
+## V280-V289 modern distance and resource-priority lineage
+
+### V280 / V281 - WSDetailSystem
+
+The real DetailSystem object is 0x240 bytes. Its proven distance field is at +0x218.
+
+V280 redirects the local initial/max/reset sources from 100 to native 500.  
+V281 redirects the same three sources from 500 to native 1000.
+
+Sites:
+- VA 0x007ECD20 initial value
+- VA 0x007ECDC3 maximum comparison
+- VA 0x007ECDD0 clamp replacement
+
+Historical V236 fields at +0xC04/+0xC08/+0xC0C are therefore not DetailSystem and remain rejected.
+
+### V282 / V283 / V284 - streaming-grid coverage
+
+Cell sizes remain:
+- Low 500
+- Medium 60
+- High 25
+
+Validated coverage:
+- Low 16000
+- Medium 3200
+- High 2500
+
+Patched table:
+- Low VA 0x0104B044
+- Medium VA 0x0104B048
+- High VA 0x0104B04C
+
+Each tier was increased in a separate validated build.
+
+### V285-V288 - SS_HighPalette threshold
+
+The HighPalette path computes:
+
+    resource[+0x1F8] / resource[+0x1F4]
+
+and performs one threshold compare at VA 0x009EE461 / RAW 0x005ED661.
+
+Validated progression:
+- retail/current pre-V285 source 80.0
+- V285 160.0
+- V286 200.0
+- V287 250.0
+- V288 300.0
+
+All steps redirect only the local absolute operand to an existing native double. No shared constant is modified.
+
+### V289A candidate
+
+V289A redirects the same HighPalette comparison from native 300.0 at VA 0x00F94648 to native 400.0 at VA 0x00FAA2D0.
+
+Instruction:
+- VA 0x009EE461
+- RAW 0x005ED661
+
+V288:
+    DC 1D 48 46 F9 00
+
+V289A:
+    DC 1D D0 A2 FA 00
+
+Effective bytes:
+- RAW 0x005ED663: 48 -> D0
+- RAW 0x005ED664: 46 -> A2
+- RAW 0x005ED665: F9 -> FA
+
+V289A EXE SHA-256:
+ad1874548a8c4c6381ad982b1d6ed48fe653d97a43314a518de57963e964774c
+
+V289A remains test-only until in-game validation.
+
+### Still rejected / untouched
+
+- candidate-type-5 threshold 10.0: semantic owner not proven
+- VeryFarSceneMonuments inline 256-entry structures: structural, not safe for a pool-only increase
+- FarFarScene GeometryDisk: historical effect came from tuner data, not an identified EXE owner
+- Water LOD 7.0 / 0.02: developer-tuner values only, native owner not yet proven
+- distant red-prop fallback: separate investigation
