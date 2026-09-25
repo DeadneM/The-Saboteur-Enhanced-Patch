@@ -2,7 +2,7 @@
 
 ## Current canonical cumulative build
 
-**V288**
+**V289**
 
 Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
@@ -10,7 +10,7 @@ Original retail EXE SHA-256:
 V279 EXE SHA-256:  
 `db2ac0f79b2fcace02ac32d77bdea32c5d9591f6bee56715e9e1976f81999b0a`
 
-Every future candidate starts from V288 or reproduces V288 exactly before adding an experiment.
+Every future candidate starts from V289 or reproduces V289 exactly before adding an experiment.
 
 ## Frozen minimap
 
@@ -279,7 +279,7 @@ Validated progression:
 
 All steps redirect only the local absolute operand to an existing native double. No shared constant is modified.
 
-### V289A candidate
+### V289 - validated
 
 V289A redirects the same HighPalette comparison from native 300.0 at VA 0x00F94648 to native 400.0 at VA 0x00FAA2D0.
 
@@ -301,7 +301,7 @@ Effective bytes:
 V289A EXE SHA-256:
 ad1874548a8c4c6381ad982b1d6ed48fe653d97a43314a518de57963e964774c
 
-V289A remains test-only until in-game validation.
+V289 was validated in game and is now canonical.
 
 ### Still rejected / untouched
 
@@ -310,3 +310,20 @@ V289A remains test-only until in-game validation.
 - FarFarScene GeometryDisk: historical effect came from tuner data, not an identified EXE owner
 - Water LOD 7.0 / 0.02: developer-tuner values only, native owner not yet proven
 - distant red-prop fallback: separate investigation
+
+
+### V290A candidate
+
+V290A advances only the proven SS_HighPalette local comparison from native 400.0 to native 500.0.
+
+- compare VA `0x009EE461`
+- RAW `0x005ED661`
+- V289 source `0x00FAA2D0` = 400.0
+- V290A source `0x00F97DE0` = 500.0
+- instruction `DC 1D D0 A2 FA 00 -> DC 1D E0 7D F9 00`
+- effective changes: 3 operand bytes
+- no code cave, no injected data, no global constant modification
+
+V290A EXE SHA-256: `f27a94661eb446508ccbbbed6057fd36261ca877f5e54d4d5ccfae0dfb9fa5a8`
+
+V290A remains test-only until explicit in-game validation.
