@@ -2,13 +2,13 @@
 
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
-> **Current validated cumulative build: V284**  
+> **Current validated cumulative build: V285**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current test candidate: V285A — HighPalette priority threshold 80 -> 160**
+> **Current test candidate: V286A — HighPalette priority threshold 160 -> 200**
 
 ## Current canonical build
 
-V284 is the complete validated cumulative game state.
+V285 is the complete validated cumulative game state.
 
 Original retail EXE SHA-256:
 
@@ -155,9 +155,9 @@ V284 EXE SHA-256:
 
 `6ee4a938ac322f7d7e8d327811d823220bde34dd044852f41b7f306c8b63d518`
 
-## Current V285A test
+## Validated V285
 
-V285A starts from validated V284 and changes only the per-resource priority threshold in the SS_HighPalette candidate path:
+V285 changes only the per-resource priority threshold in the SS_HighPalette candidate path:
 
 - runtime metric: resource[+0x1F8] / resource[+0x1F4]
 - HighPalette compare site: VA `0x009EE461`
@@ -167,11 +167,29 @@ V285A starts from validated V284 and changes only the per-resource priority thre
 - no private padding / code cave is used
 - exactly 3 effective EXE bytes change
 
-V285A EXE SHA-256:
+V285 EXE SHA-256:
 
 `f2967a6863e07354311e3f84f070212031935f51b1714f6dc9ab5933433a15bc`
 
 This replaces the historical V232 technique for future work. V232 tested 320.0 by storing a private double in executable padding; V285A instead reuses an existing engine-native 160.0 value for a cleaner x2 test.
+
+## Current V286A test
+
+V286A starts from validated V285 and advances only the same proven SS_HighPalette comparison threshold:
+
+- metric remains `resource[+0x1F8] / resource[+0x1F4]`
+- compare site remains VA `0x009EE461`
+- V285 source: native double 160.0 at `0x00FA4110`
+- V286A source: native double 200.0 at `0x00F7B778`
+- no shared constant is modified
+- no code cave, padding data, or injected constant
+- exactly 3 effective EXE bytes change
+
+V286A EXE SHA-256:
+
+`40fd97c7dc5ca5352983cc2073e9e851e665b8afa188d29040b3603047b1df38`
+
+The neighboring type-5 threshold remains untouched because its ownership cannot yet be proven cleanly as SS_LowPalette.
 
 See [docs/LOD_DISTANCE_AUDIT.md](docs/LOD_DISTANCE_AUDIT.md) for the detailed map.
 
@@ -201,7 +219,7 @@ Reason: the public patcher is fail-closed. It will not be retargeted until direc
 
 ## Current open work
 
-- Validate V285A HighPalette priority threshold 160.
+- Validate V286A HighPalette priority threshold 200.
 - Continue VeryFarSceneMonuments / DetailSystem / FarFarScene ownership audit.
 - Keep the distant red-prop fallback investigation separate from general draw-distance work.
 - Regenerate verified cumulative patcher payloads after the next public patcher sync point.
