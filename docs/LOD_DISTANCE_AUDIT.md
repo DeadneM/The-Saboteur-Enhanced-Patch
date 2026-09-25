@@ -36,12 +36,14 @@ Low/Medium remain unchanged.
 
 ## ModelInfo
 
-Parser record layout:
+Parser record layout (corrected from the consumer path):
 
-- +0x01 RenderSlice
-- +0x02 ZPassSlice
-- +0x03 ShadowSlice
+- +0x00 flags, including ZCULL
+- +0x01 ShadowSlice
+- +0x02 RenderSlice
+- +0x03 ZPassSlice
 - +0x04 LODDIST float
+- +0x08 foliage-related flag
 
 V278 changes only the default LODDIST source 1000 -> 1500. Explicit `LODDIST25/30` overrides remain unchanged.
 
@@ -302,3 +304,106 @@ Conclusion:
 1. Q2 Slice4 is coupled to scene visibility strongly enough that using it to hide the red symptom is not viable.
 2. The newly reported ~3 m object pop is not controlled by Q2 record2 far / RENDERSLICE3.
 3. Future audit must look beyond the already-pushed global SliceQuality bands and identify object-family-specific visibility gates, per-instance/detail culling, model bounds/size classifiers, activation spheres, or other short-range systems.
+
+
+## WSModel size-derived hard visibility cull
+
+This is the strongest remaining explanation for the very-near small-prop pop captured after V302.
+
+### Automatic model-size classifier
+
+During WSModel setup around VA `0x006394D0`, models without a matching explicit ModelInfo entry are classified using the float at `WSModel+0x58`, which behaves as a model size/radius metric.
+
+Dedicated thresholds:
+- VA `0x0112084C` / RAW `0x00D1F24C`: 0.3
+- VA `0x01120850` / RAW `0x00D1F250`: 0.6
+- VA `0x01120854` / RAW `0x00D1F254`: 4.0
+
+Automatic render masks:
+- metric < 0.3 -> mask 0x03 -> slices 0+1
+- 0.3 <= metric < 0.6 -> mask 0x07 -> slices 0+1+2
+- 0.6 <= metric < 4.0 -> mask 0x0F -> slices 0+1+2+3
+- metric >= 4.0 -> mask 0x1F -> all five slices
+
+This explains why tiny unlisted clutter can remain short-ranged even when explicit ModelInfo RENDERSLICE3 entries and global slice tables are expanded.
+
+### Per-model hard camera-depth cutoffs
+
+WSModel constructor initializes:
+- `WSModel+0xA8 = 10000.0`
+- `WSModel+0xAC = 10000.0`
+
+Setup then derives shorter values from the size metric.
+
+For metric < 1.5:
+`A8 = 20 + (metric / 1.5) * 90 = 20 + 60*metric`
+
+For metric < 5.0:
+`AC = 15 + (metric / 5.0) * 100 = 15 + 20*metric`
+
+The metric is first clamped to at least 0.1.
+
+Relevant constants:
+- 1.5 at VA `0x00F7D648`
+- 90 at VA `0x00FC0E68`
+- 20 at VA `0x00F8CCE8`
+- 5 at VA `0x00F81DE8`
+- 100 at VA `0x00F7BF80`
+- 15 at VA `0x00F82618`
+
+At VA `0x00638710`, the engine computes camera-forward depth of the model and compares it against these fields.
+
+If depth exceeds `WSModel+0xA8`, the output render mask is set to zero. The model is therefore hard-culled, not merely switched to a lower LOD.
+
+If depth exceeds `WSModel+0xAC`, the low nibble of the packed mask is cleared. Based on the ModelInfo packing path, this affects the shadow portion rather than the main render mask.
+
+The hard-cull routine is called from:
+- VA `0x0063922F`
+- VA `0x0048C755`
+
+Both call sites are gated by byte global `0x01210FC4`. The semantic setting name for this gate remains unproven.
+
+### Surgical next diagnostic
+
+The narrowest diagnostic is to leave every SliceQuality table untouched and prevent only the small-model `A8` rewrite, allowing constructor default 10000.0 to survive.
+
+At setup:
+- VA `0x0063954E`: `jp 0x0063956A`
+- RAW `0x0023874E`
+- bytes `7A 1A`
+
+Changing only the conditional jump to an unconditional short jump:
+- `7A 1A -> EB 1A`
+
+would skip only the A8 formula/store while preserving x87 stack behavior and continuing into the existing AC/shadow-distance calculation.
+
+This is a one-byte diagnostic candidate. It is not yet part of the retained build.
+
+## WSSphereActivator real radius cap
+
+V266 increased only the fixed WSActivateSphere pool capacity from 256 to 512. It did not alter activation radius.
+
+The actual sphere-create routine is VA `0x0068EF80`.
+
+It computes:
+`effective_radius = min(requested_radius * 1.05, 2.06)`
+
+Constants:
+- 2.06 at VA `0x00FCD834`
+- 1.05 at VA `0x00FCD838`
+
+Callers include VA `0x0066CD74`, `0x009FADCA`, `0x00A0111E`, and `0x00A029F0`. Several callers derive the requested radius from a model/object `+0x58` size metric.
+
+The sphere objects are transient and lifetime-driven, and the system performs spatial queries/activation work. The 2.06 cap is therefore a real short-range engine limit, but it is not yet proven to own static scenery rendering. A global radius increase could affect gameplay, physics, AI or trigger behavior and must not be applied before ownership is proven.
+
+## Near-pop audit conclusion after V308
+
+The supplied garage/workshop capture is not explained by:
+- Q2 RENDERSLICE3 terminal far (V308 50 -> 200 had no visible effect)
+- streaming-grid coverage
+- WSDetailSystem +0x218
+- VeryFarSceneTerrain
+- ModelInfo default LODDIST
+- HighPalette priority
+
+The strongest remaining renderer-specific candidate is the WSModel size-derived A8 hard visibility cutoff. WSSphereActivator and global occlusion remain secondary candidates.
