@@ -2,13 +2,13 @@
 
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
-> **Current validated cumulative build: V294**  
+> **Current validated cumulative build: V295**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current test candidate: V295A — HighPalette priority threshold 1000 -> 1500**
+> **Current test candidate: pending V296A**
 
 ## Current canonical build
 
-V294 is the complete validated cumulative game state.
+V295 is the complete validated cumulative game state.
 
 Original retail EXE SHA-256:
 
@@ -354,9 +354,9 @@ V294A ZIP SHA-256:
 
 `2c745ca8066f1bdf4f9b1f5a4aa13f3707bd01928871d28c340afe51c8246ed3`
 
-## Current V295A test
+## Validated V295
 
-V295A starts from validated V294 and advances only the same proven SS_HighPalette compare:
+V295 advances only the same proven SS_HighPalette compare:
 
 - metric remains `resource[+0x1F8] / resource[+0x1F4]`
 - compare site remains VA `0x009EE461`
@@ -366,7 +366,7 @@ V295A starts from validated V294 and advances only the same proven SS_HighPalett
 - no code cave, padding data, or injected constant
 - exactly 3 effective EXE bytes change
 
-V295A EXE SHA-256:
+V295 EXE SHA-256:
 
 `5ed95c8d052e130b0593c28b1f85e306f846784bd012a7614cb586dddcb918a9`
 
@@ -404,7 +404,7 @@ Reason: the public patcher is fail-closed. It will not be retargeted until direc
 
 ## Current open work
 
-- Validate V295A HighPalette priority threshold 1500.
+- Build and validate V296A HighPalette priority threshold 1600.
 - Continue VeryFarSceneMonuments / DetailSystem / FarFarScene ownership audit.
 - Keep the distant red-prop fallback investigation separate from general draw-distance work.
 - Regenerate verified cumulative patcher payloads after the next public patcher sync point.
