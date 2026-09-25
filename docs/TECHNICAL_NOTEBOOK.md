@@ -2,7 +2,7 @@
 
 ## Current canonical cumulative build
 
-**V296**
+**V298**
 
 Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
@@ -10,7 +10,7 @@ Original retail EXE SHA-256:
 V279 EXE SHA-256:  
 `db2ac0f79b2fcace02ac32d77bdea32c5d9591f6bee56715e9e1976f81999b0a`
 
-Every future candidate starts from V296 or reproduces V296 exactly before adding an experiment.
+Every future candidate starts from V298 or reproduces V298 exactly before adding an experiment.
 
 ## Frozen minimap
 
@@ -488,3 +488,90 @@ User-directed strategy change: stop micro-incrementing this threshold. Use one m
 - 16000.0 is absent as a native double
 
 The experimental 1e9 idea is explicitly rejected as excessive and must not be restored.
+
+## V298 - retained all-RenderSlice High expansion
+
+User symptom: substantial world-prop pop-in around roughly 50 units/metres in-game.
+
+Audit correction:
+
+ModelInfo RENDERSLICE n is converted to a bit mask with:
+
+    mask = (1 << n) - 1
+
+Therefore RENDERSLICE3 activates slices 0+1+2 and is bounded by the class-2 far edge. The earlier V277 description that equated record 3 directly with RENDERSLICE3 was conceptually incomplete.
+
+High SliceQuality table base:
+- VA 0x01120AD8
+- RAW 0x00D1F4D8
+
+V298 modifies the effective High chain:
+- record1 start 4 -> 16 at VA 0x01120AE4 / RAW 0x00D1F4E4
+- record2 start 20 -> 80 at VA 0x01120AF0 / RAW 0x00D1F4F0
+- record3 start 50 -> 200 at VA 0x01120AFC / RAW 0x00D1F4FC
+- record3 far 300 -> 1200 at VA 0x01120B00 / RAW 0x00D1F500
+- record4 far 1500 -> 6000 at VA 0x01120B0C / RAW 0x00D1F50C
+
+Only five effective EXE bytes change from V296.
+
+V298 EXE SHA-256:
+`57878890c4b9ba3bb9705109b4b216623d226b28598b3a187cf4b2795574a09a`
+
+User test result: no obvious improvement or regression was observed. The user explicitly requested that all these Slice increases remain in every following build, so V298 is retained as the new cumulative base.
+
+## Red-material investigation - Will to Fight / WTF
+
+User observation: occupied Nazi zones intentionally render in black/white/red, and some normally grey metallic materials become red under that artistic state. This strongly links the distant red-material bug to the native Will to Fight rendering pipeline rather than to a simple missing texture.
+
+Static EXE evidence includes WTF-specific shader/material symbols such as:
+- WTF Filters / WTF Zones
+- WTFInfluenceGridTexture%d
+- g_vWTFGreyscale / g_vWTFGreyscale2
+- g_vWTFAmbientHigh / Low
+- g_vWTFDiffuseHigh / Low
+- vWTFColor
+- fWTFIntensity / smpWTFIntensity
+- WSWillToFightFilter.hlsl
+- WSWillToFightZone.hlsl
+
+RTTI identifies the low-resolution influence class as WSWillToFightGrid. Its object allocation is 0xB0 bytes and its constructor is around VA 0x009768C0.
+
+Important correction: LowResWorldWTF and LowResWorldWTFVertex are render-target / texture resources, not shader names.
+
+The PC-default selector at global byte 0x012100F4 is zero-initialized, causing consumers to select the LowResWorldWTF resource path by default.
+
+WSWillToFightGrid maintains:
+- a 256x256 8-bit CPU influence buffer
+- LowResWorldWTF 256x256
+- LowResWorldWTFVertex 256x256
+- bilinear GetInfluence sampling normalized by 255
+
+No separate structural 256 cap was found. Other 0xFF values in the class are intensity saturation and must remain 255.
+
+## V299A - current WTF low-resolution 1024 test
+
+Built directly from V298, preserving all RenderSlice changes.
+
+1. CPU/grid local dimension source:
+- VA 0x0097690C / RAW 0x00575B0C
+- D9 05 48 77 02 01 -> D9 05 34 33 FF 00
+- source 256.0 at VA 0x01027748 -> native 1024.0 at VA 0x00FF3334
+
+2. LowResWorldWTF:
+- width RAW 0x0057523B: push 0x100 -> push 0x400
+- height RAW 0x00575240: push 0x100 -> push 0x400
+
+3. LowResWorldWTFVertex:
+- width RAW 0x00575285: push 0x100 -> push 0x400
+- height RAW 0x0057528A: push 0x100 -> push 0x400
+
+Effective EXE diff versus V298: 8 bytes.
+
+CPU influence buffer grows from 65,536 bytes to 1,048,576 bytes (+983,040 bytes). The two GPU render targets each grow 16x in pixel count; native format is unchanged.
+
+No WTF color, greyscale, ambient/diffuse, zone distance or 0..255 intensity value is modified.
+
+V299A EXE SHA-256:
+`46ddd1d3b146166b0220d7f0337db3c726500988863d4eb5d13554d3ee4a1abf`
+
+V299A remains test-only pending in-game comparison of the exact same occupied-zone grey-metal surfaces.
