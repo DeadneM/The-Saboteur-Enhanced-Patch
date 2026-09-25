@@ -2,13 +2,13 @@
 
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
-> **Current validated cumulative build: V280**  
+> **Current validated cumulative build: V281**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current test candidate: V281A — WSDetailSystem 500 -> 1000**
+> **Current test candidate: V282A — Streaming High coverage 1250 -> 2500**
 
 ## Current canonical build
 
-V280 is the complete validated cumulative game state.
+V281 is the complete validated cumulative game state.
 
 Original retail EXE SHA-256:
 
@@ -75,9 +75,9 @@ V280 EXE SHA-256:
 
 V280 was validated in-game and is now canonical.
 
-## Current V281A test
+## Validated V281
 
-V281A starts from validated V280 and raises only the same proven WSDetailSystem distance field and matching clamp:
+V281 raises only the same proven WSDetailSystem distance field and matching clamp:
 
 - `WSDetailSystem + 0x218`: 500 -> 1000
 - VA `0x007ECD20`: initial value -> native float 1000.0 at `0x00F7D630`
@@ -86,13 +86,34 @@ V281A starts from validated V280 and raises only the same proven WSDetailSystem 
 
 No global constant and no code cave is modified.
 
-V281A EXE SHA-256:
+V281 EXE SHA-256:
 
 `2125cf72e5a0743e468f50f3c2e33651d292173e81d8e92b471a83925dc76549`
 
 Audit corrections made before V281A:
 - the historical V236 +0xC04/+0xC08/+0xC0C fields are **not** WSDetailSystem; the real DetailSystem object is only 0x240 bytes.
 - VeryFarSceneMonuments has inline 256-entry structures and no proven independent global distance scalar; a pool-only expansion is structurally unsafe and rejected.
+
+## Current V282A test
+
+V282A starts from validated V281 and changes only the HIGH-quality streaming-grid coverage:
+
+- cell-size table: 500 / 60 / 25, unchanged
+- coverage table in V281: 8000 / 1600 / 1250
+- V282A: High coverage only 1250 -> 2500
+- resulting High cell radius: 50 -> 100
+
+Patch:
+- VA `0x0104B04C`
+- RAW `0x00C4A24C`
+- float `1250.0 -> 2500.0`
+- exactly 2 effective EXE bytes change
+
+The historical V231 stress test multiplied all three tiers. V282A deliberately avoids that global method and isolates only the High tier.
+
+V282A EXE SHA-256:
+
+`f9188b4c7e30a513ae40106ff46c3da7640664314c96677ffe8f0b96a75990bd`
 
 See [docs/LOD_DISTANCE_AUDIT.md](docs/LOD_DISTANCE_AUDIT.md) for the detailed map.
 
@@ -122,7 +143,7 @@ Reason: the public patcher is fail-closed. It will not be retargeted until direc
 
 ## Current open work
 
-- Validate V281A WSDetailSystem 1000.
+- Validate V282A Streaming High coverage 2500.
 - Continue VeryFarSceneMonuments / DetailSystem / FarFarScene ownership audit.
 - Keep the distant red-prop fallback investigation separate from general draw-distance work.
 - Regenerate verified cumulative patcher payloads after the next public patcher sync point.
