@@ -2,13 +2,13 @@
 
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
-> **Current validated cumulative build: V282**  
+> **Current validated cumulative build: V283**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current test candidate: V283A — Streaming Medium coverage 1600 -> 3200**
+> **Current test candidate: V284A — Streaming Low coverage 8000 -> 16000**
 
 ## Current canonical build
 
-V282 is the complete validated cumulative game state.
+V283 is the complete validated cumulative game state.
 
 Original retail EXE SHA-256:
 
@@ -115,9 +115,9 @@ V282 EXE SHA-256:
 
 `f9188b4c7e30a513ae40106ff46c3da7640664314c96677ffe8f0b96a75990bd`
 
-## Current V283A test
+## Validated V283
 
-V283A starts from validated V282 and changes only the MEDIUM-quality streaming-grid coverage:
+V283 changes only the MEDIUM-quality streaming-grid coverage:
 
 - cell sizes remain 500 / 60 / 25
 - Low coverage remains 8000
@@ -131,9 +131,29 @@ Patch:
 - float `1600.0 -> 3200.0`
 - exactly 2 effective EXE bytes change
 
-V283A EXE SHA-256:
+V283 EXE SHA-256:
 
 `6c1c582045219bc1d5d7a4c5124f30f69fd65504136ff488f89a30c64adcde72`
+
+## Current V284A test
+
+V284A starts from validated V283 and changes only the LOW-quality streaming-grid coverage:
+
+- cell sizes remain 500 / 60 / 25
+- Low coverage: 8000 -> 16000
+- Medium coverage remains 3200
+- High coverage remains 2500
+- Low radius: 16 -> 32 cells
+
+Patch:
+- VA `0x0104B044`
+- RAW `0x00C4A244`
+- float `8000.0 -> 16000.0`
+- exactly 2 effective EXE bytes change
+
+V284A EXE SHA-256:
+
+`6ee4a938ac322f7d7e8d327811d823220bde34dd044852f41b7f306c8b63d518`
 
 See [docs/LOD_DISTANCE_AUDIT.md](docs/LOD_DISTANCE_AUDIT.md) for the detailed map.
 
@@ -163,7 +183,7 @@ Reason: the public patcher is fail-closed. It will not be retargeted until direc
 
 ## Current open work
 
-- Validate V283A Streaming Medium coverage 3200.
+- Validate V284A Streaming Low coverage 16000.
 - Continue VeryFarSceneMonuments / DetailSystem / FarFarScene ownership audit.
 - Keep the distant red-prop fallback investigation separate from general draw-distance work.
 - Regenerate verified cumulative patcher payloads after the next public patcher sync point.
