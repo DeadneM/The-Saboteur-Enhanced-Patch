@@ -4,7 +4,7 @@
 
 **The newest validated build is always the complete cumulative patch.**
 
-Current canonical cumulative build: **V295**
+Current canonical cumulative build: **V296**
 
 Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
@@ -69,6 +69,7 @@ V292A EXE SHA-256:
 | V289 | SS_HighPalette threshold 300 -> 400 |
 | V290 | SS_HighPalette threshold 400 -> 500 |
 | V291 | SS_HighPalette threshold 500 -> 650 |\n| V292 | SS_HighPalette threshold 650 -> 800 |\n| V293 | SS_HighPalette threshold 800 -> 900 |\n| V294 | SS_HighPalette threshold 900 -> 1000 |\n| V295 | SS_HighPalette threshold 1000 -> 1500 |
+| V296 | SS_HighPalette threshold 1500 -> 1600 |
 
 ## Validated V295
 
@@ -94,6 +95,21 @@ V296A starts from canonical V295 and changes only the already-proven SS_HighPale
 - no injected data
 - no global constant modified
 
+## Current V297A EXTREME candidate
+
+V297A starts from canonical V296 and changes only the already-proven SS_HighPalette local comparison:
+
+- compare instruction: VA `0x009EE461`, RAW `0x005ED661`
+- V296 source: native double 1600.0 at VA `0x010140A8`
+- V297A source: native double 1,000,000,000.0 at VA `0x00F86DE0`
+- exactly 4 EXE bytes change
+- no branch forcing
+- no code cave
+- no injected data
+- no global constant modified
+
+Fallback ladder if unstable: 100000 -> 10000 -> 5000 -> 2000.
+
 ## Important audit conclusions
 
 - `SliceQuality=0` is the High table.
@@ -113,4 +129,4 @@ V296A starts from canonical V295 and changes only the already-proven SS_HighPale
 
 ## Next rule
 
-Future candidates start from **V295** or reproduce it exactly first.
+Future candidates start from **V296** or reproduce it exactly first.
