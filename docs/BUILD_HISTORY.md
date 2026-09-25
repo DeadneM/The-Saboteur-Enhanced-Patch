@@ -4,7 +4,7 @@
 
 **The newest validated build is always the complete cumulative patch.**
 
-Current canonical cumulative build: **V285**
+Current canonical cumulative build: **V286**
 
 Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
@@ -53,7 +53,7 @@ V274 closed the straightforward generic fixed-pool sweep. Spill-enabled reserves
 | V276 | ObjectQuality High human ranges 70/150/300 -> 100/300/600 |
 | V277 | RenderSlice3 High far bound 100 -> 300 |
 | V278 | ModelInfo default LODDIST 1000 -> 1500 |
-| V279 | VeryFarSceneTerrain dedicated range 5000 -> 10000 |\n| V280 | WSDetailSystem maximum detail distance 100 -> 500 |\n| V281 | WSDetailSystem maximum detail distance 500 -> 1000 |\n| V282 | Streaming High coverage 1250 -> 2500 |\n| V283 | Streaming Medium coverage 1600 -> 3200 |\n| V284 | Streaming Low coverage 8000 -> 16000 |\n| V285 | SS_HighPalette priority threshold 80 -> 160 |
+| V279 | VeryFarSceneTerrain dedicated range 5000 -> 10000 |\n| V280 | WSDetailSystem maximum detail distance 100 -> 500 |\n| V281 | WSDetailSystem maximum detail distance 500 -> 1000 |\n| V282 | Streaming High coverage 1250 -> 2500 |\n| V283 | Streaming Medium coverage 1600 -> 3200 |\n| V284 | Streaming Low coverage 8000 -> 16000 |\n| V285 | SS_HighPalette priority threshold 80 -> 160 |\n| V286 | SS_HighPalette priority threshold 160 -> 200 |
 
 ## Current candidate
 
@@ -78,4 +78,4 @@ V281A EXE SHA-256:
 
 ## Next rule
 
-Future candidates start from **V285** or reproduce it exactly first.
+Future candidates start from **V286** or reproduce it exactly first.
