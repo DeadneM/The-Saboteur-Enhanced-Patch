@@ -146,6 +146,9 @@ V286A advances that same compare from the native 160.0 source at `0x00FA4110` to
 The neighboring candidate-type-5 path compares the same resource ratio against 10.0, but currently enters SS_DynamicLoading rather than a directly proven SS_LowPalette state. It remains untouched until ownership is demonstrated.
 
 Validated V286 confirms the 160.0 -> 200.0 source redirection is stable in game.
+Validated V287 confirms the 200.0 -> 250.0 step is also stable.
+
+V288A advances the same compare to engine-native double 300.0 at `0x00F94648`. The HighPalette compare remains at VA `0x009EE461`; exactly two operand bytes change from V287. The 300.0 constant is shared elsewhere by the engine but is not edited, only referenced locally.
 
 V287A advances the same compare from native 200.0 at `0x00F7B778` to the unique engine-native double 250.0 at `0x00F97DD8`. The instruction remains at VA `0x009EE461`; exactly three operand bytes change. No second HighPalette threshold requires coordination.
 
