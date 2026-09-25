@@ -12,7 +12,7 @@ Original retail EXE SHA-256:
 V291 EXE SHA-256:  
 `05555941326fdf66253f166037eb0a51b9aa04aaa45cf1de61721fdb152bc9b2`
 
-Current candidate: **pending V296A**
+Current candidate: **V296A**
 
 V292A EXE SHA-256:  
 `aad83b503c6a8ae9159a9b960e602c0eade4417bd76d5de82c66c2cc05b5bc28`
@@ -77,6 +77,18 @@ V295 changes only the already-proven SS_HighPalette local comparison:
 - compare instruction: VA `0x009EE461`, RAW `0x005ED661`
 - V294 source: native double 1000.0 at VA `0x010A45B8`
 - V295A source: native double 1500.0 at VA `0x010207E0`
+- exactly 3 EXE bytes change
+- no code cave
+- no injected data
+- no global constant modified
+
+## Current V296A candidate
+
+V296A starts from canonical V295 and changes only the already-proven SS_HighPalette local comparison:
+
+- compare instruction: VA `0x009EE461`, RAW `0x005ED661`
+- V295 source: native double 1500.0 at VA `0x010207E0`
+- V296A source: native double 1600.0 at VA `0x010140A8`
 - exactly 3 EXE bytes change
 - no code cave
 - no injected data
