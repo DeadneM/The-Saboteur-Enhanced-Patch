@@ -65,5 +65,6 @@ Hashes recorded through 2026-09-25. EXE hashes identify the exact executable sta
 | V293A | `9069d70bdfcdc7e3e71642cb58af0e2be0955a384ce45ed70549d3a7dedc106d` |
 | V294A | `2c745ca8066f1bdf4f9b1f5a4aa13f3707bd01928871d28c340afe51c8246ed3` |
 | V295A | `305d16c12b01c0c5f17f375822a64443c341fa15634183f1d7a06a9beae5713f` |
+| V296A | `6376d2bae8479885e33ba56cb75a1da4162db77b9b908eb0e5006c33c4e1db46` |
 
 The repository does not distribute retail or patched game executables. These hashes are forensic identifiers.
