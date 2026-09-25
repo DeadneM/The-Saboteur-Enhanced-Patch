@@ -1,6 +1,6 @@
 # Hash ledger
 
-Hashes recorded through 2026-09-24. EXE hashes identify the exact executable state.
+Hashes recorded through 2026-09-25. EXE hashes identify the exact executable state.
 
 | Build | EXE SHA-256 |
 |---|---|
@@ -30,21 +30,21 @@ Hashes recorded through 2026-09-24. EXE hashes identify the exact executable sta
 | V277 | `5d404bea3ad22e15c33f2c7d7b99629e05ef1b678927554353e73ca969f9743a` |
 | V278 | `272bed592c43bea18765463e77a424e308b66be62d23aabd84d07daab336368a` |
 | V279 | `db2ac0f79b2fcace02ac32d77bdea32c5d9591f6bee56715e9e1976f81999b0a` |
-| **V280 canonical** | `d9d08f6c5aaa50435dd26909f0e969428bb880c3a30df14acc011e97167a6978` |
-| V281A TEST | `2125cf72e5a0743e468f50f3c2e33651d292173e81d8e92b471a83925dc76549` |
+| V280 | `d9d08f6c5aaa50435dd26909f0e969428bb880c3a30df14acc011e97167a6978` |
+| V281 | `2125cf72e5a0743e468f50f3c2e33651d292173e81d8e92b471a83925dc76549` |
+| V282 | `f9188b4c7e30a513ae40106ff46c3da7640664314c96677ffe8f0b96a75990bd` |
+| V283 | `6c1c582045219bc1d5d7a4c5124f30f69fd65504136ff488f89a30c64adcde72` |
+| V284 | `6ee4a938ac322f7d7e8d327811d823220bde34dd044852f41b7f306c8b63d518` |
+| V285 | `f2967a6863e07354311e3f84f070212031935f51b1714f6dc9ab5933433a15bc` |
+| V286 | `40fd97c7dc5ca5352983cc2073e9e851e665b8afa188d29040b3603047b1df38` |
+| V287 | `ee446ee76b6356371d4ad76f9125331c939d09b6da32890ebf02d0c5ffc93590` |
+| **V288 canonical** | `88ccee9b4eb11115a4cfe2981f4f46e59766c97d0c170dcbb67321118d315213` |
+| V289A TEST | `ad1874548a8c4c6381ad982b1d6ed48fe653d97a43314a518de57963e964774c` |
 
 ## Recent test ZIP hashes
 
 | Build | ZIP SHA-256 |
 |---|---|
-| V271A | `0acaa87becee57d3622ada9a25669efaa43bde79e8fcb5a1d8e79adc0dc1c2ea` |
-| V272A | `0292d20fcc29911bae2d5eb8f2d5b6f082fbe0c4262cb5ecacc1b01c2d1bab99` |
-| V273A | `a9b39689e99c4affc4e271a655f9cc2c9a29c02cbaaf33ec0fcf92b4367736a2` |
-| V274A | `62251014c7becf7f332e0e1effa647d7c8bb013c7af43a001cf7142d42272a3d` |
-| V275A | `c3ba9e299c9af24f3316768a4b9b40f507634db606a01eee778b0ce9ad8b9dd1` |
-| V276A | `5c69cfad174ec17297bdbf6d239005cf4a392d8c82f4bb2c3acdba8d19b5ebcb` |
-| V277A | `dddd965a5bfd493aaa117a37ac29514b92e88f4112d46ada14f8a40f2a00438f` |
-| V278A | `49957acb0fc054b14e02c55f865881afecaecf6611837585f49e9758eb271cb7` |
 | V279A | `d3d9e791d1fa0f53c147659911d10a334970f6e7950d6375695e95f3abd3dabe` |
 | V280A | `e9828e7d08b75423a2b129e85822bf8f8d7af8b3258680913f5976f3216f55ce` |
 | V281A | `24e12a1c00e190e9b62077f0f0e3b135809f802afca3e5979444ea60c853ea3a` |
@@ -55,5 +55,6 @@ Hashes recorded through 2026-09-24. EXE hashes identify the exact executable sta
 | V286A | `fad8a9738866315caa0c1c34a2ea034a8dcdc960b5e5c87c2300f57bde201f1c` |
 | V287A | `9775482d8ead339a847d797ccc30e57f572c9d48608ed06dec05e06c2bf3263b` |
 | V288A | `0b284a6740df6398a30dd653dd2b4305c040013f69987fc96198e5f4d7721401` |
+| V289A | `5f4f0d3263607228d98bd9be3d517ab0f3fdc36588eea5ba35b7899eefa18d0f` |
 
 The repository does not distribute retail or patched game executables. These hashes are forensic identifiers.
