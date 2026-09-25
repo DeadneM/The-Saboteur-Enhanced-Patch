@@ -208,7 +208,7 @@ The tuner values remain:
 
 ## Distant red-prop issue
 
-The distant red-prop/fallback issue remains separate. Neutralizing the fallback can hide the red proxy by removing the prop, which is not considered a real fix.
+The distant red-prop/fallback issue is now being re-audited through the native Will to Fight rendering path. Neutralizing the old fallback remains rejected because it can hide the prop rather than fix its material.
 
 
 ### HighPalette branch closure candidate
@@ -224,3 +224,47 @@ V297A closes the HighPalette branch with a deliberate x4 stress step:
 A x10 target of 16000.0 was considered but rejected because no native double 16000.0 exists. Injecting a custom constant would violate the current surgical rule when a clean x4 native step exists.
 
 The 1e9 threshold experiment is rejected as excessive and excluded.
+
+## V298 RenderSlice semantic correction and retained expansion
+
+A later control-flow audit corrected the earlier direct mapping assumption.
+
+ModelInfo RENDERSLICE n is converted to:
+
+    mask = (1 << n) - 1
+
+This means RENDERSLICE3 covers slices 0+1+2 and is bounded by the class-2 far edge. Consequently, the historical V277 record-3 100 -> 300 change did not by itself move the many RENDERSLICE3 props from ~50 to 300.
+
+V298 therefore expands all relevant High render-slice boundaries while retaining the runtime table mechanics:
+
+- effective Slice0 far: 4 -> 16
+- effective Slice1 far: 20 -> 80
+- effective Slice2 far: 50 -> 200
+- Slice3 far: 300 -> 1200
+- outer/final far: 1500 -> 6000
+
+Patched fields:
+- record1 start VA 0x01120AE4 / RAW 0x00D1F4E4: 4 -> 16
+- record2 start VA 0x01120AF0 / RAW 0x00D1F4F0: 20 -> 80
+- record3 start VA 0x01120AFC / RAW 0x00D1F4FC: 50 -> 200
+- record3 far VA 0x01120B00 / RAW 0x00D1F500: 300 -> 1200
+- record4 far VA 0x01120B0C / RAW 0x00D1F50C: 1500 -> 6000
+
+User reported no obvious visible improvement or regression in V298, but explicitly requested that these increases remain in all later builds. V298 is therefore the retained distance baseline.
+
+## WTF / distant red-material branch
+
+The user observed that Nazi-occupied zones intentionally transform the world to black/white/red and that some grey metallic materials become red under this state. Static evidence now links this to the native Will to Fight pipeline.
+
+WSWillToFightGrid owns the PC-default low-resolution WTF influence representation:
+- LowResWorldWTF 256x256
+- LowResWorldWTFVertex 256x256
+- matching 8-bit CPU influence buffer
+- bilinear influence sampling normalized by 255
+
+V299A is a surgical resolution test only:
+- all three WTF spatial dimensions 256 -> 1024
+- all V298 RenderSlice changes retained
+- all WTF palette/color and intensity semantics untouched
+
+If V299A changes the red-material bug, low-resolution WTF spatial interpolation becomes strongly implicated. If it is identical, the next work should target the WTF material/color calculation rather than the influence-grid resolution.
