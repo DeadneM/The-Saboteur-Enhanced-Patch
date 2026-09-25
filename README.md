@@ -2,21 +2,21 @@
 
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
-> **Current retained cumulative build: V298**  
+> **Current retained cumulative build: V302**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current test candidate: V299A — WTF low-resolution grid 256x256 -> 1024x1024**
+> **Current work: complete object draw-distance audit from retained V302**
 
 ## Current canonical build
 
-V298 is the current retained cumulative game state. It keeps V296 plus the user-requested all-RenderSlice High distance increase.
+V302 is the current retained cumulative game state. It keeps the validated engine/LOD lineage through V296, retains the V298 RenderSlice expansion, and applies the later coherent High SliceQuality expansion that was validated with scenery intact.
 
 Original retail EXE SHA-256:
 
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
 
-Current V291 EXE SHA-256:
+Current V302 EXE SHA-256:
 
-`05555941326fdf66253f166037eb0a51b9aa04aaa45cf1de61721fdb152bc9b2`
+`db96ff3f6f8e38acdd262a87b0bb0ded7c604abca82e86e2501a12347f512459`
 
 The latest validated build contains every retained validated change from the original executable up to that point. Rejected experiments are excluded.
 
@@ -447,7 +447,7 @@ V298 ZIP SHA-256:
 
 ## Current V299A test — WSWillToFightGrid low-res WTF 1024
 
-The distant red-material investigation is now focused on the game's native occupation / Will to Fight pipeline. Static audit proved that the live PC path uses WSWillToFightGrid resources LowResWorldWTF and LowResWorldWTFVertex, both created at 256x256, plus a matching 8-bit CPU influence buffer sampled bilinearly and normalized by 255.
+The distant red-material investigation is no longer treated as a Will-to-Fight root-cause problem after negative V299-V301 diagnostics. The retained branch has returned to renderer/LOD ownership analysis. Static audit proved that the live PC path uses WSWillToFightGrid resources LowResWorldWTF and LowResWorldWTFVertex, both created at 256x256, plus a matching 8-bit CPU influence buffer sampled bilinearly and normalized by 255.
 
 V299A keeps all V298 RenderSlice changes and increases only this WTF spatial representation:
 
@@ -474,7 +474,7 @@ Do not change unless explicitly reopened:
 
 ## Windows patcher
 
-The repository patcher is still intentionally pinned to **V260 / v1Pv260**.
+The repository patcher is still intentionally pinned to **V260 / v1Pv260**. The retained executable research state is now V302.
 
 Reason: the public patcher is fail-closed. It will not be retargeted until direct upgrade payloads are regenerated and verified against exact supported source executables. Documentation may advance ahead of the public patcher; safety verification may not.
 
@@ -499,3 +499,30 @@ Reason: the public patcher is fail-closed. It will not be retargeted until direc
 ## Disclaimer
 
 Unofficial community project. Back up the original executable before testing.
+
+
+## Retained V302
+
+V302 is the current retained cumulative research build and supersedes V298 as the working baseline.
+
+It starts directly from V298 and excludes the rejected V299-V301 WTF diagnostics. The High SliceQuality table is expanded coherently by the historical factor 1.56103515625:
+
+- effective Slice0 far: 16 -> 24.9765625
+- effective Slice1 far: 80 -> 124.8828125
+- effective Slice2 far: 200 -> 312.20703125
+- Slice3 far: 1200 -> 1873.2421875
+- Slice4 start: 80 -> 124.8828125
+- outer/final far: 6000 -> 9366.2109375
+
+User validation: scenery remained correct. The distant red issue remained visible, proving that the coherent High-table expansion is safe but does not solve that separate issue.
+
+V302 EXE SHA-256:
+
+`db96ff3f6f8e38acdd262a87b0bb0ded7c604abca82e86e2501a12347f512459`
+
+### Rejected diagnostics after V302
+
+- V303-V307: cross-profile / Q2 Slice4 diagnostics. Some hid the red symptom but damaged scenery; none are retained.
+- V308: Q2 RENDERSLICE3 far 50 -> 200. No visible improvement to the very-near object pop; rejected.
+
+Future distance work starts from V302 and must identify the actual owner of the remaining short-range object pop before changing another scalar.
