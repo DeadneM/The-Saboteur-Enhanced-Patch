@@ -80,3 +80,12 @@ The repository does not distribute retail or patched game executables. These has
 | V297A x4 TEST | `c6099fe01719881fb5439948d2498458c6baa916fcd411e1b2b1f7f8588f20c5` |
 
 V297A x4 ZIP SHA-256: `bd5edbf38f3718c9b22ae01710f658c0aecde451a3e4f29732bafbb6cacadfdb`
+
+## V298 / V299 WTF branch
+
+| Build | EXE SHA-256 | ZIP SHA-256 |
+|---|---|---|
+| V298 retained | `57878890c4b9ba3bb9705109b4b216623d226b28598b3a187cf4b2795574a09a` | `ce05ce809f549b6710316e89246679f4e09edde6a92e7f9d1d78d46a45adf445` |
+| V299A candidate | `46ddd1d3b146166b0220d7f0337db3c726500988863d4eb5d13554d3ee4a1abf` | `93203c84582697bfa1ce2bde1419474ed4ffb180ad428e857b90118e99686e50` |
+
+Post-V296 HighPalette 1e9 and 6400 stress candidates are not retained in the cumulative lineage.
