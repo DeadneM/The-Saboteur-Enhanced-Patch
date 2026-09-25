@@ -2,7 +2,7 @@
 
 ## Current canonical cumulative build
 
-**V295**
+**V296**
 
 Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
@@ -10,7 +10,7 @@ Original retail EXE SHA-256:
 V279 EXE SHA-256:  
 `db2ac0f79b2fcace02ac32d77bdea32c5d9591f6bee56715e9e1976f81999b0a`
 
-Every future candidate starts from V295 or reproduces V295 exactly before adding an experiment.
+Every future candidate starts from V296 or reproduces V296 exactly before adding an experiment.
 
 ## Frozen minimap
 
@@ -424,7 +424,7 @@ V295A EXE SHA-256:
 V295 was validated in game and is now canonical.
 
 
-### V296A candidate
+### V296 - validated
 
 V296A advances only the proven SS_HighPalette local comparison from native 1500.0 to native 1600.0.
 
@@ -441,4 +441,30 @@ V296A advances only the proven SS_HighPalette local comparison from native 1500.
 V296A EXE SHA-256:
 `2c40dfe0953b300d2da65ea6cdf1f7d02df50cb013dabe7101a51199b4208b5f`
 
-V296A remains test-only until explicit in-game validation.
+V296 was validated in game and is now canonical.
+
+
+### V297A EXTREME candidate
+
+After V296, the test strategy changes: stop using small increments and push the proven HighPalette threshold to an extreme native value first, then reduce only if the engine shows instability or unacceptable memory/frame-time cost.
+
+- compare VA `0x009EE461`
+- RAW `0x005ED661`
+- V296 source `0x010140A8` = 1600.0
+- V297A source `0x00F86DE0` = 1,000,000,000.0
+- native 1e9 RAW `0x00B85FE0`
+- instruction `DC 1D A8 40 01 01 -> DC 1D E0 6D F8 00`
+- effective changes: 4 operand bytes
+- no branch forcing
+- no code cave
+- no injected data
+- no global constant modification
+
+V297A EXE SHA-256:
+`990cb7d7fad5b78ed272675f0a50c522c7509c1ab03b496f7fc2014a746ab94e`
+
+Fallback ladder if the extreme test fails:
+1. 100000
+2. 10000
+3. 5000
+4. 2000
