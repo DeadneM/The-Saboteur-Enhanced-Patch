@@ -155,7 +155,11 @@ V292 advances the same compare to the unique engine-native double 800.0 at `0x00
 
 V293 advances that same local compare to the unique native double 900.0 at `0x00F82660` and is validated.
 
-V294A advances the same compare to the unique native double 1000.0 at `0x010A45B8` / RAW `0x00CA37B8`. The PE section mapping was explicitly verified. The compare remains at VA `0x009EE461`; exactly four operand bytes change from V293. The 1000.0 constant is referenced only, not edited.
+V294 advances the same compare to the unique native double 1000.0 at `0x010A45B8` / RAW `0x00CA37B8` and is validated.
+
+V295 is validated at 1500.0 using the read-only .rdata copy at VA `0x010207E0`.
+
+V296A advances the same local compare to the unique native double 1600.0 at VA `0x010140A8` / RAW `0x00C132A8`. The compare remains at VA `0x009EE461`; exactly three operand bytes change from V295. The 1600.0 constant is referenced only, not edited.
 
 The neighboring candidate-type-5 path compares the same resource ratio against 10.0, but semantic ownership remains unproven. It remains untouched.
 
