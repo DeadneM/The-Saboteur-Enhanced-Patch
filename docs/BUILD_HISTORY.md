@@ -271,3 +271,28 @@ path instead:
 - shared/global 320 constants are not edited
 - V312 is not inherited
 - test-only until user validation
+
+
+## Rejected V314A — ModelInfo ZCULL
+
+Base: validated V311.
+
+Purpose:
+- test whether explicit ModelInfo `ZCULL` ownership explains the remaining
+  architectural balcony/facade transition.
+
+Relevant content evidence:
+- many `Ornate_Clamber_*`, `Ornate_WinDoor_Arch_*`,
+  `Ornate_WinDoor_DoorHeader*`, `HalfCircle`, and `Head_A` entries carry
+  `ZCULL`.
+
+User result:
+- **no visible movement of the balcony pop**
+
+Status:
+- V314A rejected
+- V311 remains canonical
+- V312/V313 remain rejected and are not inherited
+
+Next branch:
+- Repeat Nodes / Odin instancing / high-resolution segment retention.
