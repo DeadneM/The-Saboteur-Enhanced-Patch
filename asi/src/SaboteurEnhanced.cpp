@@ -375,7 +375,7 @@ static void __fastcall HookOdinPreRelease(void* self, void*)
 {
     InterlockedIncrement(&g_preReleaseCalls);
     const OdinSnapshot before = SnapshotOdin(self);
-    const unsigned caller = CallerRva();
+    const unsigned caller = CallerRva(_ReturnAddress());
     LogOdinSnapshot("PreRelease", self, before, caller);
     ForgetOdinState(self);
     g_odinPreRelease(self);
