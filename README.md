@@ -2,9 +2,9 @@
 
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
-> **Current retained cumulative build: V310**  
+> **Current retained cumulative build: V311**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current work: continue object draw-distance expansion from validated V310**
+> **Current work: architectural / VeryFarScene distance expansion from validated V311**
 
 ## Current canonical build
 
@@ -557,3 +557,29 @@ V310 EXE SHA-256:
 
 V309 remains rejected because bypassing the WSModel A8 hard-cull rewrite did not
 change the observed pop.
+
+
+## Validated V311
+
+V311 starts directly from validated V310 and forces only the explicit ModelInfo
+RenderSlice path to generate the full 0x1F render mask.
+
+Patch:
+- VA 0x006395AF
+- RAW 0x002387AF
+- `0F B6 4A 02 -> B1 05 90 90`
+
+Existing ModelInfo ShadowSlice, ZPassSlice, flags/ZCULL and LODDIST remain native.
+
+User validation:
+- the same garage/workshop short-range pop is also corrected by V311;
+- no scenery regression was reported.
+
+V311 therefore becomes the retained cumulative baseline.
+
+V311 EXE SHA-256:
+`d87283851502782c1a9d566eeacbd33f40a48f10b31d0983237522386826284e`
+
+A later supplied street capture still shows an architectural balcony/facade detail
+appearing too late. That remaining issue is now treated as a separate
+VeryFarScene/building-LOD family rather than WSModel/ModelInfo RenderSlice.
