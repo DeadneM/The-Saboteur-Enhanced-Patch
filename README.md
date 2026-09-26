@@ -2,13 +2,13 @@
 
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
-> **Current retained cumulative build: V311**  
+> **Current validated architecture: Core 1 + SaboteurEnhanced ASI 0.1**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current work: clean Core EXE reconstruction audit before SaboteurEnhanced.asi**
+> **Current work: Odin/instancing diagnostics and pool/queue telemetry on the validated Core 1 + ASI architecture**
 
 ## Current canonical build
 
-V311 remains the historical retained cumulative research state. It is no longer intended to be the future distribution base. The next executable will be a reconstructed clean Core containing only proven system/UI/correctness fixes; engine tuning moves to the ASI. It keeps the validated engine/LOD lineage through V296, retains the V298 RenderSlice expansion, and applies the later coherent High SliceQuality expansion that was validated with scenery intact.
+Core 1 + SaboteurEnhanced ASI 0.1 is the current validated architecture. V311 remains the historical retained cumulative research state. It is no longer intended to be the future distribution base. The next executable will be a reconstructed clean Core containing only proven system/UI/correctness fixes; engine tuning moves to the ASI. It keeps the validated engine/LOD lineage through V296, retains the V298 RenderSlice expansion, and applies the later coherent High SliceQuality expansion that was validated with scenery intact.
 
 Original retail EXE SHA-256:
 
@@ -688,3 +688,20 @@ Hashes:
 
 The next research target is Odin/instancing instrumentation for the remaining
 balcony/facade transition, followed by pool/queue telemetry.
+
+
+## ASI 0.1 runtime validation
+
+The first runtime ASI build is now validated in game.
+
+The supplied runtime log confirmed:
+- x86 `dinput8.dll` proxy loaded correctly;
+- `SaboteurEnhanced.asi` initialized correctly;
+- V310 signature found and patch applied at runtime VA `0x00639622`;
+- V311 signature found and patch applied at runtime VA `0x006395AF`;
+- clean ASI unload on game exit.
+
+See `docs/ASI_0_1_VALIDATION.md` for the sanitized validation log.
+
+This promotes **Core 1 + ASI 0.1** from test candidate to the current validated
+architecture. V311 remains historical research reference only.
