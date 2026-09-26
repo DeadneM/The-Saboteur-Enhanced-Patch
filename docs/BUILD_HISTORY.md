@@ -340,11 +340,34 @@ Future distribution target:
 The first cleaned Core executable has now been built from the exact retail EXE.
 
 - Retail SHA-256: `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
-- Core1 TEST SHA-256: `83995ab6e04fce264309a37a243744d4f5929c5abb87c3f195fb50fef7f5f2a8`
+- Core1 validated SHA-256: `83995ab6e04fce264309a37a243744d4f5929c5abb87c3f195fb50fef7f5f2a8`
 - direct changed bytes: **5,069**
 - direct changed regions: **82**
-- status: **test-only, awaiting in-game parity validation**
+- status: **validated in game**
 
 Core1 deliberately excludes V257 Max Engine, Async32/broad streaming tuning, Sleep(0), V260+ pool/cap increases, broad LOD/distance tuning, HighPalette, V298/V302 expansion and rejected diagnostics.
 
 Core1 retains the validated window/borderless/display path, Hor+ FOV, DirectInput Alt+F4, timeBeginPeriod(1), high-resolution HUD/UI scaler, Caps Lock HUD toggle with menu-safe behavior, reticle/scoped-sight handling, V258Y HUD/minimap placement, V259 markers, SuperRDX and the streaming FIFO full-queue correctness fix.
+
+
+## SaboteurEnhanced ASI 0.1
+
+Core 1 has now been validated in game and becomes the clean executable baseline.
+
+ASI 0.1 is the first runtime candidate on top of that Core:
+- x86 `dinput8.dll` proxy loader
+- x86 `SaboteurEnhanced.asi`
+- V310 WSModel full-mask fix enabled by default
+- V311 explicit ModelInfo full-mask fix enabled by default
+- exact .text signatures and original-byte verification
+- runtime log: `SaboteurEnhanced.log`
+- no tuner.txt modification
+
+Hashes:
+- Core 1 / `Saboteur.exe`: `83995ab6e04fce264309a37a243744d4f5929c5abb87c3f195fb50fef7f5f2a8`
+- `SaboteurEnhanced.asi`: `22b4fc9737a2a1430d4967aacdde46c913d4742c2a045e7b31982476b4481ffd`
+- `dinput8.dll`: `70cd6d950dbca54bec034d16edc9cbb622f07bab045ad1018343e655784c70d2`
+- package ZIP: `dac55984b85630f7bf0b31c2f3c0253cec00f1528b5bc2f787862d36d86eab99`
+
+The next research target is Odin/instancing instrumentation for the remaining
+balcony/facade transition, followed by pool/queue telemetry.
