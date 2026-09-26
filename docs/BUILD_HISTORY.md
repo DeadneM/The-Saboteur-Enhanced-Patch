@@ -418,3 +418,33 @@ Build hashes:
 - test ZIP: `6e6228a03e9dd748f1b03307d0fa7e2b89185919e6388e78ee40768fbddf85dd`
 
 See `docs/ASI_0_2_ODIN_DIAGNOSTIC.md`.
+
+
+## ASI 0.3 Odin sync correlation diagnostic
+
+ASI 0.2 established that Odin activity is real but broad vtable tracing is too
+noisy for the remaining balcony/facade transition.
+
+Runtime 0.2 totals:
+- ReInstance: 723
+- distinct ReInstance objects: 614
+- RemoveHighRes/query: 0
+- PreRelease: 0
+- IsFullyLoaded/query: 2729
+
+Static follow-up identified VA `0x00E14610` as the synchronization routine that
+compares root state against instance `this+0x44` and invokes ReInstance only on
+mismatch.
+
+ASI 0.3 hooks only that routine and logs mismatches. It also adds **F9 visual
+markers** so the user can mark the exact instant the balcony detail appears or
+disappears.
+
+No Odin rendering behavior is altered.
+
+Hashes:
+- ASI: `7916b14753327fea5a2397d3654e6826c4ea004b47cb0edf3dc47107bc2c2191`
+- dinput8: `60fed9a57205819722686fc851beb03c86e3a79559f0387e1ef384181b03a11f`
+- ZIP: `76f950e4aee986c59eb71fbd125e1500e22839842c6843abca7318fdcb65da2c`
+
+See `docs/ASI_0_3_ODIN_SYNC.md`.
