@@ -728,3 +728,26 @@ VeryFarScene processing path once depth reaches approximately:
 
 These values are a strong match for the remaining architectural transition
 distance seen in the supplied video.
+
+
+## V312 rejected / WSFarSceneObject audit
+
+V312A changed VeryFarScene profile thresholds 22/49 -> 88/196.
+User result: no visible change to the balcony/facade pop.
+V312 is rejected; V311 remains canonical.
+
+RTTI/vtable audit then identified WSFarSceneObject's own render path around
+VA 0x0048A2E0.
+
+Helper VA 0x0048A1C0 computes camera-forward depth for the object.
+The render path compares this depth against two class-local 320.0 thresholds:
+- VA 0x0048A355 reads 0x01114DD8 = 320.0
+- VA 0x0048A367 reads 0x01114DD4 = 320.0
+
+When depth exceeds the first threshold, the low five render bits (0x1F) are
+cleared from the object's own mask. The second threshold controls bit 0x200.
+
+The two threshold globals have no other executable references.
+
+V313A redirects only these two local loads to native read-only 1280.0 at
+VA 0x00FF333C, leaving the original globals untouched.
