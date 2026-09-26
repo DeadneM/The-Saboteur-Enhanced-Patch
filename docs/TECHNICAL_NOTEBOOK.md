@@ -751,3 +751,41 @@ The two threshold globals have no other executable references.
 
 V313A redirects only these two local loads to native read-only 1280.0 at
 VA 0x00FF333C, leaving the original globals untouched.
+
+
+## V314 rejected - ModelInfo ZCULL
+
+V314A starts directly from V311 and tests the explicit ModelInfo ZCULL branch.
+The architectural ModelInfo corpus contains many ZCULL-tagged ornaments,
+especially `Ornate_Clamber_*` and `Ornate_WinDoor_*`, making this a plausible
+balcony/facade owner.
+
+User result:
+- the balcony pop is unchanged.
+
+Conclusion:
+- explicit ModelInfo ZCULL is not the controlling gate for this symptom.
+- V314A is rejected.
+- V311 remains the retained cumulative base.
+
+### Repeat Nodes / Odin branch opened
+
+The developer tuner exposes:
+- `Console.gfx.genericobjects=on`
+- `Console.gfx.repeatnodes=on`
+
+RTTI/vtable recovery proves a separate Odin instancing layer:
+- `OdinBaseInstancedMesh`
+- `OdinInstancedMesh`
+- `OdinMeshInstance`
+- `OdinMeshInstance::RemoveHighResSegments` at VA `0x00E14BA0`
+- `OdinMeshInstance::ReInstance` at VA `0x00E14BF0`
+
+This is now the strongest architectural explanation for a facade element whose
+parent building is already present but whose high-detail geometry appears later.
+
+Next diagnostic rule:
+- do not change WSModel RenderSlice, VeryFarScene thresholds,
+  WSFarSceneObject 320 cutoffs, or ModelInfo ZCULL again for this balcony.
+- first prove Repeat Nodes ownership, then locate the instancing/high-res segment
+  distance or retention gate and patch only that local owner.
