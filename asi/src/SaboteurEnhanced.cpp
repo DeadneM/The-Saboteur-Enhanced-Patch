@@ -173,6 +173,8 @@ static bool ApplyV311(const SectionRange& text, uintptr_t moduleBase)
 
 using OdinVoidMethod = void (__thiscall*)(void*);
 using OdinBoolMethod = bool (__thiscall*)(void*);
+using OdinGetRootMethod = void* (__thiscall*)(void*);
+using OdinSyncMethod = void (__thiscall*)(void*, void*, int);
 
 static OdinVoidMethod g_odinReInstance = nullptr;
 static OdinBoolMethod g_odinRemoveHighRes = nullptr;
@@ -187,12 +189,19 @@ static volatile LONG g_reInstanceCalls = 0;
 static volatile LONG g_removeQueries = 0;
 static volatile LONG g_preReleaseCalls = 0;
 static volatile LONG g_loadedQueries = 0;
+static OdinSyncMethod g_odinSyncOriginal = nullptr;
+static volatile LONG g_odinSyncCalls = 0;
+static volatile LONG g_odinSyncMismatches = 0;
+static volatile LONG g_markerCount = 0;
+static volatile LONG g_markerThreadRun = 0;
 
 struct OdinSnapshot
 {
     uintptr_t segments{};
     uint16_t segmentCount{};
     uint8_t flag33{};
+    uint8_t state35{};
+    uint8_t state2A{};
     uintptr_t field38{};
     uintptr_t field3C{};
     uintptr_t field40{};
@@ -206,6 +215,8 @@ static OdinSnapshot SnapshotOdin(void* self)
     s.segments = *reinterpret_cast<uintptr_t*>(p + 0x14);
     s.segmentCount = *reinterpret_cast<uint16_t*>(p + 0x28);
     s.flag33 = *(p + 0x33);
+    s.state35 = *(p + 0x35);
+    s.state2A = *(p + 0x2A);
     s.field38 = *reinterpret_cast<uintptr_t*>(p + 0x38);
     s.field3C = *reinterpret_cast<uintptr_t*>(p + 0x3C);
     s.field40 = *reinterpret_cast<uintptr_t*>(p + 0x40);
@@ -279,13 +290,15 @@ static void ForgetOdinState(void* self)
 static void LogOdinSnapshot(const char* eventName, void* self, const OdinSnapshot& s, unsigned callerRva)
 {
     if (!AllowOdinLog()) return;
-    Log("[ODIN] %-14s this=%p callerRVA=0x%08X seg=%p count=%u flag33=%u f38=%08X f3C=%08X f40=%08X loaded44=%u",
+    Log("[ODIN] %-14s this=%p callerRVA=0x%08X seg=%p count=%u state2A=%u state33=0x%02X state35=%u f38=%08X f3C=%08X f40=%08X loaded44=%u",
         eventName,
         self,
         callerRva,
         reinterpret_cast<void*>(s.segments),
         static_cast<unsigned>(s.segmentCount),
+        static_cast<unsigned>(s.state2A),
         static_cast<unsigned>(s.flag33),
+        static_cast<unsigned>(s.state35),
         static_cast<unsigned>(s.field38),
         static_cast<unsigned>(s.field3C),
         static_cast<unsigned>(s.field40),
@@ -402,29 +415,162 @@ static bool PatchVtableSlot(uintptr_t* slot, uintptr_t expected, void* hook, voi
     return true;
 }
 
+
+static bool InstallAbsoluteDetour9(void* target, const uint8_t expected[9], void* hook, void** original)
+{
+    auto* at = reinterpret_cast<uint8_t*>(target);
+    if (std::memcmp(at, expected, 9) != 0)
+    {
+        Log("[FAIL] Odin sync prologue mismatch.");
+        return false;
+    }
+
+    auto* tramp = reinterpret_cast<uint8_t*>(
+        VirtualAlloc(nullptr, 32, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
+    if (!tramp)
+    {
+        Log("[FAIL] Odin sync trampoline allocation failed.");
+        return false;
+    }
+
+    std::memcpy(tramp, at, 9);
+    tramp[9] = 0x68;
+    *reinterpret_cast<uint32_t*>(tramp + 10) =
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(at + 9));
+    tramp[14] = 0xC3;
+    FlushInstructionCache(GetCurrentProcess(), tramp, 15);
+
+    uint8_t patch[9] = {0x68,0,0,0,0,0xC3,0x90,0x90,0x90};
+    *reinterpret_cast<uint32_t*>(patch + 1) =
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(hook));
+
+    if (!WriteBytes(at, patch, sizeof(patch)))
+    {
+        VirtualFree(tramp, 0, MEM_RELEASE);
+        Log("[FAIL] Odin sync detour write failed.");
+        return false;
+    }
+
+    *original = tramp;
+    return true;
+}
+
+static const char* OdinSyncCallerLabel(unsigned rva)
+{
+    switch (rva)
+    {
+        case 0x0026AC4F: return "batch-A";
+        case 0x0026ACCD: return "batch-B";
+        case 0x0026B574: return "batch-C";
+        default: return "unknown";
+    }
+}
+
+__declspec(noinline) static void __fastcall HookOdinSync(void* self, void*, void* entries, int count)
+{
+    InterlockedIncrement(&g_odinSyncCalls);
+
+    const unsigned caller = CallerRva(_ReturnAddress());
+    auto* vtable = *reinterpret_cast<uintptr_t**>(self);
+    auto getRoot = reinterpret_cast<OdinGetRootMethod>(vtable[3]);
+    void* root = getRoot ? getRoot(self) : nullptr;
+
+    bool rootLoaded = false;
+    uintptr_t rootVtable = 0;
+    if (root)
+    {
+        auto* rootTable = *reinterpret_cast<uintptr_t**>(root);
+        rootVtable = reinterpret_cast<uintptr_t>(rootTable);
+        auto rootLoadedFn = reinterpret_cast<OdinBoolMethod>(rootTable[2]);
+        if (rootLoadedFn)
+            rootLoaded = rootLoadedFn(root);
+    }
+
+    auto* p = reinterpret_cast<uint8_t*>(self);
+    const bool selfLoadedBefore = *(p + 0x44) != 0;
+    const uint8_t state35Before = *(p + 0x35);
+    const uint8_t state2ABefore = *(p + 0x2A);
+    const uint16_t segmentCountBefore = *reinterpret_cast<uint16_t*>(p + 0x28);
+    const bool mismatch = root && (rootLoaded != selfLoadedBefore);
+
+    if (mismatch)
+    {
+        InterlockedIncrement(&g_odinSyncMismatches);
+        if (AllowOdinLog())
+        {
+            Log("[ODIN-SYNC] MISMATCH this=%p callerRVA=0x%08X(%s) entries=%p n=%d root=%p rootVT=%p rootLoaded=%u selfLoaded=%u state2A=%u state35=%u segCount=%u",
+                self, caller, OdinSyncCallerLabel(caller), entries, count, root,
+                reinterpret_cast<void*>(rootVtable), rootLoaded ? 1u : 0u,
+                selfLoadedBefore ? 1u : 0u, static_cast<unsigned>(state2ABefore),
+                static_cast<unsigned>(state35Before), static_cast<unsigned>(segmentCountBefore));
+        }
+    }
+
+    g_odinSyncOriginal(self, entries, count);
+
+    const bool selfLoadedAfter = *(p + 0x44) != 0;
+    const uint8_t state35After = *(p + 0x35);
+    const uint8_t state2AAfter = *(p + 0x2A);
+    const uint16_t segmentCountAfter = *reinterpret_cast<uint16_t*>(p + 0x28);
+
+    if (mismatch && AllowOdinLog())
+    {
+        Log("[ODIN-SYNC] AFTER    this=%p selfLoaded=%u state2A=%u state35=%u segCount=%u",
+            self, selfLoadedAfter ? 1u : 0u, static_cast<unsigned>(state2AAfter),
+            static_cast<unsigned>(state35After), static_cast<unsigned>(segmentCountAfter));
+    }
+}
+
+static DWORD WINAPI DiagnosticMarkerThread(LPVOID)
+{
+    bool wasDown = false;
+    while (InterlockedCompareExchange(&g_markerThreadRun, 0, 0) != 0)
+    {
+        const bool down = (GetAsyncKeyState(VK_F9) & 0x8000) != 0;
+        if (down && !wasDown)
+        {
+            const LONG n = InterlockedIncrement(&g_markerCount);
+            Log("[MARK] F9 #%ld", n);
+        }
+        wasDown = down;
+        Sleep(20);
+    }
+    return 0;
+}
+
+static bool StartDiagnosticMarker()
+{
+    InterlockedExchange(&g_markerThreadRun, 1);
+    HANDLE thread = CreateThread(nullptr, 0, DiagnosticMarkerThread, nullptr, 0, nullptr);
+    if (!thread)
+    {
+        InterlockedExchange(&g_markerThreadRun, 0);
+        Log("[FAIL] Could not start F9 diagnostic marker thread.");
+        return false;
+    }
+    CloseHandle(thread);
+    Log("[OK] F9 diagnostic marker active.");
+    return true;
+}
+
 static bool InstallOdinDiagnostics(HMODULE exe)
 {
     const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
     constexpr uintptr_t kVtableRva = 0x00C81898;
-    constexpr uintptr_t kReInstanceRva = 0x00A14BF0;
-    constexpr uintptr_t kRemoveHighResRva = 0x00A14BA0;
-    constexpr uintptr_t kPreReleaseRva = 0x00A143D0;
-    constexpr uintptr_t kIsFullyLoadedRva = 0x00A14BD0;
+    constexpr uintptr_t kSyncRva = 0x00A14610;
 
     auto* vtable = reinterpret_cast<uintptr_t*>(base + kVtableRva);
-
-    // Verify the complete recovered 10-slot table before touching it.
     const uintptr_t expectedTable[10] = {
         base + 0x00A14C10,
-        base + kReInstanceRva,
+        base + 0x00A14BF0,
         base + 0x00A0C460,
         base + 0x00A14BE0,
         base + 0x00A14BB0,
         base + 0x00A14BC0,
-        base + kRemoveHighResRva,
+        base + 0x00A14BA0,
         base + 0x00A14420,
-        base + kPreReleaseRva,
-        base + kIsFullyLoadedRva
+        base + 0x00A143D0,
+        base + 0x00A14BD0
     };
 
     for (size_t i = 0; i < 10; ++i)
@@ -441,17 +587,21 @@ static bool InstallOdinDiagnostics(HMODULE exe)
 
     Log("[OK] OdinMeshInstance vtable verified at RVA 0x%08X.", static_cast<unsigned>(kVtableRva));
 
-    bool ok = true;
-    ok &= PatchVtableSlot(&vtable[1], expectedTable[1], reinterpret_cast<void*>(&HookOdinReInstance),
-                          reinterpret_cast<void**>(&g_odinReInstance), "ReInstance");
-    ok &= PatchVtableSlot(&vtable[6], expectedTable[6], reinterpret_cast<void*>(&HookOdinRemoveHighRes),
-                          reinterpret_cast<void**>(&g_odinRemoveHighRes), "RemoveHighResSegments/query");
-    ok &= PatchVtableSlot(&vtable[8], expectedTable[8], reinterpret_cast<void*>(&HookOdinPreRelease),
-                          reinterpret_cast<void**>(&g_odinPreRelease), "PreRelease");
-    ok &= PatchVtableSlot(&vtable[9], expectedTable[9], reinterpret_cast<void*>(&HookOdinIsFullyLoaded),
-                          reinterpret_cast<void**>(&g_odinIsFullyLoaded), "IsFullyLoaded");
+    static const uint8_t expectedSyncPrologue[9] = {
+        0x83,0xEC,0x0C,0x56,0x57,0x8B,0x7C,0x24,0x1C
+    };
 
-    return ok;
+    if (!InstallAbsoluteDetour9(
+            reinterpret_cast<void*>(base + kSyncRva),
+            expectedSyncPrologue,
+            reinterpret_cast<void*>(&HookOdinSync),
+            reinterpret_cast<void**>(&g_odinSyncOriginal)))
+    {
+        return false;
+    }
+
+    Log("[OK] Odin sync diagnostic detour installed at RVA 0x%08X.", static_cast<unsigned>(kSyncRva));
+    return true;
 }
 
 static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
@@ -463,8 +613,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.2 ODIN DIAGNOSTIC");
-    Log("Architecture: validated Core 1 + runtime ASI fixes + pass-through Odin tracing");
+    Log("SaboteurEnhanced ASI 0.3 ODIN SYNC + F9 MARKER");
+    Log("Architecture: validated Core 1 + runtime ASI fixes + Odin sync correlation");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
     const std::wstring iniPath = dir + L"\\SaboteurEnhanced.ini";
@@ -503,7 +653,10 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     if (enableOdin)
     {
         if (InstallOdinDiagnostics(exe))
-            Log("[OK] Odin pass-through diagnostics active. No Odin rendering decision is modified.");
+        {
+            Log("[OK] Odin sync diagnostics active. No Odin rendering decision is modified.");
+            StartDiagnosticMarker();
+        }
         else
             Log("[FAIL] Odin diagnostics not installed completely.");
     }
@@ -532,8 +685,9 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID)
     {
         if (g_log)
         {
-            Log("Odin summary: ReInstance=%ld RemoveHighResQueries=%ld PreRelease=%ld FullyLoadedQueries=%ld LoggedEvents=%ld",
-                g_reInstanceCalls, g_removeQueries, g_preReleaseCalls, g_loadedQueries, g_odinLoggedEvents);
+            InterlockedExchange(&g_markerThreadRun, 0);
+            Log("Odin summary: SyncCalls=%ld Mismatches=%ld F9Markers=%ld LoggedEvents=%ld",
+                g_odinSyncCalls, g_odinSyncMismatches, g_markerCount, g_odinLoggedEvents);
             Log("ASI unload.");
             AcquireSRWLockExclusive(&g_logLock);
             std::fclose(g_log);
