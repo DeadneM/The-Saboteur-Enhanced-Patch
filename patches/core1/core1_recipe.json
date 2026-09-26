@@ -1,6 +1,6 @@
 {
   "format": "saboteur-core-recipe-v1",
-  "status": "candidate-selection-before-retail-byte-application",
+  "status": "built-test-candidate-awaiting-in-game-validation",
   "base_exe_sha256": "e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6",
   "file_size": 14834176,
   "historical_v200_sha256": "9d13022f1e889e5aeb16e97b6012c300ffb7acfa0b72b90971143fe7447fccaf",
@@ -788,6 +788,11 @@
     "Region 1 is split: only the first 39 bytes are retained for SuperRDX; Async32 and later streaming helper code in the same historical cave are excluded.",
     "Region 72 is split: only RAW 0x00280284 onward is retained for the 64-slot FIFO full-queue drop-oldest correction.",
     "The post-V255A HUD deltas do not overlap the skipped V257 regions, so their byte edits can be replayed independently after per-region before-byte verification.",
-    "A final target SHA-256 cannot be computed until the exact retail EXE bytes are available to apply this recipe."
-  ]
+    "Core1_TEST was built successfully from the exact retail EXE with SHA-256 e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6.",
+    "Core1_TEST SHA-256: 83995ab6e04fce264309a37a243744d4f5929c5abb87c3f195fb50fef7f5f2a8.",
+    "The candidate changes 5,069 bytes across 82 direct retail-to-Core regions and awaits in-game parity validation."
+  ],
+  "target_exe_sha256": "83995ab6e04fce264309a37a243744d4f5929c5abb87c3f195fb50fef7f5f2a8",
+  "final_direct_changed_byte_count": 5069,
+  "final_direct_region_count": 82
 }
