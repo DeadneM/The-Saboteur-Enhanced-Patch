@@ -4,7 +4,7 @@
 
 **The newest validated build is always the complete cumulative patch.**
 
-Current retained cumulative build: **V310**
+Current retained cumulative build: **V311**
 
 Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
@@ -12,7 +12,7 @@ Original retail EXE SHA-256:
 V302 EXE SHA-256:  
 `db96ff3f6f8e38acdd262a87b0bb0ded7c604abca82e86e2501a12347f512459`
 
-Current work: **continue draw-distance expansion from validated V310**
+Current work: **architectural / VeryFarScene distance expansion from validated V311**
 
 V292A EXE SHA-256:  
 `aad83b503c6a8ae9159a9b960e602c0eade4417bd76d5de82c66c2cc05b5bc28`
@@ -129,7 +129,7 @@ Fallback ladder if unstable: 100000 -> 10000 -> 5000 -> 2000.
 
 ## Next rule
 
-Future candidates start from **V310** or reproduce it exactly first.
+Future candidates start from **V311** or reproduce it exactly first.
 
 
 ## Current V297A x4 candidate
@@ -230,3 +230,28 @@ V310 EXE SHA-256:
 `f209b6a96249b7a84b13efe5ef3c44d31aaddad38c51309ea24c9aabb8c1c993`
 
 V310 is the current retained baseline.
+
+
+## Validated V311 explicit ModelInfo full RenderSlice
+
+Base: V310.
+
+Patch:
+- VA 0x006395AF / RAW 0x002387AF
+- `0F B6 4A 02 -> B1 05 90 90`
+- explicit ModelInfo RenderSlice is forced to 5
+- existing conversion produces `(1<<5)-1 = 0x1F`
+
+Untouched:
+- explicit ShadowSlice
+- explicit ZPassSlice
+- flags / ZCULL
+- explicit LODDIST
+
+User result:
+- garage/workshop pop corrected as well.
+
+V311 EXE SHA-256:
+`d87283851502782c1a9d566eeacbd33f40a48f10b31d0983237522386826284e`
+
+V311 is the current retained baseline.
