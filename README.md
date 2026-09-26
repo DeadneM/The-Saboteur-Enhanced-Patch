@@ -2,9 +2,9 @@
 
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
-> **Current retained cumulative build: V302**  
+> **Current retained cumulative build: V310**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current work: complete object draw-distance audit from retained V302**
+> **Current work: continue object draw-distance expansion from validated V310**
 
 ## Current canonical build
 
@@ -526,3 +526,34 @@ V302 EXE SHA-256:
 - V308: Q2 RENDERSLICE3 far 50 -> 200. No visible improvement to the very-near object pop; rejected.
 
 Future distance work starts from V302 and must identify the actual owner of the remaining short-range object pop before changing another scalar.
+
+
+## Validated V310
+
+V310 starts directly from retained V302 and changes only the automatic WSModel
+size-to-RenderSlice classifier used when no explicit ModelInfo record exists.
+
+Native automatic masks:
+- size < 0.3 -> 0x03
+- 0.3 <= size < 0.6 -> 0x07
+- 0.6 <= size < 4.0 -> 0x0F
+- size >= 4.0 -> 0x1F
+
+V310 bypasses that classifier and preserves the already initialized full masks:
+- Render mask = 0x1F
+- ZPass mask = 0x1F
+- shadow-side auto mask = 0x1F
+
+Patch:
+- VA 0x00639622
+- RAW 0x00238822
+- `D9 47 -> EB 4F`
+
+User validation: the very-near small-object pop shown in the garage/workshop route
+was visibly improved. V310 is therefore the new retained cumulative baseline.
+
+V310 EXE SHA-256:
+`f209b6a96249b7a84b13efe5ef3c44d31aaddad38c51309ea24c9aabb8c1c993`
+
+V309 remains rejected because bypassing the WSModel A8 hard-cull rewrite did not
+change the observed pop.
