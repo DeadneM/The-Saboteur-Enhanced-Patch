@@ -255,3 +255,19 @@ V311 EXE SHA-256:
 `d87283851502782c1a9d566eeacbd33f40a48f10b31d0983237522386826284e`
 
 V311 is the current retained baseline.
+
+
+## Rejected V312 / current V313A
+
+V312A VeryFarScene thresholds:
+- 22/49 -> 88/196
+- user result: no visible change to the balcony/facade pop
+- status: rejected
+- V311 remains the retained baseline
+
+V313A starts directly from V311 and targets the dedicated WSFarSceneObject render
+path instead:
+- two local 320.0 camera-depth cutoffs -> 1280.0 (x4)
+- shared/global 320 constants are not edited
+- V312 is not inherited
+- test-only until user validation
