@@ -694,3 +694,37 @@ Conclusion:
 - V310 is retained.
 - next logical target is the explicit ModelInfo RenderSlice path, while leaving
   explicit ZPassSlice, ShadowSlice and LODDIST unchanged.
+
+
+## V311 validated - explicit ModelInfo full RenderSlice
+
+Base: validated V310.
+
+V311 forces only the explicit ModelInfo RenderSlice load to 5:
+- VA 0x006395AF / RAW 0x002387AF
+- `0F B6 4A 02 -> B1 05 90 90`
+- resulting render mask 0x1F
+
+User result:
+- garage/workshop short-range object pop corrected.
+
+This confirms both sides of the WSModel RenderSlice policy were real draw-distance
+limiters:
+1. V310 fixes unlisted/auto-classified models.
+2. V311 fixes explicit ModelInfo RenderSlice-limited models.
+
+A later street video still shows a balcony/facade component appearing late.
+That object family is therefore outside these two WSModel RenderSlice gates.
+
+VeryFarScene audit found two internal profile thresholds stored in each 24-byte
+profile record at +0x08:
+- profile 0: 22.0
+- profile 1: 49.0
+
+Runtime method VA 0x00801700 computes camera-forward depth and only enters the
+VeryFarScene processing path once depth reaches approximately:
+- 22 - 5 = 17
+- 49 - 5 = 44
+
+These values are a strong match for the remaining architectural transition
+distance seen in the supplied video.
