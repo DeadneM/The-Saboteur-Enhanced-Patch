@@ -4,7 +4,7 @@
 
 **The newest validated build is always the complete cumulative patch.**
 
-Current retained cumulative build: **V302**
+Current retained cumulative build: **V310**
 
 Original retail EXE SHA-256:  
 `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
@@ -12,7 +12,7 @@ Original retail EXE SHA-256:
 V302 EXE SHA-256:  
 `db96ff3f6f8e38acdd262a87b0bb0ded7c604abca82e86e2501a12347f512459`
 
-Current work: **complete object draw-distance audit from V302**
+Current work: **continue draw-distance expansion from validated V310**
 
 V292A EXE SHA-256:  
 `aad83b503c6a8ae9159a9b960e602c0eade4417bd76d5de82c66c2cc05b5bc28`
@@ -129,7 +129,7 @@ Fallback ladder if unstable: 100000 -> 10000 -> 5000 -> 2000.
 
 ## Next rule
 
-Future candidates start from **V302** or reproduce it exactly first.
+Future candidates start from **V310** or reproduce it exactly first.
 
 
 ## Current V297A x4 candidate
@@ -207,3 +207,26 @@ Rejected after V302:
 - V308A: Q2 RENDERSLICE3 far 50 -> 200; no visible improvement to the very-near prop pop.
 
 Conclusion: V303-V308 are diagnostic branches only and must not be inherited.
+
+
+## Validated V310 auto-classifier bypass
+
+Base: V302.
+
+Patch:
+- VA 0x00639622 / RAW 0x00238822
+- automatic unlisted-model classifier entry `D9 47 -> EB 4F`
+- jumps directly to the existing mask pack/store path
+- explicit ModelInfo models are untouched
+
+Effect:
+- unlisted WSModels retain full 0x1F automatic render masks instead of being
+  reduced to 0x03/0x07/0x0F according to model size.
+
+User result:
+- previously very-near small-object pop visibly improved.
+
+V310 EXE SHA-256:
+`f209b6a96249b7a84b13efe5ef3c44d31aaddad38c51309ea24c9aabb8c1c993`
+
+V310 is the current retained baseline.
