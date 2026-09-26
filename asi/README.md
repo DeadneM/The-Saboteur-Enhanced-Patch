@@ -15,3 +15,17 @@ The bundled dinput8.dll is an x86 proxy loader. It forwards the standard DirectI
 No tuner.txt modifications are used.
 
 Build target: Win32 / x86.
+
+
+## Runtime validation
+
+ASI 0.1 is validated in game on Core 1.
+
+Validated behavior:
+- dinput8 x86 proxy loads the real System32 DirectInput8 implementation;
+- SaboteurEnhanced.asi loads and initializes;
+- V310 runtime patch applies successfully;
+- V311 runtime patch applies successfully;
+- ASI unload is clean on game exit.
+
+Detailed log: `../docs/ASI_0_1_VALIDATION.md`
