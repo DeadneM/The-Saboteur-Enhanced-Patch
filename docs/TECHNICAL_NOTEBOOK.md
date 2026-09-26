@@ -843,3 +843,18 @@ back through telemetry or isolated visible benefit.
 
 The V315 tuner.txt diagnostic is abandoned and is not part of the new
 architecture.
+
+
+## Core 1 TEST candidate
+
+The first cleaned Core executable has now been built from the exact retail EXE.
+
+- Retail SHA-256: `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
+- Core1 TEST SHA-256: `83995ab6e04fce264309a37a243744d4f5929c5abb87c3f195fb50fef7f5f2a8`
+- direct changed bytes: **5,069**
+- direct changed regions: **82**
+- status: **test-only, awaiting in-game parity validation**
+
+Core1 deliberately excludes V257 Max Engine, Async32/broad streaming tuning, Sleep(0), V260+ pool/cap increases, broad LOD/distance tuning, HighPalette, V298/V302 expansion and rejected diagnostics.
+
+Core1 retains the validated window/borderless/display path, Hor+ FOV, DirectInput Alt+F4, timeBeginPeriod(1), high-resolution HUD/UI scaler, Caps Lock HUD toggle with menu-safe behavior, reticle/scoped-sight handling, V258Y HUD/minimap placement, V259 markers, SuperRDX and the streaming FIFO full-queue correctness fix.
