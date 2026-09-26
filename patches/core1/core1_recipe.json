@@ -1,0 +1,793 @@
+{
+  "format": "saboteur-core-recipe-v1",
+  "status": "candidate-selection-before-retail-byte-application",
+  "base_exe_sha256": "e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6",
+  "file_size": 14834176,
+  "historical_v200_sha256": "9d13022f1e889e5aeb16e97b6012c300ffb7acfa0b72b90971143fe7447fccaf",
+  "design": "Clean Core keeps proven system/UI/gameplay-correctness patches only. Engine tuning moves out.",
+  "selected_original_to_v200_changed_bytes": 4595,
+  "historical_original_to_v200_changed_bytes": 5274,
+  "selected_original_to_v200_regions": [
+    {
+      "source_index": 0,
+      "offset": "0x00002856",
+      "before": "cccccccccccccccccccccccccccccc",
+      "after": "5051528b15f4ac4a0185d2741e8b82",
+      "length": 15
+    },
+    {
+      "source_index": 1,
+      "subrange": "SuperRDX-prefix",
+      "offset": "0x00002866",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "05000085c07414b940000000817804f29f81e2740a83c0384975f139c0eb04f64034015a5958c3",
+      "length": 39
+    },
+    {
+      "source_index": 2,
+      "offset": "0x00002923",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "11f70085c0740750ff151011f700578b3d4411f700e9fe435800a1c0e24801566a0850ff15b011f700578b3d4411f700e9e84358008b44240c25ffffff7f3dcd",
+      "length": 64
+    },
+    {
+      "source_index": 3,
+      "offset": "0x00002965",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "3d724e3d000000407747c74424080000403fd9442408d874240cd95c24088b4424083d666606407608c744240866660640d98610010000d84c2408d99e10010000d98614010000d84c2408d99e140100005ec20800",
+      "length": 85
+    },
+    {
+      "source_index": 15,
+      "offset": "0x00007B76",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "558bec83ec3856578b751c8d7dc8b90e000000f3a5c745e801000000c745f800000000ff75208d45c850ff7518ff7514ff7510ff750c8b4508508b10ff52405f5e8be55dc21c00",
+      "length": 71
+    },
+    {
+      "source_index": 16,
+      "offset": "0x00007BC0",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "558bec83ec385356578bd98b83c405000085c074308db38c0500008d7dc8b90e000000f3a5c745e801000000c745f8000000008b83c40500008b108d4dc85150ff5240eb0233c05f5e5b8be55dc3",
+      "length": 78
+    },
+    {
+      "source_index": 17,
+      "offset": "0x00007C10",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "558bec6a00ff154413f7008945206a01ff154413f700894524c7451800000000c7451c000000008be55dff254813f7009c60686d8a4000ff152411f70085c0741468778a400050ff15e810f70085c074046a01ffd0619de8de16a600c377696e6d6d2e646c6c0074696d65426567696e506572696f6400",
+      "length": 119
+    },
+    {
+      "source_index": 18,
+      "offset": "0x00023E40",
+      "before": "0f95c0",
+      "after": "b00190",
+      "length": 3
+    },
+    {
+      "source_index": 19,
+      "offset": "0x00023E54",
+      "before": "8b0d54cd43016800a2f700",
+      "after": "e997150f00909090909090",
+      "length": 11
+    },
+    {
+      "source_index": 22,
+      "offset": "0x00028BEE",
+      "before": "a158f4200150ff154c13f700",
+      "after": "e91dc90e0090909090909090",
+      "length": 12
+    },
+    {
+      "source_index": 23,
+      "offset": "0x00028FBD",
+      "before": "cf10",
+      "after": "0090",
+      "length": 2
+    },
+    {
+      "source_index": 24,
+      "offset": "0x00028FC7",
+      "before": "ff154813f700",
+      "after": "e844ecfdff90",
+      "length": 6
+    },
+    {
+      "source_index": 25,
+      "offset": "0x000E6E26",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "669053e85ae50200b8f87c4e00e830000000b8087d4e00e826000000b8187d4e00e81c000000b8287d4e00e812000000b8387d4e00e8080000005b5b5f5e89ec5dc35589e583ec308945fc8b55fc8b02b98d0a6800ffd1dd5df08b55fc8b4208b98d0a6800ffd1dd5de88b55fc8b420cb98d0a6800ffd1dd5de08b55fc8b02dd03b9d30a6800ffd18b55fc8b4204dd03b9d30a6800ffd1dd45e0dc0bdc75f0dd5dd8dd45e0dc65d8dc0df07c4e00dc45e88b55fc8b4208b9d30a6800ffd189ec5dc30000000000805140000000000000e03f487d4e00667d4e00847d4e009d7d4e00ba7d4e00d87d4e00f67d4e000f7e4e002c7e4e004a7e4e00687e4e00817e4e009e7e4e00bc7e4e00da7e4e00f37e4e00107f4e002e7f4e004c7f4e00657f4e00427574746f6e50726f6d70742e50726f6d707430302e5f787363616c6500427574746f6e50726f6d70742e50726f6d707430302e5f797363616c6500427574746f6e50726f6d70742e50726f6d707430302e5f7800427574746f6e50726f6d70742e50726f6d707430302e5f776964746800427574746f6e50726f6d70742e50726f6d707430312e5f787363616c6500427574746f6e50726f6d70742e50726f6d707430312e5f797363616c6500427574746f6e50726f6d70742e50726f6d707430312e5f7800427574746f6e50726f6d70742e50726f6d707430312e5f776964746800427574746f6e50726f6d70742e50726f6d707430322e5f787363616c6500427574746f6e50726f6d70742e50726f6d707430322e5f797363616c6500427574746f6e50726f6d70742e50726f6d707430322e5f7800427574746f6e50726f6d70742e50726f6d707430322e5f776964746800427574746f6e50726f6d70742e50726f6d707430332e5f787363616c6500427574746f6e50726f6d70742e50726f6d707430332e5f797363616c6500427574746f6e50726f6d70742e50726f6d707430332e5f7800427574746f6e50726f6d70742e50726f6d707430332e5f776964746800427574746f6e50726f6d70742e50726f6d707430342e5f787363616c6500427574746f6e50726f6d70742e50726f6d707430342e5f797363616c6500427574746f6e50726f6d70742e50726f6d707430342e5f7800427574746f6e50726f6d70742e50726f6d707430342e5f776964746800",
+      "length": 860
+    },
+    {
+      "source_index": 49,
+      "offset": "0x00115386",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "669050a1e8ff5c0185c0741b8b80780600003dd00700007d233d780500007d153de80300007d07bbd0615100eb13bbd8615100eb0cbbe0615100eb05bbe861510058c38db4260000000000000000000059400000000000805640000000000000544000000000008051409c60837c241c000f848e00000068c0635100ff152411f70085c00f847b0000008bd868cb63510053ff15e810f7008bf068e063510053ff15e810f7008be885f60f845500000085ed0f844d00000081ec9c00000033c0b9270000008d3c24f3ab66c74424249c008d0424506aff6a00ffd685c00f841c0000008b8424b800000089442478814c2428000040006a048d44240450ffd581c49c000000619d8b0d54cd43016800a2f700e9c2e9f0ff",
+      "length": 279
+    },
+    {
+      "source_index": 50,
+      "offset": "0x00115510",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "9c6068c0635100ff152411f70085c00f841a00000068e063510050ff15e810f70085c00f84060000006a006a00ffd0619da158f4200150ff154c13f700e9a836f1ff",
+      "length": 66
+    },
+    {
+      "source_index": 51,
+      "offset": "0x001155C0",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "7573657233322e646c6c00456e756d446973706c617953657474696e677341004368616e6765446973706c617953657474696e67734100",
+      "length": 55
+    },
+    {
+      "source_index": 62,
+      "offset": "0x00262800",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "9c50515257a1e8ff5c0185c00f84810000008b88740600008bb87806000085c9747185ff746d39f9730287f9b80000000531d2f7f189c1b80000d00231d2f7f739c1730289c181f9000001007605b90000010083ec04890c24db0424d80dd4366600d9c0d80dd8366600d99e1c010000d80ddc366600d91dec881301d98618010000d80de0366600d99e1801000083c404eb2ed9e8d9c0d80dd8366600d99e1c010000d80ddc366600d91dec881301d98618010000d80de0366600d99e180100005f5a59589d889e2d010000e9110714008d760000008037000040400000003fabaa2a3fabaaaa3e",
+      "length": 232
+    },
+    {
+      "source_index": 63,
+      "offset": "0x00262900",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "d88e1c010000d80de4366600d95c2424e82be9dbffe9d52f140080bd2c010000007404d9eeeb06dd051833ff00e9330e1400",
+      "length": 50
+    },
+    {
+      "source_index": 64,
+      "offset": "0x00262940",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "6a016800402bc468c429ff008bcee88daa1300d9e8c7869c00000002000000d95e74e9cfed1300",
+      "length": 39
+    },
+    {
+      "source_index": 65,
+      "offset": "0x00262970",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "9c50a1d869320185c07431f6403a807420803df95f5f0100751ec605f95f5f01018035f85f5f0101c605fa5f5f0101eb07c605f95f5f0100c6403a00589dbf01000000e901320200",
+      "length": 72
+    },
+    {
+      "source_index": 66,
+      "offset": "0x002629D0",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "9c50515257803dfa5f5f0100752c803df85f5f01000f848700000031ff8b4cbe34e82ed8010084c07408908b016a00ff502c4783ff2972e5eb68c605fa5f5f010031ff803df85f5f01007438c705e05f5f0100000000c705e45f5f01000000008b4cbe34e8ebd7010084c0740f900fab3de05f5f018b016a00ff502c4783ff2972deeb1e8b4cbe3485c974100fa33de05f5f0173078b016a01ff502c4783ff2972e25f5a59589d8b86dcbb0000e9a1f43500",
+      "length": 178
+    },
+    {
+      "source_index": 67,
+      "offset": "0x0027FB36",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "669053a1e8ff5c0185c0741b8b80780600003dd00700007d233d780500007d153de80300007d07bb080b6800eb13bb100b6800eb0cbb180b6800eb05bb200b68008b8e800a000085c9743ce9fa0900009090909090b8440b6800e82f000000b8600b6800e825000000b87c0b6800e81b000000b8980b6800e811000000b8b40b6800e807000000e92a04000090905589e583ec488945fc8b55fc8b02e8b6000000dd5df08b55fc8b4204e8a8000000dd5de88b55fc8b4210e89a000000dd5de08b55fc8b4214e88c000000dd5dd88b55fc8b4208e87e000000dd5dd08b55fc8b420ce870000000dd5dc88b55fc8b02dd03e8a70000008b55fc8b4204dd03e89a0000008b55fcf7421801000000741cdd45e0dc0bdc75f0dd5dc0dd45d0dc45e0dc65c08b4208e8720000008b55fcf7421802000000741cdd45d8dc0bdc75e8dd5db8dd45c8dc45d8dc65b88b420ce84a00000089ec5dc383ec10c7042400000000c744240400000000c744240800000000c744240c000000008b8e800a000085c974148b118b52308d3c245057ffd2dd44240883c410c3d9ee83c410c383ec10c7042403000000c744240400000000dd5c24088b8e800a000085c9740e8b118b522c8d3c246a015750ffd283c410c38d760000000000000059400000000000c0574000000000008056400000000000005440d00b6800e10b6800f20b6800fe0b68000a0c68001a0c6800000000002b0c6800380c6800450c68004d0c6800550c6800610c6800020000006e0c6800840c68009a0c6800ab0c6800bc0c6800d10c680001000000e70c6800f90c68000b0d6800180d6800250d6800360d680003000000480d6800580d6800680d6800730d68007e0d68008d0d6800030000009d0d6800ac0d6800bb0d6800c50d6800cf0d6800dd0d6800030000005475746f7269616c2e5f787363616c65005475746f7269616c2e5f797363616c65005475746f7269616c2e5f78005475746f7269616c2e5f79005475746f7269616c2e5f7769647468005475746f7269616c2e5f686569676874004d61696c2e5f787363616c65004d61696c2e5f797363616c65004d61696c2e5f78004d61696c2e5f79004d61696c2e5f7769647468004d61696c2e5f686569676874004f626a656374697665547261792e5f787363616c65004f626a656374697665547261792e5f797363616c65004f626a656374697665547261792e5f78004f626a656374697665547261792e5f79004f626a656374697665547261792e5f7769647468004f626a656374697665547261792e5f68656967687400496e76656e746f72792e5f787363616c6500496e76656e746f72792e5f797363616c6500496e76656e746f72792e5f7800496e76656e746f72792e5f7900496e76656e746f72792e5f776964746800496e76656e746f72792e5f68656967687400526163654855442e5f787363616c6500526163654855442e5f797363616c6500526163654855442e5f7800526163654855442e5f7900526163654855442e5f776964746800526163654855442e5f686569676874005069636b75702e5f787363616c65005069636b75702e5f797363616c65005069636b75702e5f78005069636b75702e5f79005069636b75702e5f7769647468005069636b75702e5f68656967687400e99f00000000b80c0e6800e8c8fbffff5be9266ee6ff90900000000000805140280e6800380e6800480e6800530e68005e0e68006d0e6800020000004d696e696d61702e5f787363616c65004d696e696d61702e5f797363616c65004d696e696d61702e5f78004d696e696d61702e5f79004d696e696d61702e5f7769647468004d696e696d61702e5f68656967687400",
+      "length": 1351
+    },
+    {
+      "source_index": 68,
+      "offset": "0x00280080",
+      "before": "cccccccccccccccc",
+      "after": "6666666666666640",
+      "length": 8
+    },
+    {
+      "source_index": 69,
+      "offset": "0x00280090",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "9c60dd05040e6800b8280e6800e831fcffffdd05040e6800b8380e6800e821fcffffb8480e6800e8d1fbffffdc0d100f6800d9864cbc0000dc0d180f6800dee9b8480e6800e8f9fbffffb8530e6800e8a9fbffffdc0d100f6800d98650bc0000dc0d180f6800dec1dc05200f6800b8530e6800e8cbfbffff619de9196de6ff90666666666666e63f333333333333d33f0000000000006b40",
+      "length": 152
+    },
+    {
+      "source_index": 70,
+      "offset": "0x00280170",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "505152d98690000000dc0d100f6800a1149b4a01d98044bc0000dc0d180f6800dee9d99e90000000d98694000000dc0d100f68008b0de8ff5c01db8178060000a1149b4a01d88048bc0000dc0d180f6800dec1d99e940000005a59588b3d3c11f700e92cb21000",
+      "length": 103
+    },
+    {
+      "source_index": 71,
+      "offset": "0x00280200",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "d88c24b4020000d80d20106800e93bfb100090909090909090909090909090903333333f85c97425f6413604741f528b01ba501068003b02741283c20481fa8410680072f15ab801000000c35a31c0c3340dff00bc32ff001c48ff00644cff0020dffe001c10ff002cbcfe00bceffe00bc0fff0064fafe002855ff00b8",
+      "length": 125
+    },
+    {
+      "source_index": 72,
+      "subrange": "Streaming-FIFO-drop-oldest",
+      "offset": "0x00280284",
+      "before": "cccccccccccccccccccccccccccccccccccccccccc",
+      "after": "8bb1100100004683e63f89b110010000e9ea497300",
+      "length": 21
+    },
+    {
+      "source_index": 73,
+      "offset": "0x00280300",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "d9401cd82530116800d95904e952671100909090909090909090909090909090909090909090909090909090909090900000003f",
+      "length": 52
+    },
+    {
+      "source_index": 74,
+      "offset": "0x00280580",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "53a1e8ff5c0185c0741b8b80780600003dd00700007d233d780500007d153de80300007d07bb080b6800eb13bb180b6800eb0cbb200b6800eb05bb040e6800b8280b6800e8fbf5ffffb8f20b6800dd03e8fef6ffffb8fe0b6800dd03dc3520146800e8ecf6ffff5be99ef5ffff",
+      "length": 109
+    },
+    {
+      "source_index": 75,
+      "offset": "0x00280620",
+      "before": "cccccccccccccccc",
+      "after": "0000000000000040",
+      "length": 8
+    },
+    {
+      "source_index": 76,
+      "offset": "0x002859F8",
+      "before": "05",
+      "after": "06",
+      "length": 1
+    },
+    {
+      "source_index": 77,
+      "offset": "0x00285BB4",
+      "before": "bf01000000",
+      "after": "e9b7cdfdff",
+      "length": 5
+    },
+    {
+      "source_index": 78,
+      "offset": "0x0028F2D6",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "a1e8ff5c0185c0741b8b80780600003dd00700007d233d780500007d153de80300007d07bfb0016900eb13bfb4016900eb0cbfb8016900eb05bfbc0169006a01ff3768d001690089f1b8e0e17900ffd06a01ff3768e801690089f1b8e0e17900ffd0d94424405168a7477700c3",
+      "length": 109
+    },
+    {
+      "source_index": 79,
+      "offset": "0x0028F3B0",
+      "before": "cccccccccccccccccccccccccccccccc",
+      "after": "0000c8420000be420000b44200008c42",
+      "length": 16
+    },
+    {
+      "source_index": 80,
+      "offset": "0x0028F3D0",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "5f726f6f742e52657469636c65732e5f787363616c6500",
+      "length": 23
+    },
+    {
+      "source_index": 81,
+      "offset": "0x0028F3E8",
+      "before": "cccccccccccccccccccccccccccccccccccccccccccccc",
+      "after": "5f726f6f742e52657469636c65732e5f797363616c6500",
+      "length": 23
+    },
+    {
+      "source_index": 82,
+      "offset": "0x0029878C",
+      "before": "803da89e4a0100",
+      "after": "e8c5a0d6ff9090",
+      "length": 7
+    },
+    {
+      "source_index": 83,
+      "offset": "0x00299268",
+      "before": "381da89e4a01",
+      "after": "e8e995d6ff90",
+      "length": 6
+    },
+    {
+      "source_index": 84,
+      "offset": "0x00299A4D",
+      "before": "803da89e4a0100",
+      "after": "e8048ed6ff9090",
+      "length": 7
+    },
+    {
+      "source_index": 87,
+      "offset": "0x003739A2",
+      "before": "d944244051",
+      "after": "e92fb9f1ff",
+      "length": 5
+    },
+    {
+      "source_index": 88,
+      "offset": "0x0037614F",
+      "before": "0c",
+      "after": "18",
+      "length": 1
+    },
+    {
+      "source_index": 89,
+      "offset": "0x0037643F",
+      "before": "04",
+      "after": "08",
+      "length": 1
+    },
+    {
+      "source_index": 90,
+      "offset": "0x00376A43",
+      "before": "04",
+      "after": "08",
+      "length": 1
+    },
+    {
+      "source_index": 91,
+      "offset": "0x0037730E",
+      "before": "04",
+      "after": "08",
+      "length": 1
+    },
+    {
+      "source_index": 92,
+      "offset": "0x00377610",
+      "before": "04",
+      "after": "08",
+      "length": 1
+    },
+    {
+      "source_index": 93,
+      "offset": "0x00377728",
+      "before": "12",
+      "after": "24",
+      "length": 1
+    },
+    {
+      "source_index": 94,
+      "offset": "0x00377779",
+      "before": "12",
+      "after": "24",
+      "length": 1
+    },
+    {
+      "source_index": 95,
+      "offset": "0x003777DD",
+      "before": "12",
+      "after": "24",
+      "length": 1
+    },
+    {
+      "source_index": 96,
+      "offset": "0x00377867",
+      "before": "12",
+      "after": "24",
+      "length": 1
+    },
+    {
+      "source_index": 97,
+      "offset": "0x00378277",
+      "before": "0c",
+      "after": "18",
+      "length": 1
+    },
+    {
+      "source_index": 98,
+      "offset": "0x003787BB",
+      "before": "0c",
+      "after": "18",
+      "length": 1
+    },
+    {
+      "source_index": 99,
+      "offset": "0x00378811",
+      "before": "12",
+      "after": "24",
+      "length": 1
+    },
+    {
+      "source_index": 100,
+      "offset": "0x00378827",
+      "before": "12",
+      "after": "24",
+      "length": 1
+    },
+    {
+      "source_index": 101,
+      "offset": "0x0037883B",
+      "before": "04",
+      "after": "08",
+      "length": 1
+    },
+    {
+      "source_index": 102,
+      "offset": "0x00378931",
+      "before": "12",
+      "after": "24",
+      "length": 1
+    },
+    {
+      "source_index": 103,
+      "offset": "0x0038B28C",
+      "before": "c016ff",
+      "after": "800e68",
+      "length": 3
+    },
+    {
+      "source_index": 104,
+      "offset": "0x0038B34A",
+      "before": "c016ff",
+      "after": "800e68",
+      "length": 3
+    },
+    {
+      "source_index": 105,
+      "offset": "0x0038B3FD",
+      "before": "8b3d3c11f700",
+      "after": "e96e4defff90",
+      "length": 6
+    },
+    {
+      "source_index": 106,
+      "offset": "0x0038FD46",
+      "before": "d88c24b4020000",
+      "after": "e9b504efff9090",
+      "length": 7
+    },
+    {
+      "source_index": 107,
+      "offset": "0x00396A5D",
+      "before": "d9401cd95904",
+      "after": "e99e98eeff90",
+      "length": 6
+    },
+    {
+      "source_index": 108,
+      "offset": "0x003A1727",
+      "before": "d9e8c7869c00000002000000d95e74",
+      "after": "e91412ecff90909090909090909090",
+      "length": 15
+    },
+    {
+      "source_index": 109,
+      "offset": "0x003A28B0",
+      "before": "4674",
+      "after": "e890",
+      "length": 2
+    },
+    {
+      "source_index": 110,
+      "offset": "0x003A2FD4",
+      "before": "d9e8889e2d010000d99e1c010000",
+      "after": "e927f8ebff909090909090909090",
+      "length": 14
+    },
+    {
+      "source_index": 111,
+      "offset": "0x003A375F",
+      "before": "dd051833",
+      "after": "e9b6f1eb",
+      "length": 4
+    },
+    {
+      "source_index": 112,
+      "offset": "0x003A3764",
+      "before": "00",
+      "after": "90",
+      "length": 1
+    },
+    {
+      "source_index": 113,
+      "offset": "0x003A58E6",
+      "before": "d95c2424e851b9c7ff",
+      "after": "e915d0ebff90909090",
+      "length": 9
+    },
+    {
+      "source_index": 129,
+      "offset": "0x005BCEC0",
+      "before": "5f5e8be55dc3",
+      "after": "e9712cccff90",
+      "length": 6
+    },
+    {
+      "source_index": 130,
+      "offset": "0x005C1F1D",
+      "before": "8b86dcbb0000",
+      "after": "e9ae0acaff90",
+      "length": 6
+    },
+    {
+      "source_index": 141,
+      "offset": "0x009B4C77",
+      "before": "8b35181c4e01c70687d61200",
+      "after": "e908b68cff90909090909090",
+      "length": 12
+    },
+    {
+      "source_index": 147,
+      "offset": "0x009F4BB5",
+      "before": "8b4140ffd0",
+      "after": "e8bc2f61ff",
+      "length": 5
+    },
+    {
+      "source_index": 148,
+      "offset": "0x009F4D30",
+      "before": "83b9c40500",
+      "after": "e98b2e61ff",
+      "length": 5
+    },
+    {
+      "source_index": 149,
+      "offset": "0x00A04244",
+      "before": "5ec20800cc",
+      "after": "e90fe75fff",
+      "length": 5
+    },
+    {
+      "source_index": 150,
+      "offset": "0x00A4B6D5",
+      "before": "71dc0100",
+      "after": "67c55bff",
+      "length": 4
+    }
+  ],
+  "selected_later_deltas": [
+    {
+      "source_manifest": "patches/v200_to_v255a.json",
+      "from_version": "V200",
+      "to_version": "V255A",
+      "regions": [
+        {
+          "offset": "0x0028F343",
+          "before": "cccccccccccccccccccccccccccccc",
+          "after": "3b1d68e74201758bbfb0016900ebc2",
+          "length": 15
+        },
+        {
+          "offset": "0x003739A3",
+          "before": "2f",
+          "after": "9c",
+          "length": 1
+        }
+      ]
+    },
+    {
+      "source_manifest": "patches/v257_to_v258g.json",
+      "from_version": "V257",
+      "to_version": "V258G",
+      "regions": [
+        {
+          "offset": "0x0027FD78",
+          "before": "01",
+          "after": "00",
+          "length": 1
+        },
+        {
+          "offset": "0x005BCCEF",
+          "before": "44240c",
+          "after": "ee9090",
+          "length": 3
+        }
+      ]
+    },
+    {
+      "source_manifest": "patches/v258g_to_v258m.json",
+      "from_version": "V258G",
+      "to_version": "V258M",
+      "regions": [
+        {
+          "offset": "0x0027FBBE",
+          "before": "2a04",
+          "after": "6e0a",
+          "length": 2
+        },
+        {
+          "offset": "0x002805C9",
+          "before": "b8f20b68",
+          "after": "e9920000",
+          "length": 4
+        },
+        {
+          "offset": "0x00280630",
+          "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "after": "9c60b89a0c6800e851f6ffffdc25a8146800b89a0c6800e887f6ffff619de999f9ffff",
+          "length": 35
+        },
+        {
+          "offset": "0x00280660",
+          "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "after": "dd05a8146800b8f20b6800e863f6ffffdd05a8146800b8fe0b6800e853f6ffff5be905f5ffff",
+          "length": 38
+        },
+        {
+          "offset": "0x002806A8",
+          "before": "cccccccccccccccc",
+          "after": "0000000000804140",
+          "length": 8
+        }
+      ]
+    },
+    {
+      "source_manifest": "patches/v258m_to_v258p.json",
+      "from_version": "V258M",
+      "to_version": "V258P",
+      "regions": [
+        {
+          "offset": "0x0027FBBE",
+          "before": "6e0a",
+          "after": "d706",
+          "length": 2
+        },
+        {
+          "offset": "0x00280299",
+          "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "after": "9c60b89a0c6800e8e8f9ffffdc25b0146800b89a0c6800e81efaffffb8ab0c6800e8cef9ffffdc25b8146800b8ab0c6800e804faffff619de916fdffff",
+          "length": 61
+        },
+        {
+          "offset": "0x00280672",
+          "before": "a8",
+          "after": "c0",
+          "length": 1
+        },
+        {
+          "offset": "0x002806B0",
+          "before": "cccccccccccccccccccccccccccccccccccccccccccccccc",
+          "after": "000000000000324000000000000048400000000000003e40",
+          "length": 24
+        }
+      ]
+    },
+    {
+      "source_manifest": "patches/v258p_to_v258w.json",
+      "from_version": "V258P",
+      "to_version": "V258W",
+      "regions": [
+        {
+          "offset": "0x0027FB9F",
+          "before": "b87c0b68",
+          "after": "e9900700",
+          "length": 4
+        },
+        {
+          "offset": "0x0027FBA4",
+          "before": "e81b000000",
+          "after": "9090909090",
+          "length": 5
+        },
+        {
+          "offset": "0x0028010C",
+          "before": "6de6ff",
+          "after": "000000",
+          "length": 3
+        },
+        {
+          "offset": "0x00280128",
+          "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "after": "9c60b8480e6800e859fbffffdc25c8146800b8480e6800e88ffbffffb8530e6800e83ffbffffdc05d0146800b8530e6800e875fbffff619de9c36ce6ff",
+          "length": 61
+        },
+        {
+          "offset": "0x002801CC",
+          "before": "8b3d3c11f700",
+          "after": "e96e03000090",
+          "length": 6
+        },
+        {
+          "offset": "0x002802D8",
+          "before": "cccccccccccccccccccccccccccccccc",
+          "after": "abaaaaaaaaea56405555555555d54940",
+          "length": 16
+        },
+        {
+          "offset": "0x00280334",
+          "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "after": "b87c0b6800e886f8ffffb80b0d6800e845f9ffffdc05d8106800b80b0d6800e87bf9ffffb8180d6800e82bf9ffffdc05e0106800b8180d6800e861f9ffffe932f8ffff",
+          "length": 67
+        },
+        {
+          "offset": "0x0028053F",
+          "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "after": "d98690000000dc25ed136800d99e90000000d98694000000dc05f5136800d99e940000008b3d3c11f700e995ae1000",
+          "length": 47
+        },
+        {
+          "offset": "0x002805ED",
+          "before": "cccccccccccccccccccccccccccccccc",
+          "after": "0000000000804e400000000000003f40",
+          "length": 16
+        },
+        {
+          "offset": "0x002806B8",
+          "before": "000000000000",
+          "after": "5555555555d5",
+          "length": 6
+        },
+        {
+          "offset": "0x002806C8",
+          "before": "cccccccccccccccccccccccccccccccc",
+          "after": "5555555555553440abaaaaaaaaaa2440",
+          "length": 16
+        }
+      ]
+    },
+    {
+      "source_manifest": "patches/v258w_to_v258y.json",
+      "from_version": "V258W",
+      "to_version": "V258Y",
+      "regions": [
+        {
+          "offset": "0x002805F2",
+          "before": "804e",
+          "after": "0059",
+          "length": 2
+        },
+        {
+          "offset": "0x002805FB",
+          "before": "3f",
+          "after": "4e",
+          "length": 1
+        },
+        {
+          "offset": "0x002806C8",
+          "before": "55555555555534",
+          "after": "abaaaaaaaaaa40",
+          "length": 7
+        },
+        {
+          "offset": "0x002806D0",
+          "before": "abaaaaaaaaaa24",
+          "after": "00000000000034",
+          "length": 7
+        }
+      ]
+    },
+    {
+      "source_manifest": "patches/v258y_to_v259.json",
+      "from_version": "V258Y",
+      "to_version": "V259",
+      "regions": [
+        {
+          "offset": "0x00280332",
+          "before": "003f",
+          "after": "803e",
+          "length": 2
+        },
+        {
+          "offset": "0x00280600",
+          "before": "cccccccccccccccccccccccccccccccccccccccccc",
+          "after": "d944244cd805a4146800d95804d95808e99d651100",
+          "length": 21
+        },
+        {
+          "offset": "0x00280686",
+          "before": "cccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "after": "d944242c837c245c007506d805a4146800d9581ce909043600",
+          "length": 25
+        },
+        {
+          "offset": "0x002806A4",
+          "before": "cccccccc",
+          "after": "0000803e",
+          "length": 4
+        },
+        {
+          "offset": "0x00396BA8",
+          "before": "d944244cd95804d95808",
+          "after": "e9539aeeff9090909090",
+          "length": 10
+        },
+        {
+          "offset": "0x005E0AA1",
+          "before": "d944242cd9581c",
+          "after": "e9e0fbc9ff9090",
+          "length": 7
+        }
+      ]
+    }
+  ],
+  "intentionally_skipped": [
+    "V257 Max Engine delta",
+    "V260-V274 pool/cap increases",
+    "V275-V296 distance/resource-priority tuning",
+    "V298/V302 broad RenderSlice expansion",
+    "V312-V315 diagnostics"
+  ],
+  "notes": [
+    "Region 1 is split: only the first 39 bytes are retained for SuperRDX; Async32 and later streaming helper code in the same historical cave are excluded.",
+    "Region 72 is split: only RAW 0x00280284 onward is retained for the 64-slot FIFO full-queue drop-oldest correction.",
+    "The post-V255A HUD deltas do not overlap the skipped V257 regions, so their byte edits can be replayed independently after per-region before-byte verification.",
+    "A final target SHA-256 cannot be computed until the exact retail EXE bytes are available to apply this recipe."
+  ]
+}
