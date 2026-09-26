@@ -13,3 +13,5 @@ The ASI scans the executable .text section for exact instruction signatures, ver
 The bundled dinput8.dll is an x86 proxy loader. It forwards the standard DirectInput8 exports to the real System32 dinput8.dll and loads SaboteurEnhanced.asi from the game directory.
 
 No tuner.txt modifications are used.
+
+Build target: Win32 / x86.
