@@ -459,9 +459,9 @@ static const char* OdinSyncCallerLabel(unsigned rva)
 {
     switch (rva)
     {
-        case 0x0026AC4F: return "batch-A";
-        case 0x0026ACCD: return "batch-B";
-        case 0x0026B574: return "batch-C";
+        case 0x0026BA4F: return "batch-A";
+        case 0x0026BACD: return "batch-B";
+        case 0x0026C374: return "batch-C";
         default: return "unknown";
     }
 }
