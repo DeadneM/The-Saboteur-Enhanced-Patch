@@ -119,3 +119,42 @@ Decision rule:
   Odin object path to the exact high-resolution retention gate;
 - no correlation -> reject this OdinMeshInstance lifecycle hypothesis and move
   to the next renderer ownership layer.
+
+
+## Runtime result
+
+ASI 0.2 was tested in game at the balcony/facade location.
+
+Observed totals:
+- ReInstance: **723**
+- distinct ReInstance objects: **614**
+- RemoveHighResSegments/query calls: **0**
+- PreRelease calls: **0**
+- IsFullyLoaded/query calls: **2729**
+- logged ODIN events: **2661**
+
+All first-state IsFullyLoaded observations returned 0.
+
+ReInstance occurred in broad scene-update bursts, not as a uniquely isolated
+single-object event. Every ReInstance hook entry was called from the same
+internal OdinMeshInstance synchronization path.
+
+Static follow-up identified that path at VA `0x00E14610`.
+
+The routine:
+1. obtains the instance root;
+2. calls root virtual slot 2;
+3. compares that state against the OdinMeshInstance loaded byte at `this+0x44`;
+4. calls virtual slot 1 / ReInstance when the states differ.
+
+Its only direct callers found in the executable are:
+- VA `0x0066BA4A`, return RVA `0x0026BA4F`
+- VA `0x0066BAC8`, return RVA `0x0026BACD`
+- VA `0x0066C36F`, return RVA `0x0026C374`
+
+Conclusion:
+- the broad vtable hook proved Odin activity is real but is too noisy to assign
+  the balcony transition to one object;
+- recovered RemoveHighResSegments/query is not participating in this test path;
+- next diagnostic must trace the synchronization mismatch directly and correlate
+  it with a user-supplied visual marker.
