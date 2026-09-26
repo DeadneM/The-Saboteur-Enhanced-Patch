@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <Unknwn.h>
 #include <cwchar>
+#include <string>
 
 using DirectInput8CreateFn = HRESULT (WINAPI*)(HINSTANCE,DWORD,REFIID,LPVOID*,LPUNKNOWN);
 using DllCanUnloadNowFn = HRESULT (WINAPI*)();
