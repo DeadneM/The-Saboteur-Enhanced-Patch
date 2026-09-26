@@ -296,3 +296,21 @@ Status:
 
 Next branch:
 - Repeat Nodes / Odin instancing / high-resolution segment retention.
+
+
+## V315A diagnostic — Repeat Nodes ownership
+
+Base executable: validated V311, unchanged.
+
+V315A is a tuner-only ownership diagnostic:
+- `Console.gfx.repeatnodes=off`
+- no executable patch
+- no rejected V312/V313/V314 changes inherited
+
+Artifact:
+- `Saboteur_V315A_DIAGNOSTIC_RepeatNodes_OFF_Overlay_ForV311.zip`
+- SHA-256 `8fc0888d9c91e193f66d183798f592d178974b50ea22d8efdefec41f65fcdf9d`
+
+Goal:
+- prove or reject ownership of the remaining balcony/facade pop by the dedicated
+  Repeat Nodes / Odin instancing renderer before patching any deeper Odin code.
