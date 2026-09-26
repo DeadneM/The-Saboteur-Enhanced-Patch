@@ -12,7 +12,7 @@ Original retail EXE SHA-256:
 V302 EXE SHA-256:  
 `db96ff3f6f8e38acdd262a87b0bb0ded7c604abca82e86e2501a12347f512459`
 
-Current work: **architectural / VeryFarScene distance expansion from validated V311**
+Current work: **clean Core EXE reconstruction audit before ASI migration**
 
 V292A EXE SHA-256:  
 `aad83b503c6a8ae9159a9b960e602c0eade4417bd76d5de82c66c2cc05b5bc28`
@@ -314,3 +314,22 @@ Artifact:
 Goal:
 - prove or reject ownership of the remaining balcony/facade pop by the dedicated
   Repeat Nodes / Odin instancing renderer before patching any deeper Odin code.
+
+
+## Architectural reset after V314
+
+V311 remains the last retained cumulative **research** executable.
+
+V312, V313 and V314 were rejected for the remaining balcony/facade pop.
+
+The briefly prepared V315 tuner-based Repeat Nodes diagnostic was abandoned
+before testing. The project will not use tuner.txt as the correction mechanism.
+
+A full binary-retention audit now replaces the old cumulative-growth strategy.
+See `docs/CORE_EXE_AUDIT.md`.
+
+Future distribution target:
+1. reconstructed clean Core EXE containing only proven early/system/UI/correctness
+   fixes;
+2. `SaboteurEnhanced.asi` for V310/V311 runtime rendering fixes, diagnostics,
+   LOD/culling work and pool/queue telemetry.
