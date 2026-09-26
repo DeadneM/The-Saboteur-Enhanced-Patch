@@ -16,34 +16,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Enable MSVC x86 environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+
       - name: Build x86 proxy and ASI
-        shell: pwsh
+        shell: cmd
         run: |
-          New-Item -ItemType Directory -Force dist | Out-Null
-          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-          if (-not $vs) { throw "Visual Studio with x86 VC tools not found" }
-          $vcvars = Join-Path $vs "VC\Auxiliary\Build\vcvars32.bat"
-
-          $cmd = @"
-          call "$vcvars" &&
-          cl /nologo /std:c++17 /O2 /MT /W4 /LD asi\src\SaboteurEnhanced.cpp /link /DEF:asi\src\SaboteurEnhanced.def /OUT:dist\SaboteurEnhanced.asi &&
+          if not exist dist mkdir dist
+          cl /nologo /std:c++17 /O2 /MT /W4 /LD asi\src\SaboteurEnhanced.cpp /link /DEF:asi\src\SaboteurEnhanced.def /OUT:dist\SaboteurEnhanced.asi
+          if errorlevel 1 exit /b 1
           cl /nologo /std:c++17 /O2 /MT /W4 /LD asi\src\dinput8_proxy.cpp /link /DEF:asi\src\dinput8.def /OUT:dist\dinput8.dll
-          "@
-          cmd /c $cmd
-          if ($LASTEXITCODE -ne 0) { throw "x86 build failed" }
-
-          Copy-Item asi\SaboteurEnhanced.ini dist\SaboteurEnhanced.ini
-          Copy-Item asi\README.md dist\README_ASI.md
+          if errorlevel 1 exit /b 1
+          copy /Y asi\SaboteurEnhanced.ini dist\SaboteurEnhanced.ini
+          copy /Y asi\README.md dist\README_ASI.md
 
       - name: Verify PE machine is x86
-        shell: pwsh
+        shell: cmd
         run: |
-          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-          $dumpbin = Get-ChildItem "$vs\VC\Tools\MSVC\*\bin\Hostx64\x86\dumpbin.exe" | Sort-Object FullName -Descending | Select-Object -First 1
-          & $dumpbin.FullName /headers dist\SaboteurEnhanced.asi | Select-String "machine"
-          & $dumpbin.FullName /headers dist\dinput8.dll | Select-String "machine"
+          dumpbin /headers dist\SaboteurEnhanced.asi | findstr /i "machine"
+          dumpbin /headers dist\dinput8.dll | findstr /i "machine"
 
       - name: SHA-256
         shell: pwsh
