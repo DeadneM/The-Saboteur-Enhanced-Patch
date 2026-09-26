@@ -4,7 +4,7 @@ Experimental PC enhancement patch for **The Saboteur**, developed through static
 
 > **Current retained cumulative build: V311**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current work: architectural Repeat Nodes / Odin instancing audit from validated V311**
+> **Current work: V315A Repeat Nodes ownership diagnostic from validated V311**
 
 ## Current canonical build
 
@@ -605,3 +605,27 @@ exposes `Console.gfx.repeatnodes`, and RTTI/vtable recovery identifies
 `OdinMeshInstance::RemoveHighResSegments`. Future diagnostics must target this
 separate instancing/high-resolution-segment path rather than re-pushing WSModel,
 VeryFarScene, WSFarSceneObject, or ModelInfo ZCULL.
+
+
+## V315A diagnostic — Repeat Nodes ownership
+
+V315A is deliberately **not** a new executable build. V311 remains the canonical EXE.
+
+Diagnostic overlay:
+- `Console.gfx.repeatnodes=off`
+- no Saboteur.exe bytes changed
+- purpose: determine whether the remaining balcony/facade component is owned by
+  the separate Repeat Nodes / Odin instancing renderer.
+
+Artifact:
+- `Saboteur_V315A_DIAGNOSTIC_RepeatNodes_OFF_Overlay_ForV311.zip`
+- ZIP SHA-256: `8fc0888d9c91e193f66d183798f592d178974b50ea22d8efdefec41f65fcdf9d`
+
+Interpretation:
+- if the balcony or nearby repeated facade ornaments disappear/change strongly,
+  Repeat Nodes ownership is confirmed and the next binary branch should target
+  Odin instancing / high-resolution segment retention;
+- if the balcony is unchanged, reject Repeat Nodes for this object and continue
+  to the next architectural renderer path.
+
+V311 remains canonical until a later executable candidate is validated.
