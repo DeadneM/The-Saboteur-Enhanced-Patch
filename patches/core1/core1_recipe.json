@@ -1,6 +1,6 @@
 {
   "format": "saboteur-core-recipe-v1",
-  "status": "built-test-candidate-awaiting-in-game-validation",
+  "status": "validated-in-game-core-baseline",
   "base_exe_sha256": "e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6",
   "file_size": 14834176,
   "historical_v200_sha256": "9d13022f1e889e5aeb16e97b6012c300ffb7acfa0b72b90971143fe7447fccaf",
@@ -794,5 +794,11 @@
   ],
   "target_exe_sha256": "83995ab6e04fce264309a37a243744d4f5929c5abb87c3f195fb50fef7f5f2a8",
   "final_direct_changed_byte_count": 5069,
-  "final_direct_region_count": 82
+  "final_direct_region_count": 82,
+  "validation": {
+    "core1_sha256": "83995ab6e04fce264309a37a243744d4f5929c5abb87c3f195fb50fef7f5f2a8",
+    "asi_0_1_sha256": "22b4fc9737a2a1430d4967aacdde46c913d4742c2a045e7b31982476b4481ffd",
+    "dinput8_sha256": "70cd6d950dbca54bec034d16edc9cbb622f07bab045ad1018343e655784c70d2",
+    "runtime_validation": "docs/ASI_0_1_VALIDATION.md"
+  }
 }
