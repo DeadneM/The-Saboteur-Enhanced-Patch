@@ -108,3 +108,6 @@ Post-V296 HighPalette 1e9 and 6400 stress candidates are not retained in the cum
 | V306A | `a927ec45ef553e371e6463213247061b51c01ba5047702d08cd7eb06669ee686` | Rejected diagnostic |
 | V307A | `dab34960eaee521d2266218bf3818ef4020fde8652d15f7ee669855d508ea2b3` | Rejected diagnostic |
 | V308A | `e659e002531a9cbecc22a945c59213bc464fa7e6fd9efafe8e9c7482746ea602` | Rejected, no visible pop improvement |
+
+| V309A | `5f84bf91f4ebbfc7b0dfa929efe7e723d6563ca7365730d6ae54ddbc5ef09d55` | Rejected, no visible change |
+| V310A | `f209b6a96249b7a84b13efe5ef3c44d31aaddad38c51309ea24c9aabb8c1c993` | **Validated / retained baseline** |
