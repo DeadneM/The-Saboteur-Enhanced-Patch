@@ -4,11 +4,11 @@ Experimental PC enhancement patch for **The Saboteur**, developed through static
 
 > **Current retained cumulative build: V311**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current work: architectural / VeryFarScene distance expansion from validated V311**
+> **Current work: architectural Repeat Nodes / Odin instancing audit from validated V311**
 
 ## Current canonical build
 
-V302 is the current retained cumulative game state. It keeps the validated engine/LOD lineage through V296, retains the V298 RenderSlice expansion, and applies the later coherent High SliceQuality expansion that was validated with scenery intact.
+V311 is the current retained cumulative game state. It keeps the validated engine/LOD lineage through V296, retains the V298 RenderSlice expansion, and applies the later coherent High SliceQuality expansion that was validated with scenery intact.
 
 Original retail EXE SHA-256:
 
@@ -583,3 +583,25 @@ V311 EXE SHA-256:
 A later supplied street capture still shows an architectural balcony/facade detail
 appearing too late. That remaining issue is now treated as a separate
 VeryFarScene/building-LOD family rather than WSModel/ModelInfo RenderSlice.
+
+
+## Rejected V314A — ModelInfo ZCULL diagnostic
+
+V314A was built directly from validated V311 to test whether the remaining
+balcony/facade pop was caused by the explicit `ZCULL` flag carried by many
+architectural ModelInfo entries, including the `Ornate_Clamber_*` and
+`Ornate_WinDoor_*` families.
+
+User validation:
+- balcony/facade transition: **no visible change**
+- status: **rejected**
+- retained cumulative base remains **V311**
+
+This closes the explicit ModelInfo ZCULL branch for the observed balcony.
+
+The next renderer-specific branch is Repeat Nodes / Odin instancing. The engine
+exposes `Console.gfx.repeatnodes`, and RTTI/vtable recovery identifies
+`OdinBaseInstancedMesh`, `OdinInstancedMesh`, and
+`OdinMeshInstance::RemoveHighResSegments`. Future diagnostics must target this
+separate instancing/high-resolution-segment path rather than re-pushing WSModel,
+VeryFarScene, WSFarSceneObject, or ModelInfo ZCULL.
