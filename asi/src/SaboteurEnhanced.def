@@ -1,0 +1,3 @@
+LIBRARY SaboteurEnhanced
+EXPORTS
+    SaboteurEnhanced_Initialize=_SaboteurEnhanced_Initialize
