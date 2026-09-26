@@ -2,51 +2,72 @@
 
 Runtime half of the cleaned **The Saboteur Enhanced Patch** architecture.
 
-## Current diagnostic build: 0.2
+## Current diagnostic build: 0.3
 
-Validated default-on fixes retained from ASI 0.1:
+Validated default-on fixes:
 - V310 WSModel automatic RenderSlice full-mask correction
 - V311 explicit ModelInfo RenderSlice full-mask correction
 
-New pass-through diagnostic:
-- OdinMeshInstance vtable verification
-- ReInstance trace
-- recovered RemoveHighResSegments/query trace
-- PreRelease trace
-- IsFullyLoaded trace
-- per-object state-change filtering
-- caller RVA capture
-- event-count safety cap
+### Why 0.3 exists
 
-ASI 0.2 does **not** suppress Odin calls and does **not** change Odin rendering
-behavior. It only replaces four verified virtual-method entries with wrappers
-that call the original methods and record their behavior.
+ASI 0.2 proved that:
+- recovered `RemoveHighResSegments` was never queried during the balcony run;
+- `PreRelease` was never called;
+- `IsFullyLoaded` was queried heavily;
+- `ReInstance` ran in scene-wide bursts;
+- those calls all came from the same internal OdinMeshInstance synchronization
+  routine at VA `0x00E14610`.
 
-Static finding behind the diagnostic:
-- recovered `OdinMeshInstance::RemoveHighResSegments` at VA `0x00E14BA0`
-  is only `mov al,[ecx+33h] ; ret`;
-- therefore it behaves as a state/query accessor in the PC executable rather
-  than a large destructive routine;
-- `OdinMeshInstance::ReInstance` at VA `0x00E14BF0` is the non-trivial
-  re-instancing path;
-- `IsFullyLoaded` at VA `0x00E14BD0` returns byte `this+0x44`.
+Static disassembly of that routine shows the exact gate:
 
-## Test procedure
+1. obtain the instance root;
+2. query root virtual slot 2;
+3. compare it with the instance loaded-state byte at `this+0x44`;
+4. call `ReInstance` only when the two states differ.
+
+ASI 0.3 hooks that synchronization routine directly.
+
+### Logged data
+
+Only the meaningful mismatch path is logged:
+
+- OdinMeshInstance pointer
+- which of the three known engine call sites invoked the sync
+- entry-list pointer and count
+- root pointer and root vtable
+- root loaded state
+- instance loaded state
+- `this+0x2A`
+- `this+0x35`
+- segment count
+- before/after state around the original routine
+
+No Odin decision is changed. The original function is always executed.
+
+### F9 correlation marker
+
+Press **F9** exactly when the balcony/detail appears or disappears.
+
+The ASI writes:
+
+```text
+[MARK] F9 #1
+```
+
+into `SaboteurEnhanced.log`.
+
+This lets the next audit correlate the visual transition against Odin mismatch
+events without guessing from timestamps.
+
+### Test procedure
 
 1. Install the five package files in the game directory.
-2. Launch the game and reproduce the street/balcony transition.
-3. Move toward and away from the transition several times.
-4. Exit normally.
-5. Send `SaboteurEnhanced.log`.
+2. Go to the known street/balcony location.
+3. Approach until the detail changes, then press **F9**.
+4. Move away until it changes back, then press **F9**.
+5. Repeat at least 3 times.
+6. Exit normally.
+7. Send `SaboteurEnhanced.log`.
 
-Useful log lines begin with `[ODIN]`.
-
-## Loader
-
-The bundled `dinput8.dll` is an x86 proxy loader. It forwards the standard
-DirectInput8 exports to the real System32 `dinput8.dll` and loads
-`SaboteurEnhanced.asi` from the game directory.
-
-No `tuner.txt` modifications are used.
-
-Build target: Win32 / x86.
+The bundled `dinput8.dll` remains the x86 proxy loader and no `tuner.txt`
+modification is used.
