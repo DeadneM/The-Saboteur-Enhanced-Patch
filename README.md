@@ -4,11 +4,11 @@ Experimental PC enhancement patch for **The Saboteur**, developed through static
 
 > **Current retained cumulative build: V311**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current work: V315A Repeat Nodes ownership diagnostic from validated V311**
+> **Current work: clean Core EXE reconstruction audit before SaboteurEnhanced.asi**
 
 ## Current canonical build
 
-V311 is the current retained cumulative game state. It keeps the validated engine/LOD lineage through V296, retains the V298 RenderSlice expansion, and applies the later coherent High SliceQuality expansion that was validated with scenery intact.
+V311 remains the historical retained cumulative research state. It is no longer intended to be the future distribution base. The next executable will be a reconstructed clean Core containing only proven system/UI/correctness fixes; engine tuning moves to the ASI. It keeps the validated engine/LOD lineage through V296, retains the V298 RenderSlice expansion, and applies the later coherent High SliceQuality expansion that was validated with scenery intact.
 
 Original retail EXE SHA-256:
 
@@ -629,3 +629,24 @@ Interpretation:
   to the next architectural renderer path.
 
 V311 remains canonical until a later executable candidate is validated.
+
+
+## Core EXE / ASI architectural reset
+
+The project is no longer extending V311 by stacking more permanent binary
+constants.
+
+See [docs/CORE_EXE_AUDIT.md](docs/CORE_EXE_AUDIT.md).
+
+The future architecture is:
+- a cleaned Core EXE retaining validated window/borderless, input, FOV, HUD,
+  HUD-toggle, reticle/scope, final HUD placement, marker and streaming-FIFO
+  correctness fixes;
+- `SaboteurEnhanced.asi` for runtime engine fixes, diagnostics and optional
+  tuning.
+
+V310 and V311 remain validated fixes but are planned as default-on ASI modules,
+not permanent Core bytes.
+
+The V315 tuner/Repeat-Nodes diagnostic is abandoned before testing. `tuner.txt`
+will not be part of the new architecture.
