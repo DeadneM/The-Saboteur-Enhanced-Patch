@@ -3,9 +3,9 @@
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
 > **Current validated architecture: Core 1 + SaboteurEnhanced ASI 0.1**  
-> **Current test branch: SaboteurEnhanced ASI 0.2 Odin diagnostic**  
+> **Current test branch: SaboteurEnhanced ASI 0.3 Odin sync correlation diagnostic**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current work: ASI 0.2 pass-through OdinMeshInstance tracing for the remaining balcony/facade pop**
+> **Current work: ASI 0.3 direct Odin sync mismatch tracing + F9 visual markers**
 
 ## Current canonical build
 
