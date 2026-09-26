@@ -881,3 +881,20 @@ Hashes:
 
 The next research target is Odin/instancing instrumentation for the remaining
 balcony/facade transition, followed by pool/queue telemetry.
+
+
+## ASI 0.1 runtime validation
+
+The first runtime ASI build is now validated in game.
+
+The supplied runtime log confirmed:
+- x86 `dinput8.dll` proxy loaded correctly;
+- `SaboteurEnhanced.asi` initialized correctly;
+- V310 signature found and patch applied at runtime VA `0x00639622`;
+- V311 signature found and patch applied at runtime VA `0x006395AF`;
+- clean ASI unload on game exit.
+
+See `docs/ASI_0_1_VALIDATION.md` for the sanitized validation log.
+
+This promotes **Core 1 + ASI 0.1** from test candidate to the current validated
+architecture. V311 remains historical research reference only.
