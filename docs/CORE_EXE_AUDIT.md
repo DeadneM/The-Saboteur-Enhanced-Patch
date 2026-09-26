@@ -4,7 +4,11 @@ Status: **audit / reconstruction plan**
 Historical cumulative reference: **V311**  
 Future architecture: **clean Core EXE + SaboteurEnhanced.asi**
 
-## Purpose
+#See also:
+- `docs/V200_REGION_AUDIT.md` for the byte-region audit
+- `patches/core1/core1_recipe.json` for the machine-readable reconstruction selection
+
+# Purpose
 
 V311 is a valuable research snapshot, but it is no longer a suitable long-term
 binary base. Too many stable experiments, capacity increases and draw-distance
