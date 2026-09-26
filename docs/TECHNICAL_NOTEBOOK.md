@@ -789,3 +789,27 @@ Next diagnostic rule:
   WSFarSceneObject 320 cutoffs, or ModelInfo ZCULL again for this balcony.
 - first prove Repeat Nodes ownership, then locate the instancing/high-res segment
   distance or retention gate and patch only that local owner.
+
+
+## V315A diagnostic - Repeat Nodes ownership
+
+No EXE bytes are changed. The validated V311 executable remains the base.
+
+Single override:
+```
+Console.gfx.repeatnodes=off
+```
+
+Why this test is narrow:
+- the developer tuner exposes Repeat Nodes separately from generic objects;
+- RTTI/vtable recovery identifies a distinct Odin instancing layer;
+- `OdinMeshInstance::RemoveHighResSegments` at VA `0x00E14BA0` is a strong
+  candidate for high-detail geometry retention, but touching it before proving
+  Repeat Nodes ownership would be premature.
+
+Artifact SHA-256:
+`8fc0888d9c91e193f66d183798f592d178974b50ea22d8efdefec41f65fcdf9d`
+
+Decision gate:
+- visible balcony/facade change => audit OdinInstancedMesh / high-res segment path;
+- no change => reject Repeat Nodes ownership for this object.
