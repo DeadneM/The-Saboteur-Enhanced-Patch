@@ -213,9 +213,9 @@ static OdinSnapshot SnapshotOdin(void* self)
     return s;
 }
 
-static unsigned CallerRva()
+static unsigned CallerRva(void* returnAddress)
 {
-    const uintptr_t caller = reinterpret_cast<uintptr_t>(_ReturnAddress());
+    const uintptr_t caller = reinterpret_cast<uintptr_t>(returnAddress);
     if (caller >= g_moduleBase)
         return static_cast<unsigned>(caller - g_moduleBase);
     return 0;
@@ -244,22 +244,25 @@ static OdinTrackedState* FindOdinStateLocked(void* self, bool create)
 {
     const uintptr_t key = reinterpret_cast<uintptr_t>(self);
     size_t index = ((key >> 4) ^ (key >> 13)) & (kOdinStateSlots - 1);
+    OdinTrackedState* firstEmpty = nullptr;
 
     for (size_t probe = 0; probe < 32; ++probe)
     {
         OdinTrackedState& state = g_odinStates[(index + probe) & (kOdinStateSlots - 1)];
         if (state.key == self)
             return &state;
-        if (!state.key)
-        {
-            if (!create) return nullptr;
-            state.key = self;
-            state.removeValue = 0xFF;
-            state.loadedValue = 0xFF;
-            state.removeCalls = 0;
-            state.loadedCalls = 0;
-            return &state;
-        }
+        if (!state.key && !firstEmpty)
+            firstEmpty = &state;
+    }
+
+    if (create && firstEmpty)
+    {
+        firstEmpty->key = self;
+        firstEmpty->removeValue = 0xFF;
+        firstEmpty->loadedValue = 0xFF;
+        firstEmpty->removeCalls = 0;
+        firstEmpty->loadedCalls = 0;
+        return firstEmpty;
     }
     return nullptr;
 }
@@ -293,7 +296,7 @@ static void __fastcall HookOdinReInstance(void* self, void*)
 {
     InterlockedIncrement(&g_reInstanceCalls);
     const OdinSnapshot before = SnapshotOdin(self);
-    const unsigned caller = CallerRva();
+    const unsigned caller = CallerRva(_ReturnAddress());
     LogOdinSnapshot("ReInstance-pre", self, before, caller);
 
     g_odinReInstance(self);
@@ -326,7 +329,7 @@ static bool __fastcall HookOdinRemoveHighRes(void* self, void*)
     if (shouldLog && AllowOdinLog())
     {
         Log("[ODIN] RemoveHighRes? this=%p callerRVA=0x%08X result=%u queries=%u flag33=%u loaded44=%u seg=%p count=%u",
-            self, CallerRva(), result ? 1u : 0u, calls,
+            self, CallerRva(_ReturnAddress()), result ? 1u : 0u, calls,
             static_cast<unsigned>(snap.flag33),
             static_cast<unsigned>(snap.fullyLoaded44),
             reinterpret_cast<void*>(snap.segments),
@@ -359,7 +362,7 @@ static bool __fastcall HookOdinIsFullyLoaded(void* self, void*)
     if (shouldLog && AllowOdinLog())
     {
         Log("[ODIN] FullyLoaded?   this=%p callerRVA=0x%08X result=%u queries=%u flag33=%u loaded44=%u seg=%p count=%u",
-            self, CallerRva(), result ? 1u : 0u, calls,
+            self, CallerRva(_ReturnAddress()), result ? 1u : 0u, calls,
             static_cast<unsigned>(snap.flag33),
             static_cast<unsigned>(snap.fullyLoaded44),
             reinterpret_cast<void*>(snap.segments),
