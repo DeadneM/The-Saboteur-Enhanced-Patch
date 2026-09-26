@@ -813,3 +813,33 @@ Artifact SHA-256:
 Decision gate:
 - visible balcony/facade change => audit OdinInstancedMesh / high-res segment path;
 - no change => reject Repeat Nodes ownership for this object.
+
+
+## Core EXE reconstruction reset
+
+The V311 cumulative executable remains the historical research reference but is
+no longer the intended future binary base.
+
+Reason:
+- the cumulative lineage mixes proven user-facing fixes with many stable but
+  weakly justified engine-capacity and draw-distance increases;
+- lack of crashes is no longer sufficient evidence for permanent retention.
+
+New retention audit:
+- `docs/CORE_EXE_AUDIT.md`
+
+Hard-retain Core families include validated borderless/display behavior,
+DirectInput 0x05->0x06, Hor+ FOV, timeBeginPeriod(1), HUD scaling, object-level
+Caps Lock HUD toggle with BladeScreen-safe menu behavior, reticle/scope, final
+V258Y HUD/minimap placement, V259 world markers, and the V200 streaming
+full-queue correctness fix.
+
+V310/V311 have demonstrated visual value but are planned for ASI runtime
+reimplementation.
+
+Pool/capacity inflation, HighPalette progression, broad RenderSlice expansion
+and other scalar tuning are removed from Core by default and must earn their way
+back through telemetry or isolated visible benefit.
+
+The V315 tuner.txt diagnostic is abandoned and is not part of the new
+architecture.
