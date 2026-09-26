@@ -667,3 +667,30 @@ Still relevant:
 3. global occlusion/indoor culling — secondary and intrusive to disable
 4. automatic size-to-RenderSlice classifier for models with no ModelInfo entry
 5. VeryFarSceneMonuments / FarFarScene for genuinely distant world objects, not the present indoor few-metre symptom
+
+
+## V310 validated - unlisted WSModel full masks
+
+Base: retained V302.
+
+V309A first tested the WSModel +0xA8 hard-cull rewrite bypass:
+- VA 0x0063954E / RAW 0x0023874E
+- `7A 1A -> EB 1A`
+- user result: no visible change
+- V309 rejected
+
+V310A then targeted the automatic size-to-RenderSlice classifier used only when
+there is no explicit ModelInfo entry:
+- VA 0x00639622 / RAW 0x00238822
+- `D9 47 -> EB 4F`
+- jump destination: existing mask pack/store at VA 0x00639673
+- preserves preinitialized ESI/EBP/EBX = 0x1F
+
+User result: the short-range small-object pop in the garage/workshop scene was
+visibly improved.
+
+Conclusion:
+- the auto size classifier was a real PC draw-distance limiter.
+- V310 is retained.
+- next logical target is the explicit ModelInfo RenderSlice path, while leaving
+  explicit ZPassSlice, ShadowSlice and LODDIST unchanged.
