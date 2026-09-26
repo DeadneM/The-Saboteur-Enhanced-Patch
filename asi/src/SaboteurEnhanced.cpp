@@ -192,7 +192,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     return TRUE;
 }
 
-extern "C" BOOL __cdecl SaboteurEnhanced_Initialize()
+extern "C" __declspec(dllexport) BOOL __cdecl SaboteurEnhanced_Initialize()
 {
     return InitOnceExecuteOnce(&g_initOnce, InitializeOnce, nullptr, nullptr);
 }
