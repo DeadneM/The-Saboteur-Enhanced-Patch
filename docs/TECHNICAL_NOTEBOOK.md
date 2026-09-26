@@ -898,3 +898,33 @@ See `docs/ASI_0_1_VALIDATION.md` for the sanitized validation log.
 
 This promotes **Core 1 + ASI 0.1** from test candidate to the current validated
 architecture. V311 remains historical research reference only.
+
+
+## ASI 0.2 Odin diagnostic
+
+The validated Core 1 + ASI 0.1 architecture remains the stable baseline.
+
+ASI 0.2 is a **diagnostic-only** runtime branch for the remaining balcony/facade
+transition.
+
+Static audit corrected an important assumption:
+- recovered `OdinMeshInstance::RemoveHighResSegments` at VA `0x00E14BA0`
+  is only `mov al,[ecx+33h] ; ret`;
+- it is therefore traced as a state/query accessor rather than suppressed;
+- `OdinMeshInstance::ReInstance` at VA `0x00E14BF0` is the actual
+  non-trivial lifecycle routine.
+
+Pass-through hooks trace:
+- ReInstance
+- recovered RemoveHighResSegments/query
+- PreRelease
+- IsFullyLoaded
+
+No Odin rendering decision is changed.
+
+Build hashes:
+- ASI: `9ee3d7e8f977c6c7c63d6f4548a8f0e4742dfdaf377b038f22700dfb48ed5556`
+- dinput8: `60c887b42c0be72a975af10862a9ddeca23c4ec5e348b62583f9b88c4c2b8241`
+- test ZIP: `6e6228a03e9dd748f1b03307d0fa7e2b89185919e6388e78ee40768fbddf85dd`
+
+See `docs/ASI_0_2_ODIN_DIAGNOSTIC.md`.
