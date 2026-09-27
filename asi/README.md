@@ -1,6 +1,6 @@
 # SaboteurEnhanced ASI
 
-## Current test build: 0.8 — EXE parameter audit
+## Current test build: 0.8A — safe visual baseline
 
 Validated baseline retained:
 - Core 1
@@ -85,3 +85,29 @@ research history, but its exact owner is not yet proven from the retained
 manifest, so 0.7 does not fake an INI switch for it.
 
 No tuner.txt modification is used.
+
+
+## 0.8A visual regression correction
+
+A user screenshot of 0.8 showed two regressions:
+- visible shadow/cascade banding/lines across the scene
+- an overly dull/flat image
+
+To isolate the owner, 0.8A keeps the safe resolution/filter/distance gains but
+returns advanced tonal/shadow/AO tuning to native defaults:
+
+- MipLODBias: -0.25 -> 0.0
+- ToneMap: 0.15 -> 0.25
+- ShadowPCF5x5: 1 -> 0
+- CSMQuality: 5 -> 2
+- CSMLambda: 0.60 -> 0.50
+- CSMFarDistance: 150 -> 100
+- DepthBiasScale: 0.75 -> 1.00
+- SlopeBiasScale: 0.90 -> 1.00
+- AO FullResolution: 1 -> 0
+- AO Blur/Erode: 1.25 -> 2.0
+
+ShadowMapResolution=4096, EnvironmentMapResolution=2048, AF16 and validated
+distance controls remain enabled.
+
+This is an A/B isolation baseline, not a deletion of the recovered settings.
