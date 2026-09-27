@@ -263,6 +263,68 @@ static bool ApplyWSDamageableVariantSelectorBypass(const SectionRange& text, uin
     return true;
 }
 
+
+static bool ApplyWSDynamicPartPriorityRadius(HMODULE exe, float radius)
+{
+    // WSDynamicPart priority scoring function at VA 0x00669980 uses:
+    //   proximity = max(625.0 - distance_like_value^2, 0)
+    // 625 = 25^2.
+    //
+    // The two constants below are referenced ONLY by that function:
+    //   VA 0x00FC76DC : float  625.0f
+    //   VA 0x00FC77C8 : double 625.0
+    //
+    // Keep both values coherent when changing the radius.
+    if (radius < 1.0f || radius > 500.0f)
+    {
+        Log("[FAIL] WSDynamicPartPriorityRadius %.3f out of safe A/B range.", radius);
+        return false;
+    }
+
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    constexpr uintptr_t kFloatRva  = 0x00BC76DC;
+    constexpr uintptr_t kDoubleRva = 0x00BC77C8;
+
+    auto* f32 = reinterpret_cast<float*>(base + kFloatRva);
+    auto* f64 = reinterpret_cast<double*>(base + kDoubleRva);
+
+    const float expectedF = 625.0f;
+    const double expectedD = 625.0;
+
+    if (std::memcmp(f32, &expectedF, sizeof(expectedF)) != 0)
+    {
+        Log("[SKIP] WSDynamicPart 625.0f constant mismatch at RVA 0x%08X.",
+            static_cast<unsigned>(kFloatRva));
+        return false;
+    }
+    if (std::memcmp(f64, &expectedD, sizeof(expectedD)) != 0)
+    {
+        Log("[SKIP] WSDynamicPart 625.0 constant mismatch at RVA 0x%08X.",
+            static_cast<unsigned>(kDoubleRva));
+        return false;
+    }
+
+    const float radiusSqF = radius * radius;
+    const double radiusSqD = static_cast<double>(radius) * static_cast<double>(radius);
+
+    if (!WriteBytes(f32, &radiusSqF, sizeof(radiusSqF)))
+    {
+        Log("[FAIL] WSDynamicPart float radius constant write failed.");
+        return false;
+    }
+    if (!WriteBytes(f64, &radiusSqD, sizeof(radiusSqD)))
+    {
+        // Fail closed as much as possible: restore first constant.
+        WriteBytes(f32, &expectedF, sizeof(expectedF));
+        Log("[FAIL] WSDynamicPart double radius constant write failed; float restored.");
+        return false;
+    }
+
+    Log("[OK] WSDynamicPart priority radius %.3f -> %.3f (squared %.3f -> %.3f).",
+        25.0f, radius, 625.0f, radiusSqF);
+    return true;
+}
+
 // -----------------------------------------------------------------------------
 // ASI 0.2 OdinMeshInstance diagnostic
 // -----------------------------------------------------------------------------
