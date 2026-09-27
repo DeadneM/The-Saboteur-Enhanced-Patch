@@ -92,14 +92,27 @@ Diagnostics:
 OdinInstancing=0
 ```
 
-## Build hashes
+## Corrected CI build
 
-- `SaboteurEnhanced.asi`:
-  `8ed0474d3bc5c6c9c633fae4bcfdb6473575df7f27d51c93e9c985a3d494e1f7`
-- `dinput8.dll`:
-  `7f1b42c61267805fb413a9e6c864111c0c562fd389ea7ce27dac826af2949de5`
-- five-file package ZIP:
-  `e064bd8ab3053e3ff5ff33e33cdf1b738d2bc87580d7b5a3428e1e9c46e0d3b7`
+The first radius-labeled CI artifact was internally inconsistent: the radius
+helper existed in source but was not called, while the rejected WSDamageable
+variant selector still defaulted to enabled. That artifact must not be used.
+
+Corrected source commit:
+
+`a1870c09c0740a3c7071d6132ebe682ae140c862`
+
+The corrected initialization now:
+- defaults `WSDamageableVariantSelector` to 0;
+- reads `WSDynamicPartPriorityRadius` from the INI;
+- calls `ApplyWSDynamicPartPriorityRadius()` when the requested radius differs
+  from native 25;
+- identifies itself in the runtime log as the WSDynamicPart radius A/B.
+
+Corrected build hashes:
+- `SaboteurEnhanced.asi`: `7039ab89a36af71517159bbb353838881be35c679e5e5cfa784da4940dccaca5`
+- `dinput8.dll`: `e325949a73e3d581006bb2beb5e23054ff7600d54fd6c8cb14ea96ddb3779414`
+- GitHub Actions artifact ZIP: `e5913b0b0d01e32d7830b8066c8dfd96882d589f7ef46ca7dd29bba746fde5c7`
 
 Both runtime binaries are x86.
 
