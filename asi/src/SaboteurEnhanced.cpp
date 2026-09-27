@@ -741,6 +741,79 @@ static bool ApplyMotionBlurActivationThreshold(HMODULE exe, float threshold)
 }
 
 
+
+static bool ApplyHumanObjectQualityScale(HMODULE exe, float scale)
+{
+    if (!std::isfinite(scale) || scale < 0.25f || scale > 20.0f)
+    {
+        Log("[FAIL] HumanObjectQualityScale=%.3f outside 0.25..20.", scale);
+        return false;
+    }
+
+    // WSHuman ObjectQuality owns seven retail distance constants:
+    //   5, 10, 14, 20, 30, 40, 60
+    // The historical V200 branch used x4 and V257 used x5, producing
+    //   25, 50, 70, 100, 150, 200, 300.
+    //
+    // Redirect every profile-update load and every constructor-time load to
+    // ASI-owned values. This avoids modifying shared retail constants.
+    static float values[7] = {};
+    const float native[7] = {5.0f, 10.0f, 14.0f, 20.0f, 30.0f, 40.0f, 60.0f};
+    for (size_t i = 0; i < 7; ++i)
+        values[i] = native[i] * scale;
+
+    struct Site
+    {
+        uintptr_t rva;
+        uintptr_t expectedSourceRva;
+        uint8_t valueIndex;
+    };
+
+    static const Site sites[] = {
+        // WSHuman ObjectQuality update family A.
+        {0x000F176E, 0x00B9EB7C, 2}, // 14
+        {0x000F177A, 0x00B7B134, 4}, // 30
+        {0x000F1787, 0x00B7D3BC, 1}, // 10
+        {0x000F1793, 0x00B7B138, 3}, // 20
+        {0x000F17A0, 0x00B7B148, 0}, // 5
+        {0x000F17AC, 0x00B7D3BC, 1}, // 10
+
+        // WSHuman ObjectQuality update family B.
+        {0x000F17CE, 0x00B7B134, 4}, // 30
+        {0x000F17DA, 0x00B9EB84, 6}, // 60
+        {0x000F17E7, 0x00B7B138, 3}, // 20
+        {0x000F17F3, 0x00B9EB80, 5}, // 40
+        {0x000F1800, 0x00B7D3BC, 1}, // 10
+        {0x000F180C, 0x00B7B138, 3}, // 20
+
+        // WSHuman constructor/profile initialization.
+        {0x0010B1B3, 0x00B7D3BC, 1}, // 10
+        {0x0010B1C4, 0x00B9EB7C, 2}, // 14
+        {0x0010B1D0, 0x00B7B134, 4}, // 30
+        {0x0010B1DE, 0x00B7B138, 3}, // 20
+        {0x0010B1E6, 0x00B7B148, 0}, // 5
+        {0x0010B211, 0x00B7B134, 4}, // 30
+        {0x0010B21D, 0x00B9EB84, 6}, // 60
+        {0x0010B225, 0x00B7B138, 3}, // 20
+        {0x0010B231, 0x00B9EB80, 5}, // 40
+        {0x0010B239, 0x00B7D3BC, 1}, // 10
+        {0x0010B245, 0x00B7B138, 3}, // 20
+    };
+
+    for (const Site& site : sites)
+    {
+        if (!PatchAbsoluteOperand32(
+                exe, site.rva, 0xD9, 0x05, site.expectedSourceRva,
+                &values[site.valueIndex], "WSHuman ObjectQuality distance"))
+            return false;
+    }
+
+    Log("[OK] WSHuman ObjectQuality scale %.3fx => %.1f/%.1f/%.1f/%.1f/%.1f/%.1f/%.1f.",
+        scale, values[0], values[1], values[2], values[3], values[4], values[5], values[6]);
+    return true;
+}
+
+
 static bool ApplyV310(const SectionRange& text, uintptr_t moduleBase)
 {
     static const uint8_t sig[] = {
@@ -1692,6 +1765,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const float veryFarSceneTerrainDistance = ReadIniFloat(iniPath, L"Distances", L"VeryFarSceneTerrain", 10000.0f);
     const float clipRangeHigh = ReadIniFloat(iniPath, L"Distances", L"ClipRangeHigh", 1000.0f);
     const float detailSystemDistance = ReadIniFloat(iniPath, L"Distances", L"DetailSystemDistance", 1000.0f);
+    const float humanObjectQualityScale = ReadIniFloat(iniPath, L"Distances", L"HumanObjectQualityScale", 5.0f);
 
     const float highPaletteThreshold = ReadIniFloat(iniPath, L"Experimental", L"HighPaletteThreshold", 80.0f);
     const float motionBlurActivationThreshold = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"MotionBlurActivationThreshold", 0.12f);
@@ -1724,6 +1798,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("[Distances] FarScene=%.1f DecalVisibility=%.1f RenderSlice3HighFar=%.1f Outer=%.1f ModelInfoLOD=%.1f VeryFarTerrain=%.1f ClipRangeHigh=%.1f DetailSystem=%.1f",
         farSceneDistance, decalVisibilityDistance, renderSlice3HighFar, renderSliceHighOuter,
         modelInfoDefaultLodDistance, veryFarSceneTerrainDistance, clipRangeHigh, detailSystemDistance);
+    Log("[Distances] HumanObjectQualityScale=%.3f", humanObjectQualityScale);
     Log("[Experimental] HighPaletteThreshold=%.1f", highPaletteThreshold);
     Log("[ExperimentalPostFX] MotionBlurActivationThreshold=%.4f", motionBlurActivationThreshold);
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
@@ -1832,6 +1907,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplyDetailSystemDistance(exe, detailSystemDistance);
     else
         Log("[OFF] WSDetailSystem left at native initial 50 / max 100 behavior.");
+
+    if (std::fabs(humanObjectQualityScale - 1.0f) > 0.0001f)
+        ApplyHumanObjectQualityScale(exe, humanObjectQualityScale);
+    else
+        Log("[OFF] WSHuman ObjectQuality distances left native.");
 
     if (std::fabs(highPaletteThreshold - 80.0f) > 0.01f)
         ApplyHighPaletteThreshold(exe, static_cast<double>(highPaletteThreshold));
