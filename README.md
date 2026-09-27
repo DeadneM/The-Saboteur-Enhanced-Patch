@@ -3,9 +3,9 @@
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
 > **Current validated architecture: Core 1 + SaboteurEnhanced ASI 0.1**  
-> **Current test branch: SaboteurEnhanced ASI 0.8 EXE parameter audit**  
+> **Current test branch: SaboteurEnhanced ASI 0.10 retail EXE parameter audit**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current work: migrate proven EXE parameters to independent INI controls**
+> **Current work: exact-retail audit of water, rain, post-processing, renderer limits and hidden quality owners**
 
 ## Current canonical build
 
