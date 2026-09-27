@@ -249,3 +249,17 @@ A true second-pass sweep of the exact retail executable should cover:
 6. Core1 byte verification before adding any new INI key.
 
 The exact retail bytes are required for that untouched-constant sweep.
+
+
+## 0.8A visual-safety finding
+
+In-game screenshot validation of 0.8 showed visible shadow/cascade bands and a
+dull/flat image. The regression is attributed to the advanced tonal/shadow/AO
+group rather than to the newly added distance controls.
+
+0.8A therefore restores native defaults for ToneMap, CSM selector/lambda/far,
+shadow bias multipliers, PCF5x5 and AO resolution/filter scales while retaining
+safe resolution/filter and distance improvements.
+
+The advanced controls remain implemented and independently configurable; they
+are simply no longer default-on until isolated one by one.
