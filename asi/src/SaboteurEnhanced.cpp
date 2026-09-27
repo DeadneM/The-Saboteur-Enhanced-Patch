@@ -482,6 +482,145 @@ static bool ApplyDecalVisibilityDistance(HMODULE exe, float distance)
 }
 
 
+
+static bool PatchAbsoluteOperand32(HMODULE exe, uintptr_t instructionRva,
+                                   uint8_t opcode0, uint8_t opcode1,
+                                   uintptr_t expectedTargetRva,
+                                   const void* newTarget,
+                                   const char* label)
+{
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* instruction = reinterpret_cast<uint8_t*>(base + instructionRva);
+    if (instruction[0] != opcode0 || instruction[1] != opcode1)
+    {
+        Log("[SKIP] %s opcode mismatch at RVA 0x%08X.", label,
+            static_cast<unsigned>(instructionRva));
+        return false;
+    }
+
+    uint32_t currentTarget = 0;
+    std::memcpy(&currentTarget, instruction + 2, sizeof(currentTarget));
+    const uint32_t expectedTarget =
+        static_cast<uint32_t>(base + expectedTargetRva);
+    if (currentTarget != expectedTarget)
+    {
+        Log("[SKIP] %s source target mismatch at RVA 0x%08X: expected 0x%08X, got 0x%08X.",
+            label, static_cast<unsigned>(instructionRva),
+            static_cast<unsigned>(expectedTarget),
+            static_cast<unsigned>(currentTarget));
+        return false;
+    }
+
+    const uintptr_t replacementPtr = reinterpret_cast<uintptr_t>(newTarget);
+    if (replacementPtr > 0xFFFFFFFFu)
+    {
+        Log("[FAIL] %s replacement pointer outside x86 range.", label);
+        return false;
+    }
+    const uint32_t replacement = static_cast<uint32_t>(replacementPtr);
+    if (!WriteBytes(instruction + 2, &replacement, sizeof(replacement)))
+    {
+        Log("[FAIL] %s operand write failed at RVA 0x%08X.", label,
+            static_cast<unsigned>(instructionRva));
+        return false;
+    }
+
+    Log("[OK] %s operand redirected at RVA 0x%08X.", label,
+        static_cast<unsigned>(instructionRva));
+    return true;
+}
+
+static bool ApplyRenderSliceHighDistances(HMODULE exe, float slice3Far, float outerFar)
+{
+    if (slice3Far < 50.0f || slice3Far > 10000.0f ||
+        outerFar < 100.0f || outerFar > 50000.0f ||
+        outerFar < slice3Far)
+    {
+        Log("[FAIL] RenderSlice High distances invalid: Slice3Far=%.3f Outer=%.3f.",
+            slice3Far, outerFar);
+        return false;
+    }
+
+    // Native High profile:
+    // record 3 far = 100, final/outer far = 500.
+    // ShadowSlice shares these slice classes.
+    const uintptr_t rvas[] = {0x00D20B00, 0x00D20B0C};
+    const float expected[] = {100.0f, 500.0f};
+    const float values[] = {slice3Far, outerFar};
+    return ApplyFloatGroup(exe, "RenderSlice/ShadowSlice High distance bounds",
+                           rvas, expected, _countof(rvas), values);
+}
+
+static bool ApplyModelInfoDefaultLodDistance(HMODULE exe, float distance)
+{
+    if (distance < 100.0f || distance > 50000.0f)
+    {
+        Log("[FAIL] ModelInfoDefaultLODDistance=%.3f outside 100..50000.", distance);
+        return false;
+    }
+
+    // VA 0x00638F2D:
+    //   fld dword ptr [0x00F7D630] ; native shared 1000.0
+    // Redirect only this ModelInfo initializer to ASI-owned storage.
+    static float storage = 1000.0f;
+    storage = distance;
+    const bool ok = PatchAbsoluteOperand32(
+        exe, 0x00238F2D, 0xD9, 0x05, 0x00B7D630,
+        &storage, "ModelInfo default LODDIST");
+    if (ok) Log("[OK] ModelInfo default LODDIST 1000 -> %.3f.", distance);
+    return ok;
+}
+
+static bool ApplyVeryFarSceneTerrainDistance(HMODULE exe, float distance)
+{
+    if (distance < 500.0f || distance > 100000.0f)
+    {
+        Log("[FAIL] VeryFarSceneTerrain=%.3f outside 500..100000.", distance);
+        return false;
+    }
+
+    // Four terrain-only fld instructions read native 5000.0 at VA 0x00FC8A5C.
+    // Redirect them to one ASI-owned value instead of changing the shared constant.
+    static float storage = 5000.0f;
+    storage = distance;
+    const uintptr_t sites[] = {
+        0x004014CB, 0x004014F7, 0x00401526, 0x00401A8B
+    };
+
+    for (uintptr_t rva : sites)
+    {
+        if (!PatchAbsoluteOperand32(
+                exe, rva, 0xD9, 0x05, 0x00BC8A5C,
+                &storage, "VeryFarSceneTerrain distance"))
+            return false;
+    }
+
+    Log("[OK] VeryFarSceneTerrain 5000 -> %.3f.", distance);
+    return true;
+}
+
+static bool ApplyHighPaletteThreshold(HMODULE exe, double threshold)
+{
+    if (!std::isfinite(threshold) || threshold < 1.0 || threshold > 1000000.0)
+    {
+        Log("[FAIL] HighPaletteThreshold=%.3f outside 1..1000000.", threshold);
+        return false;
+    }
+
+    // VA 0x009EE461:
+    //   fcomp qword ptr [0x00FB54B0] ; native threshold 80.0
+    // Historical validation reached 1600 without instability, but the setting
+    // remains experimental because no isolated visual benefit was proven.
+    static double storage = 80.0;
+    storage = threshold;
+    const bool ok = PatchAbsoluteOperand32(
+        exe, 0x005EE461, 0xDC, 0x1D, 0x00BB54B0,
+        &storage, "SS_HighPalette threshold");
+    if (ok) Log("[OK] SS_HighPalette threshold 80 -> %.3f.", threshold);
+    return ok;
+}
+
+
 static bool ApplyV310(const SectionRange& text, uintptr_t moduleBase)
 {
     static const uint8_t sig[] = {
@@ -1392,8 +1531,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.7 GRAPHICS INI MIGRATION");
-    Log("Architecture: validated Core 1 + modular graphics/shadow/AO/streaming settings");
+    Log("SaboteurEnhanced ASI 0.8 EXE PARAMETER AUDIT");
+    Log("Architecture: validated Core 1 + modular graphics/engine parameter settings");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
     const std::wstring iniPath = dir + L"\\SaboteurEnhanced.ini";
@@ -1426,6 +1565,13 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const float farSceneDistance = ReadIniFloat(iniPath, L"Distances", L"FarScene", 320.0f);
     const float decalVisibilityDistance = ReadIniFloat(iniPath, L"Distances", L"DecalVisibility", 160.0f);
 
+    const float renderSlice3HighFar = ReadIniFloat(iniPath, L"Distances", L"RenderSlice3HighFar", 300.0f);
+    const float renderSliceHighOuter = ReadIniFloat(iniPath, L"Distances", L"RenderSliceHighOuter", 1500.0f);
+    const float modelInfoDefaultLodDistance = ReadIniFloat(iniPath, L"Distances", L"ModelInfoDefaultLODDistance", 1500.0f);
+    const float veryFarSceneTerrainDistance = ReadIniFloat(iniPath, L"Distances", L"VeryFarSceneTerrain", 10000.0f);
+
+    const float highPaletteThreshold = ReadIniFloat(iniPath, L"Experimental", L"HighPaletteThreshold", 80.0f);
+
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
     g_odinEventLimit = GetPrivateProfileIntW(L"Diagnostics", L"OdinEventLimit", 5000, iniPath.c_str());
@@ -1451,7 +1597,10 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         shadowDepthBiasScale, shadowSlopeBiasScale);
     Log("[AO] FullResolution=%d Blur=%.3f Erode=%.3f", fullResolutionAo ? 1 : 0, aoBlurScale, aoErodeScale);
     Log("[Streaming] Coverage=%.1f/%.1f/%.1f", streamCoverageLow, streamCoverageMedium, streamCoverageHigh);
-    Log("[Distances] FarScene=%.1f DecalVisibility=%.1f", farSceneDistance, decalVisibilityDistance);
+    Log("[Distances] FarScene=%.1f DecalVisibility=%.1f RenderSlice3HighFar=%.1f Outer=%.1f ModelInfoLOD=%.1f VeryFarTerrain=%.1f",
+        farSceneDistance, decalVisibilityDistance, renderSlice3HighFar, renderSliceHighOuter,
+        modelInfoDefaultLodDistance, veryFarSceneTerrainDistance);
+    Log("[Experimental] HighPaletteThreshold=%.1f", highPaletteThreshold);
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
     Log("OdinTraceAllQueries=%d", g_odinTraceAllQueries ? 1 : 0);
     Log("OdinEventLimit=%ld", g_odinEventLimit);
@@ -1527,6 +1676,27 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplyDecalVisibilityDistance(exe, decalVisibilityDistance);
     else
         Log("[OFF] Decal visibility left at native 120.");
+
+    if (std::fabs(renderSlice3HighFar - 100.0f) > 0.01f ||
+        std::fabs(renderSliceHighOuter - 500.0f) > 0.01f)
+        ApplyRenderSliceHighDistances(exe, renderSlice3HighFar, renderSliceHighOuter);
+    else
+        Log("[OFF] RenderSlice/ShadowSlice High bounds left native 100/500.");
+
+    if (std::fabs(modelInfoDefaultLodDistance - 1000.0f) > 0.01f)
+        ApplyModelInfoDefaultLodDistance(exe, modelInfoDefaultLodDistance);
+    else
+        Log("[OFF] ModelInfo default LODDIST left native 1000.");
+
+    if (std::fabs(veryFarSceneTerrainDistance - 5000.0f) > 0.01f)
+        ApplyVeryFarSceneTerrainDistance(exe, veryFarSceneTerrainDistance);
+    else
+        Log("[OFF] VeryFarSceneTerrain left native 5000.");
+
+    if (std::fabs(highPaletteThreshold - 80.0f) > 0.01f)
+        ApplyHighPaletteThreshold(exe, static_cast<double>(highPaletteThreshold));
+    else
+        Log("[OFF] SS_HighPalette threshold left native 80.");
 
     if (enableV310) ApplyV310(text, g_moduleBase);
     else Log("[OFF] V310 WSModel fix disabled by INI.");
