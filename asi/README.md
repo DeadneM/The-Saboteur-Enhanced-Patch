@@ -1,6 +1,6 @@
 # SaboteurEnhanced ASI
 
-## Current diagnostic build: 0.4 — Win32Mesh fingerprint
+## Current test build: 0.5 — Odin child visibility A/B
 
 Validated baseline retained:
 - Core 1
@@ -8,66 +8,55 @@ Validated baseline retained:
 - V311 explicit ModelInfo RenderSlice full-mask correction
 - x86 dinput8 proxy loader
 
-## Result of ASI 0.3
+## Why the diagnostic branch stops here
 
-The F9 correlation test produced a repeatable directional pattern.
+ASI 0.3 already established a repeatable correlation between the remaining
+balcony/facade transition and the Odin/Win32Mesh path.
 
-The same group of six Odin/Win32Mesh roots was observed immediately before
-markers #2, #4, #6 and #8.
+Static follow-up now identifies the actual boolean gate used by that path.
 
-Markers #5 and #7 were preceded by the same three Odin instances, including
-two instances sharing one root.
+At VA `0x00667C59` the engine calls a virtual method that returns a float.
+At VA `0x00667C60` that float is compared against the exact `0.0f` constant
+at VA `0x010A45B0`.
 
-This is strong evidence that the Odin synchronization path is correlated with
-the target balcony/facade transition rather than being unrelated scene noise.
+A local boolean is then propagated through the repeat/instancing hierarchy.
+At VA `0x00667CC7` the zero-result state rejects the child mesh:
 
-The root vtable seen in every correlated event is:
+```asm
+cmp byte ptr [esp+20h], 0
+je  invisible
+cmp byte ptr [esp+24h], 0
+jne invisible              ; 75 04
+mov al, 1
+jmp done
+invisible:
+xor al, al
+```
 
-`0x0108198C`
+ASI 0.5 changes only:
 
-Static RTTI/vtable recovery identifies it as **Win32Mesh**, derived from
-OdinMesh.
+```text
+VA 0x00667CC7
+75 04 -> 90 90
+```
 
-## What 0.4 adds
+The parent-visible test remains untouched. The patch therefore does not make
+all Odin meshes globally visible. It only ignores this one child rejection
+caused by the zero-result gate.
 
-ASI 0.4 keeps the 0.3 synchronization detour and F9 marker.
-
-For every unique Win32Mesh root observed during the configurable time window
-before F9, it logs:
-
-- root pointer
-- Win32Mesh vtable
-- stable structural fingerprint
-- raw memory fingerprint
-- last OdinMeshInstance pointer
-- caller batch
-- entry count
-- segment count
-- first 0xC0 bytes of the root object as dwords
-- printable strings reachable through direct root fields
-- AHSM/MSHA mesh names when a direct field points to an AHSM header
-
-The purpose is to replace session-local heap addresses with an asset/resource
-signature that can survive a game restart.
-
-No render or streaming decision is changed.
+The broad SliceQuality tables are not the target. V302 had already expanded
+those ranges massively and the balcony still transitioned late.
 
 ## Test
 
-Use the same balcony:
+No F9 and no diagnostic procedure.
 
-1. approach until the detail appears;
-2. press F9;
-3. move away until it disappears;
-4. press F9;
-5. repeat 2–3 times;
-6. quit normally;
-7. send SaboteurEnhanced.log.
+Simply reproduce the balcony/facade location and check whether the late
+appearance/disappearance is gone or pushed away.
 
-Useful new lines:
-- `[FPRINT]`
-- `[FPRINT-DW]`
-- `[FPRINT-STR]`
-- `[FPRINT-NAME]`
+Also watch for regressions on repeated facade details, windows, balconies,
+street dressing and performance.
 
-No tuner.txt modification is used.
+If this fixes the balcony cleanly, the next step is to identify the upstream
+float producer and turn the A/B into a proper distance/LOD policy rather than
+keeping a forced branch bypass.
