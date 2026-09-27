@@ -1002,15 +1002,16 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.6 WSDAMAGEABLE VARIANT A/B");
-    Log("Architecture: validated Core 1 + WSDamageablePart variant-selector A/B");
+    Log("SaboteurEnhanced ASI 0.6 WSDYNAMICPART PRIORITY RADIUS A/B");
+    Log("Architecture: validated Core 1 + WSDynamicPart priority-radius A/B");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
     const std::wstring iniPath = dir + L"\\SaboteurEnhanced.ini";
     const bool enableV310 = GetPrivateProfileIntW(L"Fixes", L"WSModelFullRenderMask", 1, iniPath.c_str()) != 0;
     const bool enableV311 = GetPrivateProfileIntW(L"Fixes", L"ModelInfoFullRenderSlice", 1, iniPath.c_str()) != 0;
     const bool enableOdinChildVisibility = GetPrivateProfileIntW(L"Fixes", L"OdinChildVisibilityGate", 0, iniPath.c_str()) != 0;
-    const bool enableWSDamageableVariant = GetPrivateProfileIntW(L"Fixes", L"WSDamageableVariantSelector", 1, iniPath.c_str()) != 0;
+    const bool enableWSDamageableVariant = GetPrivateProfileIntW(L"Fixes", L"WSDamageableVariantSelector", 0, iniPath.c_str()) != 0;
+    const int wsDynamicPartPriorityRadius = GetPrivateProfileIntW(L"Fixes", L"WSDynamicPartPriorityRadius", 25, iniPath.c_str());
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
     g_odinEventLimit = GetPrivateProfileIntW(L"Diagnostics", L"OdinEventLimit", 5000, iniPath.c_str());
@@ -1028,6 +1029,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("ModelInfoFullRenderSlice=%d", enableV311 ? 1 : 0);
     Log("OdinChildVisibilityGate=%d", enableOdinChildVisibility ? 1 : 0);
     Log("WSDamageableVariantSelector=%d", enableWSDamageableVariant ? 1 : 0);
+    Log("WSDynamicPartPriorityRadius=%d", wsDynamicPartPriorityRadius);
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
     Log("OdinTraceAllQueries=%d", g_odinTraceAllQueries ? 1 : 0);
     Log("OdinEventLimit=%ld", g_odinEventLimit);
@@ -1056,6 +1058,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 
     if (enableWSDamageableVariant) ApplyWSDamageableVariantSelectorBypass(text, g_moduleBase);
     else Log("[OFF] WSDamageablePart variant-selector A/B disabled by INI.");
+
+    if (wsDynamicPartPriorityRadius != 25)
+        ApplyWSDynamicPartPriorityRadius(exe, static_cast<float>(wsDynamicPartPriorityRadius));
+    else
+        Log("[OFF] WSDynamicPart priority radius left at native 25.");
 
     if (enableOdin)
     {
