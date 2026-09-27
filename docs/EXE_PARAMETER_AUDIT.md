@@ -263,3 +263,63 @@ safe resolution/filter and distance improvements.
 
 The advanced controls remain implemented and independently configurable; they
 are simply no longer default-on until isolated one by one.
+
+
+## I. Exact retail second-pass discoveries
+
+The exact retail EXE has now been scanned directly rather than inferred from
+historical patch manifests.
+
+### Water render targets
+
+`WaterReflection` is owned by two globals:
+
+- VA `0x011C13D8` / RVA `0x00DC13D8`: width 512
+- VA `0x011C13DC` / RVA `0x00DC13DC`: height 128
+
+The same pair feeds creation and backend/surface consumers, so the dimensions
+can be changed coherently.
+
+`WaterNormals%d` and `WaterNormalsTemp%d` are both created at 128x128 from
+four exact push-immediate sites:
+
+- RVA `0x0053A599`
+- RVA `0x0053A5BE`
+- RVA `0x0053A629`
+- RVA `0x0053A634`
+
+### Rain render targets
+
+`RainCubeRT` is created at 128 from exact push-immediate RVA
+`0x00402785`.
+
+`HardwareRainDepthTexture` and `HardwareRainDepthTextureVS` reuse the same
+1024x1024 dimension owner as `WSShadowZBuffer`:
+RVA `0x00DD61B4/0x00DD61B8`.
+
+Therefore the project deliberately does NOT create a separate rain-depth
+resolution key. One shared native owner maps to one INI control:
+`Shadows.ShadowMapResolution`.
+
+### Depth blur
+
+The primary `WSDepthBlurFilter` path uses class-owned constants:
+
+- RVA `0x00D3A3C0`: 200
+- RVA `0x00D3A3BC`: 50
+
+The path computes approximately
+`clamp(max(sourceValue - 200, 0) / 50, 0, 1)`.
+The exact semantic name of sourceValue remains under audit, so the INI names are
+deliberately conservative:
+`DepthBlurAutoStart` and `DepthBlurAutoRange`.
+
+### Still under active second-pass analysis
+
+- MotionBlurDownsampledBackBuffer half-resolution path
+- Bloom / GodRays quarter-resolution render targets
+- ScaledTexture half-resolution post-process target
+- FSAA filter constants
+- low-cloud / cloud-shadow statics
+- water/reflection shader constants
+- post-process intensity/tone constants whose semantic mapping is not yet proven
