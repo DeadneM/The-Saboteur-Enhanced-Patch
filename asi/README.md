@@ -1,6 +1,6 @@
 # SaboteurEnhanced ASI
 
-## Current test build: 0.5 — Odin child visibility A/B
+## Current test build: 0.6 — WSDamageablePart variant selector A/B
 
 Validated baseline retained:
 - Core 1
@@ -8,55 +8,75 @@ Validated baseline retained:
 - V311 explicit ModelInfo RenderSlice full-mask correction
 - x86 dinput8 proxy loader
 
-## Why the diagnostic branch stops here
+## Result of 0.5
 
-ASI 0.3 already established a repeatable correlation between the remaining
-balcony/facade transition and the Odin/Win32Mesh path.
+ASI 0.5 changed only the child rejection branch at VA `0x00667CC7`.
 
-Static follow-up now identifies the actual boolean gate used by that path.
+User result: **no visible change to the balcony/facade transition**.
 
-At VA `0x00667C59` the engine calls a virtual method that returns a float.
-At VA `0x00667C60` that float is compared against the exact `0.0f` constant
-at VA `0x010A45B0`.
+Conclusion:
+- the 0.0f child gate is on the same Odin/repeat path but is not the final
+  selector responsible for the observed pop;
+- ASI 0.5 is rejected and disabled by default.
 
-A local boolean is then propagated through the repeat/instancing hierarchy.
-At VA `0x00667CC7` the zero-result state rejects the child mesh:
+## New static finding
+
+The next function in the same path is VA `0x006678E0`.
+
+It recalculates the actual child visibility bit at `child+0x4C & 1`.
+
+Before writing that bit, the engine selects between two child groups using:
+
+- parent/state field `this+0x20`, compared against **0** and **1**;
+- child resource flag `resource+0x28 & 1`.
+
+The native result is then combined with the incoming visibility boolean:
 
 ```asm
-cmp byte ptr [esp+20h], 0
-je  invisible
-cmp byte ptr [esp+24h], 0
-jne invisible              ; 75 04
-mov al, 1
-jmp done
-invisible:
-xor al, al
+...
+mov eax, 1
+...
+xor eax, eax
+and al, byte ptr [esp+24h]    ; VA 0x006679AE
+mov cl, byte ptr [esi+4Ch]
+...
+xor byte ptr [esi+4Ch], cl
 ```
 
-ASI 0.5 changes only:
+The surrounding object construction path is recovered as
+**WSDamageable / WSDamageablePart**.
+
+## ASI 0.6 A/B
+
+Single runtime change:
 
 ```text
-VA 0x00667CC7
-75 04 -> 90 90
+VA 0x006679AE
+22 44 24 24        ; and al,[esp+24h]
+->
+8A 44 24 24        ; mov al,[esp+24h]
 ```
 
-The parent-visible test remains untouched. The patch therefore does not make
-all Odin meshes globally visible. It only ignores this one child rejection
-caused by the zero-result gate.
+Effect:
+- preserve the incoming visibility decision;
+- bypass only the WSDamageablePart 0/1 child-variant selector;
+- leave all global draw distances, RenderSlice, streaming and Odin sync logic
+  untouched.
 
-The broad SliceQuality tables are not the target. V302 had already expanded
-those ranges massively and the balcony still transitioned late.
+Potential visible side effect for this A/B:
+- if the selector is choosing mutually exclusive damage/intact variants, both
+  groups may become visible together. That would still be a useful diagnostic
+  result and would immediately identify this subsystem as the owner.
 
 ## Test
 
-No F9 and no diagnostic procedure.
+No F9 and no special procedure.
 
-Simply reproduce the balcony/facade location and check whether the late
-appearance/disappearance is gone or pushed away.
+At the balcony/facade location, check whether:
+- the late detail pop changes;
+- duplicate/overlapping facade or damage geometry appears;
+- other destructible buildings show obvious variant overlap.
 
-Also watch for regressions on repeated facade details, windows, balconies,
-street dressing and performance.
-
-If this fixes the balcony cleanly, the next step is to identify the upstream
-float producer and turn the A/B into a proper distance/LOD policy rather than
-keeping a forced branch bypass.
+If there is still no effect, this WSDamageablePart selector is rejected and the
+Odin correlation is treated as a downstream consequence rather than the visual
+owner.
