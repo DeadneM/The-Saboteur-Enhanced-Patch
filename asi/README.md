@@ -1,6 +1,6 @@
 # SaboteurEnhanced ASI
 
-## Current test build: 0.7 — modular graphics/engine INI migration
+## Current test build: 0.8 — EXE parameter audit
 
 Validated baseline retained:
 - Core 1
@@ -10,7 +10,7 @@ Validated baseline retained:
 
 ## Purpose
 
-ASI 0.7 begins restoring the proven graphics/render findings that were
+ASI 0.8 continues restoring proven graphics/render findings and adds clean native owners found during the EXE-parameter audit. It
 intentionally removed from the cleaned Core executable.
 
 The rule is now simple: one proven setting, one independent INI entry.
@@ -57,6 +57,20 @@ V310 and V311 remain independent default-on entries under [Fixes].
 The WSDynamicPart priority-radius A/B remains available as
 WSDynamicPartPriorityRadius. Rejected Odin/WSDamageable experiments remain
 disabled.
+
+## New 0.8 audited native owners
+
+### Distances / LOD
+- RenderSlice/ShadowSlice High class-3 far: 100 -> 300
+- RenderSlice/ShadowSlice High outer endpoint: 500 -> 1500
+- ModelInfo default LODDIST: 1000 -> 1500
+- VeryFarSceneTerrain: 5000 -> 10000
+
+### Experimental resource priority
+- SS_HighPalette threshold has its own INI entry.
+- Native/default remains 80 because the historical progression through 1600 was stable but did not prove an isolated visual benefit.
+
+Each instruction-operand redirection verifies the original opcode and the original Core1/retail target before replacing it with ASI-owned storage.
 
 ## Still being migrated
 
