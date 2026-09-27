@@ -1,6 +1,6 @@
 # SaboteurEnhanced ASI
 
-## Current test build: 0.6 — WSDamageablePart variant selector A/B
+## Current test build: 0.6 — WSDynamicPart priority radius A/B
 
 Validated baseline retained:
 - Core 1
@@ -8,75 +8,80 @@ Validated baseline retained:
 - V311 explicit ModelInfo RenderSlice full-mask correction
 - x86 dinput8 proxy loader
 
-## Result of 0.5
+## 0.5 result
 
-ASI 0.5 changed only the child rejection branch at VA `0x00667CC7`.
+ASI 0.5 had **no visible effect** on the balcony/facade pop and is rejected.
 
-User result: **no visible change to the balcony/facade transition**.
-
-Conclusion:
-- the 0.0f child gate is on the same Odin/repeat path but is not the final
-  selector responsible for the observed pop;
-- ASI 0.5 is rejected and disabled by default.
-
-## New static finding
-
-The next function in the same path is VA `0x006678E0`.
-
-It recalculates the actual child visibility bit at `child+0x4C & 1`.
-
-Before writing that bit, the engine selects between two child groups using:
-
-- parent/state field `this+0x20`, compared against **0** and **1**;
-- child resource flag `resource+0x28 & 1`.
-
-The native result is then combined with the incoming visibility boolean:
+Static follow-up explains why: the virtual float used by the 0.5 branch is
+WSDamageable slot 9 at VA `0x00451360`, which is simply:
 
 ```asm
-...
-mov eax, 1
-...
-xor eax, eax
-and al, byte ptr [esp+24h]    ; VA 0x006679AE
-mov cl, byte ptr [esi+4Ch]
-...
-xor byte ptr [esi+4Ch], cl
+fld dword ptr [ecx+0Ch]
+ret
 ```
 
-The surrounding object construction path is recovered as
-**WSDamageable / WSDamageablePart**.
+It is WSDamageable state, not a camera-distance or LOD metric.
 
-## ASI 0.6 A/B
+## Actual value found for 0.6
 
-Single runtime change:
+The relevant destructible/repeated facade path reaches
+`WSDynamicPart::Update`, which calls the priority function at VA
+`0x00669980`.
+
+That function computes a score containing the proximity term:
 
 ```text
-VA 0x006679AE
-22 44 24 24        ; and al,[esp+24h]
-->
-8A 44 24 24        ; mov al,[esp+24h]
+max(625 - x², 0)
 ```
 
-Effect:
-- preserve the incoming visibility decision;
-- bypass only the WSDamageablePart 0/1 child-variant selector;
-- leave all global draw distances, RenderSlice, streaming and Odin sync logic
-  untouched.
+Therefore the native radius represented by the formula is:
 
-Potential visible side effect for this A/B:
-- if the selector is choosing mutually exclusive damage/intact variants, both
-  groups may become visible together. That would still be a useful diagnostic
-  result and would immediately identify this subsystem as the owner.
+```text
+sqrt(625) = 25
+```
+
+The score is then combined with WSDynamicPart fields at +0x200/+0x204 and an
+optional 10000-point priority term, and is compared by the WSDynamicPart manager
+when selecting the active/current part.
+
+The two 625 constants are local to this one function. Static xref audit found:
+
+```text
+VA 0x00FC76DC   float 625.0   one reference
+VA 0x00FC77C8   double 625.0  two references
+```
+
+All references come from VA `0x00669980`.
+
+## A/B patch
+
+ASI 0.6 sets:
+
+```ini
+WSDynamicPartPriorityRadius=50
+```
+
+At runtime it writes both constants coherently:
+
+```text
+625.0  -> 2500.0
+25²    -> 50²
+```
+
+This preserves the native scoring formula and merely doubles the radius over
+which the proximity term contributes.
+
+No Odin diagnostic hooks are enabled and the rejected 0.5 branch is disabled.
 
 ## Test
 
-No F9 and no special procedure.
+No logging procedure or hotkey is required.
 
-At the balcony/facade location, check whether:
-- the late detail pop changes;
-- duplicate/overlapping facade or damage geometry appears;
-- other destructible buildings show obvious variant overlap.
+Go to the same balcony/facade location and check whether:
+- the late detail appears farther away or no longer visibly pops;
+- nearby destructible/repeated facade pieces remain sane;
+- performance remains normal.
 
-If there is still no effect, this WSDamageablePart selector is rejected and the
-Odin correlation is treated as a downstream consequence rather than the visual
-owner.
+If it changes the balcony, the radius is a real controlling value and can be
+refined. If it does nothing, this priority radius is rejected and we move on
+without more instrumentation.
