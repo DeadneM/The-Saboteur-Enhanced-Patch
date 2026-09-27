@@ -1,6 +1,6 @@
 # SaboteurEnhanced ASI
 
-## Current test build: 0.8A — safe visual baseline
+## Current test build: 0.10 — retail EXE parameter audit
 
 Validated baseline retained:
 - Core 1
@@ -111,3 +111,26 @@ ShadowMapResolution=4096, EnvironmentMapResolution=2048, AF16 and validated
 distance controls remain enabled.
 
 This is an A/B isolation baseline, not a deletion of the recovered settings.
+
+
+## 0.10 retail-EXE discoveries
+
+The exact retail executable has now been reintroduced into the audit
+(14,834,176 bytes, SHA-256
+`e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`).
+
+New clean owners exposed at native defaults:
+
+- WaterReflection RT: 512x128
+- WaterNormals / WaterNormalsTemp: 128x128
+- RainCubeRT: 128
+- WSDepthBlurFilter automatic transition: start 200 / range 50
+
+Important shared-owner correction:
+
+- WSShadowZBuffer and HardwareRainDepthTexture use the same native 1024x1024
+  dimension globals. They remain one `ShadowMapResolution` control; a separate
+  rain-depth key would be incorrect and could fight the shadow setting.
+
+These new entries are native by default and therefore do not alter visuals
+until explicitly changed.
