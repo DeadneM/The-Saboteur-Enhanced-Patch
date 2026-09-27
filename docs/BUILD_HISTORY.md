@@ -495,3 +495,27 @@ Hashes:
 - ZIP: `996684a339308b83dfc064089e74e047d5a36f03eb207ab9866599a81f45ad39`
 
 See `docs/ASI_0_6_WSDAMAGEABLE_AB.md`.
+
+
+## ASI 0.6 WSDynamicPart priority radius A/B
+
+ASI 0.5 is rejected: the user observed no balcony/facade change. Static
+follow-up showed that its virtual float was WSDamageable state, not distance.
+
+The current static target is the WSDynamicPart priority function at
+VA `0x00669980`.
+
+It contains the proximity term `max(625 - x^2, 0)`, encoding a native radius
+of 25. The float and double 625 constants are referenced only by this function.
+
+ASI 0.6 changes both coherently to 2500, testing radius **25 -> 50** while
+preserving the native score formula.
+
+No Odin/F9/fingerprint diagnostics are active.
+
+Hashes:
+- ASI: `8ed0474d3bc5c6c9c633fae4bcfdb6473575df7f27d51c93e9c985a3d494e1f7`
+- dinput8: `7f1b42c61267805fb413a9e6c864111c0c562fd389ea7ce27dac826af2949de5`
+- ZIP: `e064bd8ab3053e3ff5ff33e33cdf1b738d2bc87580d7b5a3428e1e9c46e0d3b7`
+
+See `docs/ASI_0_6_WSDYNAMICPART_RADIUS.md`.
