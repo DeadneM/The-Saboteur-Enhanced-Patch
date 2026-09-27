@@ -100,3 +100,64 @@ Decision:
   object/root pairs and continue into the owning high-resolution state gate;
 - no mismatch correlation -> reject OdinMeshInstance sync as the visual owner
   and move to the next renderer layer.
+
+
+## Runtime result
+
+ASI 0.3 was tested at the same balcony/facade transition with eight F9 visual
+markers.
+
+Startup validation passed:
+- V310 runtime fix applied;
+- V311 runtime fix applied;
+- OdinMeshInstance vtable verified;
+- Odin synchronization detour installed;
+- F9 marker thread active.
+
+The runtime trace produced a repeatable alternating signature.
+
+### Repeated six-instance signature
+
+Immediately before F9 markers **#2, #4, #6 and #8**, the exact same six
+OdinMeshInstance/root pairs reappeared:
+
+1. `this=34A98D40 -> root=0CD20460`, batch-A, n=4
+2. `this=34B0DFD0 -> root=0CD2A500`, batch-A, n=4
+3. `this=347041D0 -> root=0CD2A500`, batch-A, n=4
+4. `this=2E5206E0 -> root=2DBDB330`, batch-A, n=4
+5. `this=2E2A4720 -> root=2DBCC720`, batch-A, n=4
+6. `this=083797A0 -> root=0CCEA400`, batch-B, n=22
+
+### Repeated three-instance signature
+
+Immediately before F9 markers **#5 and #7**, the exact same three instances
+reappeared:
+
+1. `this=2E297F80 -> root=2E2B7DC0`, batch-A, n=4
+2. `this=47678B40 -> root=2DF66830`, batch-A, n=3
+3. `this=2D748270 -> root=2DF66830`, batch-B, n=3
+
+The clean repeated Odin bursts occur roughly **0.17 to 0.62 seconds** before
+the user's F9 visual marker.
+
+The root vtable on all correlated events is:
+
+`0x0108198C`
+
+Static vtable recovery identifies that root type as **Win32Mesh**, derived from
+OdinMesh.
+
+### Conclusion
+
+The Odin synchronization branch is no longer treated as generic renderer noise.
+It is strongly correlated with the target balcony/facade transition.
+
+The remaining problem is object identity: heap addresses are session-local.
+The next diagnostic must fingerprint the correlated Win32Mesh roots so the
+visual owner can be recognized across transitions and across game restarts.
+
+ASI 0.3 shutdown summary:
+- SyncCalls: 752
+- Mismatches: 752
+- F9Markers: 8
+- LoggedEvents: 1504
