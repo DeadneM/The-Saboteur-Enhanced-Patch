@@ -1141,6 +1141,110 @@ static bool ApplyDepthBlurAutoTransition(HMODULE exe, float start, float range)
     return ApplyFloatGroup(exe, "DepthBlur automatic transition", rvas, expected, 2, values);
 }
 
+
+static bool ApplyMotionBlurFullResolution(HMODULE exe)
+{
+    // MotionBlurDownsampledBackBuffer is created at half backbuffer resolution.
+    // Retail performs two exact 16-bit shifts:
+    //   VA 0x007D5648 : shr ax,1
+    //   VA 0x007D5679 : shr ax,1
+    // Full-resolution mode removes only those two downsample operations.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    const uintptr_t sites[] = {0x003D5648, 0x003D5679};
+    const uint8_t expected[] = {0x66,0xD1,0xE8};
+    const uint8_t nops[] = {0x90,0x90,0x90};
+
+    for (uintptr_t rva : sites)
+    {
+        auto* at = reinterpret_cast<uint8_t*>(base + rva);
+        if (std::memcmp(at, expected, sizeof(expected)) != 0)
+        {
+            Log("[SKIP] MotionBlur half-resolution shift mismatch at RVA 0x%08X.",
+                static_cast<unsigned>(rva));
+            return false;
+        }
+    }
+    for (uintptr_t rva : sites)
+    {
+        if (!WriteBytes(reinterpret_cast<void*>(base + rva), nops, sizeof(nops)))
+        {
+            Log("[FAIL] MotionBlur full-resolution patch failed at RVA 0x%08X.",
+                static_cast<unsigned>(rva));
+            return false;
+        }
+    }
+
+    Log("[OK] MotionBlurDownsampledBackBuffer half-resolution -> full-resolution.");
+    return true;
+}
+
+static bool ApplyBloomResolutionMultiplier(HMODULE exe, int multiplier)
+{
+    // Native bloom/god-rays pyramid is derived from the backbuffer as:
+    //   GodRays / Bloom base : /4
+    //   BloomTexture2x2      : /8
+    //   BloomTexture4x4      : /16
+    //   BloomTexture8x8      : /32
+    //
+    // Multiplier 2 raises every level coherently:
+    //   /2, /4, /8, /16
+    //
+    // ScaledTexture remains the native /2 source, so multiplier 2 never
+    // asks the base bloom level to exceed its source resolution.
+    if (multiplier != 1 && multiplier != 2)
+    {
+        Log("[FAIL] BloomResolutionMultiplier=%d; supported values are 1 or 2.", multiplier);
+        return false;
+    }
+    if (multiplier == 1)
+        return true;
+
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    struct ShiftSite
+    {
+        uintptr_t rva;
+        uint8_t op2;
+        uint8_t nativeShift;
+    };
+    static const ShiftSite sites[] = {
+        {0x003C9F34, 0xE8, 2}, // ax /4
+        {0x003C9F39, 0xED, 2}, // bp /4
+        {0x003CA17D, 0xE8, 3}, // ax /8
+        {0x003CA181, 0xE9, 3}, // cx /8
+        {0x003CA32C, 0xE8, 4}, // ax /16
+        {0x003CA330, 0xE9, 4}, // cx /16
+        {0x003CA3FD, 0xE8, 5}, // ax /32
+        {0x003CA414, 0xE8, 5}, // ax /32
+    };
+
+    for (const ShiftSite& site : sites)
+    {
+        const auto* at = reinterpret_cast<const uint8_t*>(base + site.rva);
+        if (at[0] != 0x66 || at[1] != 0xC1 ||
+            at[2] != site.op2 || at[3] != site.nativeShift)
+        {
+            Log("[SKIP] Bloom pyramid shift mismatch at RVA 0x%08X.",
+                static_cast<unsigned>(site.rva));
+            return false;
+        }
+    }
+
+    for (const ShiftSite& site : sites)
+    {
+        auto* at = reinterpret_cast<uint8_t*>(base + site.rva);
+        const uint8_t newShift = static_cast<uint8_t>(site.nativeShift - 1);
+        if (!WriteBytes(at + 3, &newShift, 1))
+        {
+            Log("[FAIL] Bloom pyramid shift write failed at RVA 0x%08X.",
+                static_cast<unsigned>(site.rva));
+            return false;
+        }
+    }
+
+    Log("[OK] Bloom/GodRays render-target pyramid resolution multiplier 1x -> 2x.");
+    return true;
+}
+
 static bool ApplyV310(const SectionRange& text, uintptr_t moduleBase)
 {
     static const uint8_t sig[] = {
@@ -2107,6 +2211,9 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const float depthBlurAutoStart = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"DepthBlurAutoStart", 200.0f);
     const float depthBlurAutoRange = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"DepthBlurAutoRange", 50.0f);
 
+    const bool motionBlurFullResolution = GetPrivateProfileIntW(L"ExperimentalPostFX", L"MotionBlurFullResolution", 0, iniPath.c_str()) != 0;
+    const int bloomResolutionMultiplier = GetPrivateProfileIntW(L"ExperimentalPostFX", L"BloomResolutionMultiplier", 1, iniPath.c_str());
+
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
     g_odinEventLimit = GetPrivateProfileIntW(L"Diagnostics", L"OdinEventLimit", 5000, iniPath.c_str());
@@ -2144,6 +2251,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("[Rain] CubeResolution=%d", rainCubeResolution);
     Log("[ExperimentalPostFX] DepthBlurAutoStart=%.3f DepthBlurAutoRange=%.3f",
         depthBlurAutoStart, depthBlurAutoRange);
+    Log("[ExperimentalPostFX] MotionBlurFullResolution=%d BloomResolutionMultiplier=%d",
+        motionBlurFullResolution ? 1 : 0, bloomResolutionMultiplier);
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
     Log("OdinTraceAllQueries=%d", g_odinTraceAllQueries ? 1 : 0);
     Log("OdinEventLimit=%ld", g_odinEventLimit);
@@ -2302,6 +2411,16 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplyDepthBlurAutoTransition(exe, depthBlurAutoStart, depthBlurAutoRange);
     else
         Log("[OFF] DepthBlur automatic transition left native 200/50.");
+
+    if (motionBlurFullResolution)
+        ApplyMotionBlurFullResolution(exe);
+    else
+        Log("[OFF] MotionBlurDownsampledBackBuffer left native half-resolution.");
+
+    if (bloomResolutionMultiplier != 1)
+        ApplyBloomResolutionMultiplier(exe, bloomResolutionMultiplier);
+    else
+        Log("[OFF] Bloom/GodRays pyramid left at native resolution.");
 
     if (enableV310) ApplyV310(text, g_moduleBase);
     else Log("[OFF] V310 WSModel fix disabled by INI.");
