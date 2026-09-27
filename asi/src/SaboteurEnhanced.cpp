@@ -16,6 +16,10 @@ static INIT_ONCE g_initOnce = INIT_ONCE_STATIC_INIT;
 static FILE* g_log = nullptr;
 static SRWLOCK g_logLock = SRWLOCK_INIT;
 
+static float g_shadowCasterMinLodDistance = 180.0f;
+static uintptr_t g_shadowCasterReturn = 0;
+static float g_particleLodMinDistance = 100.0f;
+
 static std::wstring ModuleDirectory(HMODULE module)
 {
     wchar_t path[MAX_PATH] = {};
@@ -94,6 +98,113 @@ static bool WriteBytes(void* address, const void* bytes, size_t size)
     return true;
 }
 
+
+
+static bool WriteRel32Call6(void* target, const uint8_t expected[6], void* hook, const char* label)
+{
+    auto* at = reinterpret_cast<uint8_t*>(target);
+    if (std::memcmp(at, expected, 6) != 0)
+    {
+        Log("[SKIP] %s instruction bytes mismatch.", label);
+        return false;
+    }
+
+    const intptr_t delta =
+        reinterpret_cast<intptr_t>(hook) - (reinterpret_cast<intptr_t>(at) + 5);
+    if (delta < INT32_MIN || delta > INT32_MAX)
+    {
+        Log("[FAIL] %s hook is outside rel32 range.", label);
+        return false;
+    }
+
+    uint8_t patch[6] = {0xE8,0,0,0,0,0x90};
+    const int32_t rel = static_cast<int32_t>(delta);
+    std::memcpy(patch + 1, &rel, sizeof(rel));
+    if (!WriteBytes(at, patch, sizeof(patch)))
+    {
+        Log("[FAIL] %s CALL patch write failed.", label);
+        return false;
+    }
+
+    Log("[OK] %s CALL hook installed.", label);
+    return true;
+}
+
+static bool WriteRel32Jmp7(void* target, const uint8_t expected[7], void* hook, const char* label)
+{
+    auto* at = reinterpret_cast<uint8_t*>(target);
+    if (std::memcmp(at, expected, 7) != 0)
+    {
+        Log("[SKIP] %s instruction bytes mismatch.", label);
+        return false;
+    }
+
+    const intptr_t delta =
+        reinterpret_cast<intptr_t>(hook) - (reinterpret_cast<intptr_t>(at) + 5);
+    if (delta < INT32_MIN || delta > INT32_MAX)
+    {
+        Log("[FAIL] %s hook is outside rel32 range.", label);
+        return false;
+    }
+
+    uint8_t patch[7] = {0xE9,0,0,0,0,0x90,0x90};
+    const int32_t rel = static_cast<int32_t>(delta);
+    std::memcpy(patch + 1, &rel, sizeof(rel));
+    if (!WriteBytes(at, patch, sizeof(patch)))
+    {
+        Log("[FAIL] %s JMP patch write failed.", label);
+        return false;
+    }
+
+    Log("[OK] %s JMP hook installed.", label);
+    return true;
+}
+
+__declspec(naked) static void ShadowCasterMinLodHook()
+{
+    __asm
+    {
+        test ecx, ecx
+        jz original_mask
+
+        push eax
+        mov eax, dword ptr [edi+0A4h]
+        cmp eax, dword ptr [g_shadowCasterMinLodDistance]
+        jae shadow_keep
+        mov eax, dword ptr [g_shadowCasterMinLodDistance]
+        mov dword ptr [edi+0A4h], eax
+shadow_keep:
+        pop eax
+
+original_mask:
+        mov ebx, 1
+        shl ebx, cl
+        jmp dword ptr [g_shadowCasterReturn]
+    }
+}
+
+__declspec(naked) static void ParticleLodMinHook()
+{
+    __asm
+    {
+        pushfd
+        push ecx
+        mov ecx, dword ptr [eax+1D8h]
+        cmp ecx, dword ptr [g_particleLodMinDistance]
+        jae particle_native
+
+        pop ecx
+        popfd
+        fld dword ptr [g_particleLodMinDistance]
+        ret
+
+particle_native:
+        pop ecx
+        popfd
+        fld dword ptr [eax+1D8h]
+        ret
+    }
+}
 
 static float ReadIniFloat(const std::wstring& path, const wchar_t* section, const wchar_t* key, float fallback)
 {
@@ -810,6 +921,88 @@ static bool ApplyHumanObjectQualityScale(HMODULE exe, float scale)
 
     Log("[OK] WSHuman ObjectQuality scale %.3fx => %.1f/%.1f/%.1f/%.1f/%.1f/%.1f/%.1f.",
         scale, values[0], values[1], values[2], values[3], values[4], values[5], values[6]);
+    return true;
+}
+
+
+
+static bool ApplyFoliageModelLodDistance(HMODULE exe, float distance)
+{
+    if (!std::isfinite(distance) || distance < 10.0f || distance > 5000.0f)
+    {
+        Log("[FAIL] FoliageModelLODDistance=%.3f outside 10..5000.", distance);
+        return false;
+    }
+
+    // ModelInfo parser tag FOLIAGE sets field +0x08 = 1.
+    // WSModel then overrides its +0xA4 LODDIST from the retail 50.0 source at
+    // VA 0x0063960D. Redirect only that FOLIAGE-specific load.
+    static float storage = 50.0f;
+    storage = distance;
+    const bool ok = PatchAbsoluteOperand32(
+        exe, 0x0023960D, 0xD9, 0x05, 0x00B7D3A8,
+        &storage, "FOLIAGE ModelInfo LODDIST");
+    if (ok) Log("[OK] FOLIAGE ModelInfo LODDIST 50 -> %.3f.", distance);
+    return ok;
+}
+
+static bool ApplyShadowCasterMinLodDistance(HMODULE exe, float distance)
+{
+    if (!std::isfinite(distance) || distance < 1.0f || distance > 5000.0f)
+    {
+        Log("[FAIL] ShadowCasterMinLODDistance=%.3f outside 1..5000.", distance);
+        return false;
+    }
+
+    // Retail explicit ModelInfo path:
+    //   ecx = ModelInfo ShadowSlice byte
+    //   WSModel+0xA4 = per-model LODDIST
+    // Historical V200/V257 inserted a minimum only when ShadowSlice != 0:
+    //   max(LODDIST, 180) -> max(LODDIST, 240).
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* target = reinterpret_cast<void*>(base + 0x002395D2);
+    static const uint8_t expected[7] = {
+        0xBB,0x01,0x00,0x00,0x00,0xD3,0xE3
+    };
+
+    g_shadowCasterMinLodDistance = distance;
+    g_shadowCasterReturn = base + 0x002395D9;
+    if (!WriteRel32Jmp7(target, expected,
+                       reinterpret_cast<void*>(&ShadowCasterMinLodHook),
+                       "Shadow-caster minimum LODDIST"))
+        return false;
+
+    Log("[OK] Shadow-caster minimum LODDIST 180 historical baseline -> %.3f.", distance);
+    return true;
+}
+
+static bool ApplyParticleLodMinDistance(HMODULE exe, float distance)
+{
+    if (!std::isfinite(distance) || distance < 1.0f || distance > 5000.0f)
+    {
+        Log("[FAIL] ParticleLODMinDistance=%.3f outside 1..5000.", distance);
+        return false;
+    }
+
+    // Two WSParticleObject render/query paths originally perform:
+    //   fld dword ptr [eax+1D8h]
+    // Historical V200/V257 replaced each load with max(value,100/150).
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    static const uint8_t expected[6] = {0xD9,0x80,0xD8,0x01,0x00,0x00};
+
+    g_particleLodMinDistance = distance;
+
+    if (!WriteRel32Call6(reinterpret_cast<void*>(base + 0x002E2D32),
+                         expected, reinterpret_cast<void*>(&ParticleLodMinHook),
+                         "Particle LOD minimum A"))
+        return false;
+
+    if (!WriteRel32Call6(reinterpret_cast<void*>(base + 0x002E3643),
+                         expected, reinterpret_cast<void*>(&ParticleLodMinHook),
+                         "Particle LOD minimum B"))
+        return false;
+
+    Log("[OK] Particle LOD minimum 100 historical baseline -> %.3f.", distance);
     return true;
 }
 
@@ -1766,6 +1959,9 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const float clipRangeHigh = ReadIniFloat(iniPath, L"Distances", L"ClipRangeHigh", 1000.0f);
     const float detailSystemDistance = ReadIniFloat(iniPath, L"Distances", L"DetailSystemDistance", 1000.0f);
     const float humanObjectQualityScale = ReadIniFloat(iniPath, L"Distances", L"HumanObjectQualityScale", 5.0f);
+    const float foliageModelLodDistance = ReadIniFloat(iniPath, L"Distances", L"FoliageModelLODDistance", 250.0f);
+    const float shadowCasterMinLodDistance = ReadIniFloat(iniPath, L"Distances", L"ShadowCasterMinLODDistance", 240.0f);
+    const float particleLodMinDistance = ReadIniFloat(iniPath, L"Distances", L"ParticleLODMinDistance", 150.0f);
 
     const float highPaletteThreshold = ReadIniFloat(iniPath, L"Experimental", L"HighPaletteThreshold", 80.0f);
     const float motionBlurActivationThreshold = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"MotionBlurActivationThreshold", 0.12f);
@@ -1799,6 +1995,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         farSceneDistance, decalVisibilityDistance, renderSlice3HighFar, renderSliceHighOuter,
         modelInfoDefaultLodDistance, veryFarSceneTerrainDistance, clipRangeHigh, detailSystemDistance);
     Log("[Distances] HumanObjectQualityScale=%.3f", humanObjectQualityScale);
+    Log("[Distances] FoliageLOD=%.1f ShadowCasterMinLOD=%.1f ParticleLODMin=%.1f",
+        foliageModelLodDistance, shadowCasterMinLodDistance, particleLodMinDistance);
     Log("[Experimental] HighPaletteThreshold=%.1f", highPaletteThreshold);
     Log("[ExperimentalPostFX] MotionBlurActivationThreshold=%.4f", motionBlurActivationThreshold);
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
@@ -1912,6 +2110,21 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplyHumanObjectQualityScale(exe, humanObjectQualityScale);
     else
         Log("[OFF] WSHuman ObjectQuality distances left native.");
+
+    if (std::fabs(foliageModelLodDistance - 50.0f) > 0.01f)
+        ApplyFoliageModelLodDistance(exe, foliageModelLodDistance);
+    else
+        Log("[OFF] FOLIAGE ModelInfo LODDIST left native 50.");
+
+    if (shadowCasterMinLodDistance > 0.0f)
+        ApplyShadowCasterMinLodDistance(exe, shadowCasterMinLodDistance);
+    else
+        Log("[OFF] Shadow-caster minimum LODDIST hook disabled.");
+
+    if (particleLodMinDistance > 0.0f)
+        ApplyParticleLodMinDistance(exe, particleLodMinDistance);
+    else
+        Log("[OFF] Particle LOD minimum hooks disabled.");
 
     if (std::fabs(highPaletteThreshold - 80.0f) > 0.01f)
         ApplyHighPaletteThreshold(exe, static_cast<double>(highPaletteThreshold));
