@@ -982,3 +982,26 @@ Build hashes:
   `a633b844246a9bc15a464f37840ebeb487bd25c5d1b898f6188f92fe9400c726`
 
 See `docs/ASI_0_4_WIN32MESH_FINGERPRINT.md`.
+
+
+## ASI 0.6 WSDamageablePart variant-selector A/B
+
+ASI 0.5 produced no visible change and is rejected.
+
+Static follow-up found that VA `0x006678E0` recalculates the actual child
+visibility bit and selects between two WSDamageablePart child groups using
+`this+0x20 == 0/1` and `resource+0x28 & 1`.
+
+ASI 0.6 changes only VA `0x006679AE`:
+
+`22 44 24 24 -> 8A 44 24 24`
+
+This preserves the incoming visibility and bypasses only the local variant
+selector.
+
+Hashes:
+- ASI: `87418a751d62444cfe42a93902038f7a16e355f6d0ed0aaf3258cd753305a0cb`
+- dinput8: `84c17e0b05749afd61ab9e0711f893d126bda259467f5bf5b42d09618d3b23b1`
+- ZIP: `996684a339308b83dfc064089e74e047d5a36f03eb207ab9866599a81f45ad39`
+
+See `docs/ASI_0_6_WSDAMAGEABLE_AB.md`.
