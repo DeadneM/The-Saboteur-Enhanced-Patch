@@ -621,6 +621,126 @@ static bool ApplyHighPaletteThreshold(HMODULE exe, double threshold)
 }
 
 
+
+static bool ApplyClipRangeHigh(HMODULE exe, float distance)
+{
+    if (!std::isfinite(distance) || distance < 100.0f || distance > 50000.0f)
+    {
+        Log("[FAIL] ClipRangeHigh=%.3f outside 100..50000.", distance);
+        return false;
+    }
+
+    // Retail graphics profile ClipRange=3 reaches VA 0x00642F8E:
+    //   fld dword ptr [0x00F7D630] ; 1000.0f
+    // Redirect only the High/default case. Lower ClipRange profiles remain native.
+    static float storage = 1000.0f;
+    storage = distance;
+    const bool ok = PatchAbsoluteOperand32(
+        exe, 0x00242F8E, 0xD9, 0x05, 0x00B7D630,
+        &storage, "ClipRange High");
+    if (ok) Log("[OK] ClipRange High 1000 -> %.3f.", distance);
+    return ok;
+}
+
+static bool ApplyDetailSystemDistance(HMODULE exe, float distance)
+{
+    if (!std::isfinite(distance) || distance < 10.0f || distance > 50000.0f)
+    {
+        Log("[FAIL] DetailSystemDistance=%.3f outside 10..50000.", distance);
+        return false;
+    }
+
+    // Retail WSDetailSystem +0x218:
+    //   VA 0x007ECD20 initial = 50.0f
+    //   VA 0x007ECDC3 maximum compare = 100.0
+    //   VA 0x007ECDD0 clamp replacement = 100.0f
+    // Lower minimum 10.0 remains untouched.
+    static float initialAndClamp = 50.0f;
+    static double maximum = 100.0;
+    initialAndClamp = distance;
+    maximum = static_cast<double>(distance);
+
+    if (!PatchAbsoluteOperand32(
+            exe, 0x003ECD20, 0xD9, 0x05, 0x00B7D3A8,
+            &initialAndClamp, "WSDetailSystem initial distance"))
+        return false;
+
+    if (!PatchAbsoluteOperand32(
+            exe, 0x003ECDC3, 0xDC, 0x1D, 0x00B7BF80,
+            &maximum, "WSDetailSystem maximum distance"))
+        return false;
+
+    if (!PatchAbsoluteOperand32(
+            exe, 0x003ECDD0, 0xD9, 0x05, 0x00B7D640,
+            &initialAndClamp, "WSDetailSystem clamp distance"))
+        return false;
+
+    Log("[OK] WSDetailSystem distance initial 50 / max 100 -> %.3f.", distance);
+    return true;
+}
+
+static bool ApplySpotShadowResolutionScale(HMODULE exe, double scale)
+{
+    if (!std::isfinite(scale) || scale < 0.25 || scale > 4.0)
+    {
+        Log("[FAIL] SpotShadowResolutionScale=%.3f outside 0.25..4.0.", scale);
+        return false;
+    }
+
+    // WSSpotShadowZBuffer%d resource creation multiplies dimensions by the
+    // shared native 0.5 double at three exact sites. A fourth 0.5 consumer at
+    // VA 0x004268B7 is projection/midpoint math and MUST remain native.
+    static double storage = 0.5;
+    storage = scale;
+    const uintptr_t sites[] = {
+        0x00026054, 0x0002609B, 0x00026151
+    };
+
+    for (uintptr_t rva : sites)
+    {
+        if (!PatchAbsoluteOperand32(
+                exe, rva, 0xDC, 0x0D, 0x00B7AC88,
+                &storage, "Spot-shadow Z-buffer resolution scale"))
+            return false;
+    }
+
+    Log("[OK] WSSpotShadowZBuffer resolution scale 0.500 -> %.3f.", scale);
+    return true;
+}
+
+static bool ApplyMotionBlurActivationThreshold(HMODULE exe, float threshold)
+{
+    if (!std::isfinite(threshold) || threshold < 0.0f || threshold > 10.0f)
+    {
+        Log("[FAIL] MotionBlurActivationThreshold=%.4f outside 0..10.", threshold);
+        return false;
+    }
+
+    // WSMotionBlurFilter compares absolute motion components against the
+    // class-owned retail threshold 0.12 at VA 0x0113AB74.
+    // This is an activation threshold, not a blur-strength scalar.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    constexpr uintptr_t kThresholdRva = 0x00D3AB74;
+    auto* target = reinterpret_cast<float*>(base + kThresholdRva);
+    const float expected = 0.12f;
+    if (std::memcmp(target, &expected, sizeof(expected)) != 0)
+    {
+        Log("[SKIP] MotionBlur activation threshold mismatch at RVA 0x%08X.",
+            static_cast<unsigned>(kThresholdRva));
+        return false;
+    }
+
+    if (!WriteBytes(target, &threshold, sizeof(threshold)))
+    {
+        Log("[FAIL] MotionBlur activation threshold write failed.");
+        return false;
+    }
+
+    Log("[OK] MotionBlur activation threshold 0.1200 -> %.4f.", threshold);
+    return true;
+}
+
+
 static bool ApplyV310(const SectionRange& text, uintptr_t moduleBase)
 {
     static const uint8_t sig[] = {
@@ -1531,7 +1651,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.8 EXE PARAMETER AUDIT");
+    Log("SaboteurEnhanced ASI 0.9 RETAIL EXE PARAMETER AUDIT");
     Log("Architecture: validated Core 1 + modular graphics/engine parameter settings");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -1553,6 +1673,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const float csmFarDistance = ReadIniFloat(iniPath, L"Shadows", L"CSMFarDistance", 150.0f);
     const float shadowDepthBiasScale = ReadIniFloat(iniPath, L"Shadows", L"DepthBiasScale", 0.75f);
     const float shadowSlopeBiasScale = ReadIniFloat(iniPath, L"Shadows", L"SlopeBiasScale", 0.90f);
+    const float spotShadowResolutionScale = ReadIniFloat(iniPath, L"Shadows", L"SpotShadowResolutionScale", 1.0f);
 
     const bool fullResolutionAo = GetPrivateProfileIntW(L"AmbientOcclusion", L"FullResolution", 1, iniPath.c_str()) != 0;
     const float aoBlurScale = ReadIniFloat(iniPath, L"AmbientOcclusion", L"BlurScale", 1.25f);
@@ -1569,8 +1690,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const float renderSliceHighOuter = ReadIniFloat(iniPath, L"Distances", L"RenderSliceHighOuter", 1500.0f);
     const float modelInfoDefaultLodDistance = ReadIniFloat(iniPath, L"Distances", L"ModelInfoDefaultLODDistance", 1500.0f);
     const float veryFarSceneTerrainDistance = ReadIniFloat(iniPath, L"Distances", L"VeryFarSceneTerrain", 10000.0f);
+    const float clipRangeHigh = ReadIniFloat(iniPath, L"Distances", L"ClipRangeHigh", 1000.0f);
+    const float detailSystemDistance = ReadIniFloat(iniPath, L"Distances", L"DetailSystemDistance", 1000.0f);
 
     const float highPaletteThreshold = ReadIniFloat(iniPath, L"Experimental", L"HighPaletteThreshold", 80.0f);
+    const float motionBlurActivationThreshold = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"MotionBlurActivationThreshold", 0.12f);
 
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
@@ -1592,15 +1716,16 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("WSDynamicPartPriorityRadius=%d", wsDynamicPartPriorityRadius);
     Log("[Graphics] EnvironmentMapResolution=%d AF=%d MipLODBias=%.3f ToneMap=%.3f",
         environmentMapResolution, anisotropicFiltering, mipLodBias, toneMap);
-    Log("[Shadows] ShadowMapResolution=%d PCF5x5=%d CSMQuality=%d Lambda=%.3f Far=%.3f Bias=%.3f/%.3f",
+    Log("[Shadows] ShadowMapResolution=%d PCF5x5=%d CSMQuality=%d Lambda=%.3f Far=%.3f Bias=%.3f/%.3f SpotScale=%.3f",
         shadowMapResolution, shadowPcf5x5 ? 1 : 0, csmQuality, csmLambda, csmFarDistance,
-        shadowDepthBiasScale, shadowSlopeBiasScale);
+        shadowDepthBiasScale, shadowSlopeBiasScale, spotShadowResolutionScale);
     Log("[AO] FullResolution=%d Blur=%.3f Erode=%.3f", fullResolutionAo ? 1 : 0, aoBlurScale, aoErodeScale);
     Log("[Streaming] Coverage=%.1f/%.1f/%.1f", streamCoverageLow, streamCoverageMedium, streamCoverageHigh);
-    Log("[Distances] FarScene=%.1f DecalVisibility=%.1f RenderSlice3HighFar=%.1f Outer=%.1f ModelInfoLOD=%.1f VeryFarTerrain=%.1f",
+    Log("[Distances] FarScene=%.1f DecalVisibility=%.1f RenderSlice3HighFar=%.1f Outer=%.1f ModelInfoLOD=%.1f VeryFarTerrain=%.1f ClipRangeHigh=%.1f DetailSystem=%.1f",
         farSceneDistance, decalVisibilityDistance, renderSlice3HighFar, renderSliceHighOuter,
-        modelInfoDefaultLodDistance, veryFarSceneTerrainDistance);
+        modelInfoDefaultLodDistance, veryFarSceneTerrainDistance, clipRangeHigh, detailSystemDistance);
     Log("[Experimental] HighPaletteThreshold=%.1f", highPaletteThreshold);
+    Log("[ExperimentalPostFX] MotionBlurActivationThreshold=%.4f", motionBlurActivationThreshold);
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
     Log("OdinTraceAllQueries=%d", g_odinTraceAllQueries ? 1 : 0);
     Log("OdinEventLimit=%ld", g_odinEventLimit);
@@ -1662,6 +1787,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     else
         Log("[OFF] Shadow bias tables left native.");
 
+    if (std::fabs(spotShadowResolutionScale - 0.5f) > 0.0001f)
+        ApplySpotShadowResolutionScale(exe, static_cast<double>(spotShadowResolutionScale));
+    else
+        Log("[OFF] Spot-shadow Z-buffer resolution scale left native 0.5.");
+
     if (std::fabs(streamCoverageLow - 1500.0f) > 0.01f ||
         std::fabs(streamCoverageMedium - 300.0f) > 0.01f ||
         std::fabs(streamCoverageHigh - 250.0f) > 0.01f)
@@ -1693,10 +1823,25 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     else
         Log("[OFF] VeryFarSceneTerrain left native 5000.");
 
+    if (std::fabs(clipRangeHigh - 1000.0f) > 0.01f)
+        ApplyClipRangeHigh(exe, clipRangeHigh);
+    else
+        Log("[OFF] ClipRange High left native 1000.");
+
+    if (std::fabs(detailSystemDistance - 50.0f) > 0.01f)
+        ApplyDetailSystemDistance(exe, detailSystemDistance);
+    else
+        Log("[OFF] WSDetailSystem left at native initial 50 / max 100 behavior.");
+
     if (std::fabs(highPaletteThreshold - 80.0f) > 0.01f)
         ApplyHighPaletteThreshold(exe, static_cast<double>(highPaletteThreshold));
     else
         Log("[OFF] SS_HighPalette threshold left native 80.");
+
+    if (std::fabs(motionBlurActivationThreshold - 0.12f) > 0.0001f)
+        ApplyMotionBlurActivationThreshold(exe, motionBlurActivationThreshold);
+    else
+        Log("[OFF] MotionBlur activation threshold left native 0.12.");
 
     if (enableV310) ApplyV310(text, g_moduleBase);
     else Log("[OFF] V310 WSModel fix disabled by INI.");
