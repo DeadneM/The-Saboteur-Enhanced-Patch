@@ -194,6 +194,23 @@ static volatile LONG g_odinSyncCalls = 0;
 static volatile LONG g_odinSyncMismatches = 0;
 static volatile LONG g_markerCount = 0;
 static volatile LONG g_markerThreadRun = 0;
+static LONG g_fingerprintWindowMs = 1200;
+static LONG g_fingerprintMaxRoots = 16;
+
+struct RecentMismatch
+{
+    ULONGLONG tick{};
+    void* self{};
+    void* root{};
+    unsigned caller{};
+    int entriesCount{};
+    uint16_t segmentCount{};
+};
+
+static constexpr size_t kRecentMismatchSlots = 256;
+static RecentMismatch g_recentMismatches[kRecentMismatchSlots]{};
+static volatile LONG g_recentMismatchWrite = 0;
+static SRWLOCK g_recentMismatchLock = SRWLOCK_INIT;
 
 struct OdinSnapshot
 {
@@ -466,6 +483,207 @@ static const char* OdinSyncCallerLabel(unsigned rva)
     }
 }
 
+
+static bool IsReadablePointer(const void* p, size_t bytes = 1)
+{
+    if (!p || bytes == 0) return false;
+    MEMORY_BASIC_INFORMATION mbi{};
+    if (!VirtualQuery(p, &mbi, sizeof(mbi))) return false;
+    if (mbi.State != MEM_COMMIT) return false;
+    if (mbi.Protect & (PAGE_NOACCESS | PAGE_GUARD)) return false;
+    const DWORD readable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY |
+                           PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
+    if (!(mbi.Protect & readable)) return false;
+    const uintptr_t begin = reinterpret_cast<uintptr_t>(p);
+    const uintptr_t end = begin + bytes;
+    const uintptr_t regionEnd =
+        reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
+    return end >= begin && end <= regionEnd;
+}
+
+static bool SafeCopy(const void* src, void* dst, size_t size)
+{
+    if (!IsReadablePointer(src, size)) return false;
+    __try
+    {
+        std::memcpy(dst, src, size);
+        return true;
+    }
+    __except(EXCEPTION_EXECUTE_HANDLER)
+    {
+        return false;
+    }
+}
+
+static bool TryReadAscii(uintptr_t address, char* out, size_t outSize)
+{
+    if (!address || !out || outSize < 5) return false;
+    size_t n = 0;
+    __try
+    {
+        while (n + 1 < outSize)
+        {
+            const unsigned char ch = *reinterpret_cast<const unsigned char*>(address + n);
+            if (ch == 0) break;
+            if (ch < 0x20 || ch >= 0x7F) return false;
+            out[n++] = static_cast<char>(ch);
+        }
+    }
+    __except(EXCEPTION_EXECUTE_HANDLER)
+    {
+        return false;
+    }
+    if (n < 4) return false;
+    out[n] = '\0';
+    return true;
+}
+
+static uint32_t Fnv1a32(const void* data, size_t size)
+{
+    const auto* p = reinterpret_cast<const uint8_t*>(data);
+    uint32_t h = 2166136261u;
+    for (size_t i = 0; i < size; ++i)
+    {
+        h ^= p[i];
+        h *= 16777619u;
+    }
+    return h;
+}
+
+static uint32_t StableRootFingerprint(const uint32_t* dwords, size_t count)
+{
+    uint32_t normalized[48]{};
+    if (count > 48) count = 48;
+    for (size_t i = 0; i < count; ++i)
+    {
+        const uintptr_t value = dwords[i];
+        normalized[i] = IsReadablePointer(reinterpret_cast<void*>(value))
+            ? 0x50545200u | static_cast<uint32_t>(i)
+            : static_cast<uint32_t>(value);
+    }
+    return Fnv1a32(normalized, count * sizeof(uint32_t));
+}
+
+static void RecordRecentMismatch(void* self, void* root, unsigned caller, int count, uint16_t segCount)
+{
+    AcquireSRWLockExclusive(&g_recentMismatchLock);
+    const LONG index = g_recentMismatchWrite++;
+    RecentMismatch& slot = g_recentMismatches[
+        static_cast<size_t>(index) & (kRecentMismatchSlots - 1)];
+    slot.tick = GetTickCount64();
+    slot.self = self;
+    slot.root = root;
+    slot.caller = caller;
+    slot.entriesCount = count;
+    slot.segmentCount = segCount;
+    ReleaseSRWLockExclusive(&g_recentMismatchLock);
+}
+
+static void DumpRootFingerprint(void* root, void* self, unsigned caller, int entriesCount, uint16_t segCount)
+{
+    if (!root)
+        return;
+
+    uint32_t dw[48]{};
+    if (!SafeCopy(root, dw, sizeof(dw)))
+    {
+        Log("[FPRINT] root=%p unreadable", root);
+        return;
+    }
+
+    const uint32_t rawHash = Fnv1a32(dw, sizeof(dw));
+    const uint32_t stableHash = StableRootFingerprint(dw, 48);
+    const uintptr_t rootVtable = dw[0];
+
+    Log("[FPRINT] root=%p rootVT=%p stable=%08X raw=%08X lastThis=%p caller=0x%08X(%s) n=%d seg=%u",
+        root, reinterpret_cast<void*>(rootVtable), stableHash, rawHash, self,
+        caller, OdinSyncCallerLabel(caller), entriesCount, static_cast<unsigned>(segCount));
+
+    for (int row = 0; row < 6; ++row)
+    {
+        const int i = row * 8;
+        Log("[FPRINT-DW] root=%p +%02X: %08X %08X %08X %08X %08X %08X %08X %08X",
+            root, i * 4,
+            dw[i+0],dw[i+1],dw[i+2],dw[i+3],dw[i+4],dw[i+5],dw[i+6],dw[i+7]);
+    }
+
+    // Probe direct pointers in the first 0xC0 bytes. Mesh/resource objects often
+    // keep an asset name either directly or near the pointed object's header.
+    static const int probeOffsets[] = {0,4,8,0x10,0x14,0x20};
+    char ascii[96]{};
+    int stringHits = 0;
+    for (int i = 0; i < 48 && stringHits < 12; ++i)
+    {
+        const uintptr_t ptr = dw[i];
+        if (!IsReadablePointer(reinterpret_cast<void*>(ptr), 4))
+            continue;
+
+        uint32_t magic = 0;
+        SafeCopy(reinterpret_cast<void*>(ptr), &magic, sizeof(magic));
+        if (magic == 0x4D534841u) // "AHSM" little-endian bytes
+        {
+            if (TryReadAscii(ptr + 0x14, ascii, sizeof(ascii)))
+            {
+                Log("[FPRINT-NAME] root=%p field=+0x%02X AHSM name=\"%s\"",
+                    root, i * 4, ascii);
+                ++stringHits;
+            }
+        }
+
+        for (int off : probeOffsets)
+        {
+            if (TryReadAscii(ptr + static_cast<uintptr_t>(off), ascii, sizeof(ascii)))
+            {
+                Log("[FPRINT-STR] root=%p field=+0x%02X ptr=%p probe=+0x%02X \"%s\"",
+                    root, i * 4, reinterpret_cast<void*>(ptr), off, ascii);
+                ++stringHits;
+                break;
+            }
+        }
+    }
+}
+
+static void DumpRecentFingerprints(LONG markerNumber)
+{
+    RecentMismatch copy[kRecentMismatchSlots]{};
+    LONG writeSnapshot = 0;
+
+    AcquireSRWLockShared(&g_recentMismatchLock);
+    std::memcpy(copy, g_recentMismatches, sizeof(copy));
+    writeSnapshot = g_recentMismatchWrite;
+    ReleaseSRWLockShared(&g_recentMismatchLock);
+
+    const ULONGLONG now = GetTickCount64();
+    void* seen[32]{};
+    int seenCount = 0;
+
+    Log("[FPRINT] BEGIN marker=%ld windowMs=%ld", markerNumber, g_fingerprintWindowMs);
+
+    const LONG available = writeSnapshot < static_cast<LONG>(kRecentMismatchSlots)
+        ? writeSnapshot : static_cast<LONG>(kRecentMismatchSlots);
+
+    for (LONG back = 1; back <= available && seenCount < g_fingerprintMaxRoots; ++back)
+    {
+        const LONG logical = writeSnapshot - back;
+        const RecentMismatch& e = copy[
+            static_cast<size_t>(logical) & (kRecentMismatchSlots - 1)];
+
+        if (!e.tick || now < e.tick) continue;
+        if (now - e.tick > static_cast<ULONGLONG>(g_fingerprintWindowMs))
+            break;
+
+        bool duplicate = false;
+        for (int i = 0; i < seenCount; ++i)
+            if (seen[i] == e.root) { duplicate = true; break; }
+        if (duplicate) continue;
+
+        seen[seenCount++] = e.root;
+        DumpRootFingerprint(e.root, e.self, e.caller, e.entriesCount, e.segmentCount);
+    }
+
+    Log("[FPRINT] END marker=%ld roots=%d", markerNumber, seenCount);
+}
+
 __declspec(noinline) static void __fastcall HookOdinSync(void* self, void*, void* entries, int count)
 {
     InterlockedIncrement(&g_odinSyncCalls);
@@ -496,6 +714,7 @@ __declspec(noinline) static void __fastcall HookOdinSync(void* self, void*, void
     if (mismatch)
     {
         InterlockedIncrement(&g_odinSyncMismatches);
+        RecordRecentMismatch(self, root, caller, count, segmentCountBefore);
         if (AllowOdinLog())
         {
             Log("[ODIN-SYNC] MISMATCH this=%p callerRVA=0x%08X(%s) entries=%p n=%d root=%p rootVT=%p rootLoaded=%u selfLoaded=%u state2A=%u state35=%u segCount=%u",
@@ -531,6 +750,7 @@ static DWORD WINAPI DiagnosticMarkerThread(LPVOID)
         {
             const LONG n = InterlockedIncrement(&g_markerCount);
             Log("[MARK] F9 #%ld", n);
+            DumpRecentFingerprints(n);
         }
         wasDown = down;
         Sleep(20);
@@ -613,8 +833,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.3 ODIN SYNC + F9 MARKER");
-    Log("Architecture: validated Core 1 + runtime ASI fixes + Odin sync correlation");
+    Log("SaboteurEnhanced ASI 0.4 WIN32MESH FINGERPRINT");
+    Log("Architecture: validated Core 1 + Odin sync correlation + Win32Mesh fingerprinting");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
     const std::wstring iniPath = dir + L"\\SaboteurEnhanced.ini";
@@ -625,6 +845,12 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     g_odinEventLimit = GetPrivateProfileIntW(L"Diagnostics", L"OdinEventLimit", 5000, iniPath.c_str());
     if (g_odinEventLimit < 100) g_odinEventLimit = 100;
     if (g_odinEventLimit > 100000) g_odinEventLimit = 100000;
+    g_fingerprintWindowMs = GetPrivateProfileIntW(L"Diagnostics", L"FingerprintWindowMs", 1200, iniPath.c_str());
+    if (g_fingerprintWindowMs < 200) g_fingerprintWindowMs = 200;
+    if (g_fingerprintWindowMs > 5000) g_fingerprintWindowMs = 5000;
+    g_fingerprintMaxRoots = GetPrivateProfileIntW(L"Diagnostics", L"FingerprintMaxRoots", 16, iniPath.c_str());
+    if (g_fingerprintMaxRoots < 1) g_fingerprintMaxRoots = 1;
+    if (g_fingerprintMaxRoots > 32) g_fingerprintMaxRoots = 32;
 
     Log("INI: %ls", iniPath.c_str());
     Log("WSModelFullRenderMask=%d", enableV310 ? 1 : 0);
@@ -632,6 +858,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
     Log("OdinTraceAllQueries=%d", g_odinTraceAllQueries ? 1 : 0);
     Log("OdinEventLimit=%ld", g_odinEventLimit);
+    Log("FingerprintWindowMs=%ld", g_fingerprintWindowMs);
+    Log("FingerprintMaxRoots=%ld", g_fingerprintMaxRoots);
 
     SectionRange text = GetSectionRange(exe, ".text");
     if (!text.begin)
