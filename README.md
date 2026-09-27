@@ -3,9 +3,9 @@
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
 > **Current validated architecture: Core 1 + SaboteurEnhanced ASI 0.1**  
-> **Current test branch: SaboteurEnhanced ASI 0.6 WSDamageablePart variant A/B**
+> **Current test branch: SaboteurEnhanced ASI 0.6 WSDynamicPart priority-radius A/B**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current work: direct 0/1 WSDamageablePart child-variant selector A/B**
+> **Current work: WSDynamicPart native priority radius 25 -> 50 A/B**
 
 ## Current canonical build
 
@@ -747,9 +747,11 @@ preserving the native score formula.
 
 No Odin/F9/fingerprint diagnostics are active.
 
-Hashes:
-- ASI: `8ed0474d3bc5c6c9c633fae4bcfdb6473575df7f27d51c93e9c985a3d494e1f7`
-- dinput8: `7f1b42c61267805fb413a9e6c864111c0c562fd389ea7ce27dac826af2949de5`
-- ZIP: `e064bd8ab3053e3ff5ff33e33cdf1b738d2bc87580d7b5a3428e1e9c46e0d3b7`
+Corrected CI build (`a1870c09c0740a3c7071d6132ebe682ae140c862`):
+- rejected WSDamageable selector defaults to OFF
+- `WSDynamicPartPriorityRadius` is actually read and applied
+- ASI: `7039ab89a36af71517159bbb353838881be35c679e5e5cfa784da4940dccaca5`
+- dinput8: `e325949a73e3d581006bb2beb5e23054ff7600d54fd6c8cb14ea96ddb3779414`
+- CI artifact ZIP: `e5913b0b0d01e32d7830b8066c8dfd96882d589f7ef46ca7dd29bba746fde5c7`
 
 See `docs/ASI_0_6_WSDYNAMICPART_RADIUS.md`.
