@@ -46,7 +46,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SaboteurEnhanced_ASI_0.6_WSDYNAMICPART_RADIUS_x86
+          name: SaboteurEnhanced_ASI_0.7_GRAPHICS_INI_x86
           path: dist/*
           if-no-files-found: error
           compression-level: 0
