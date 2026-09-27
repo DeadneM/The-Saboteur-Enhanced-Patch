@@ -211,6 +211,58 @@ static bool ApplyOdinChildVisibilityGate(const SectionRange& text, uintptr_t mod
     return true;
 }
 
+
+static bool ApplyWSDamageableVariantSelectorBypass(const SectionRange& text, uintptr_t moduleBase)
+{
+    // WSDamageablePart child visibility selector.
+    //
+    // Native path at VA 0x0066797B..0x006679B2 selects one of two child groups
+    // from:
+    //   parent state this+0x20 == 0/1
+    //   child resource flag +0x28 bit 0
+    //
+    // It then ANDs the selector result with the incoming visibility boolean:
+    //   and al, byte ptr [esp+24h]
+    //
+    // A/B: preserve the incoming visibility directly, bypassing only this
+    // 0/1 variant-group selector.
+    static const uint8_t sig[] = {
+        0xB8,0x01,0x00,0x00,0x00,
+        0xEB,0x02,
+        0x33,0xC0,
+        0x22,0x44,0x24,0x24,
+        0x8A,0x4E,0x4C,
+        0x8A,0xD8
+    };
+
+    uint8_t* hit = FindExact(text, sig, sizeof(sig));
+    if (!hit)
+    {
+        Log("[SKIP] WSDamageablePart variant-selector signature not found.");
+        return false;
+    }
+
+    uint8_t* target = hit + 9;
+    static const uint8_t expected[] = {0x22,0x44,0x24,0x24};
+    static const uint8_t patch[] = {0x8A,0x44,0x24,0x24};
+
+    if (std::memcmp(target, expected, sizeof(expected)) != 0)
+    {
+        Log("[SKIP] WSDamageablePart selector target bytes mismatch.");
+        return false;
+    }
+
+    if (!WriteBytes(target, patch, sizeof(patch)))
+    {
+        Log("[FAIL] WSDamageablePart selector write failed.");
+        return false;
+    }
+
+    Log("[OK] WSDamageablePart variant selector bypassed at RVA 0x%08X.",
+        static_cast<unsigned>(reinterpret_cast<uintptr_t>(target) - moduleBase));
+    return true;
+}
+
 // -----------------------------------------------------------------------------
 // ASI 0.2 OdinMeshInstance diagnostic
 // -----------------------------------------------------------------------------
@@ -888,14 +940,15 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.5 ODIN CHILD VISIBILITY A/B");
-    Log("Architecture: validated Core 1 + targeted Odin child-visibility A/B");
+    Log("SaboteurEnhanced ASI 0.6 WSDAMAGEABLE VARIANT A/B");
+    Log("Architecture: validated Core 1 + WSDamageablePart variant-selector A/B");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
     const std::wstring iniPath = dir + L"\\SaboteurEnhanced.ini";
     const bool enableV310 = GetPrivateProfileIntW(L"Fixes", L"WSModelFullRenderMask", 1, iniPath.c_str()) != 0;
     const bool enableV311 = GetPrivateProfileIntW(L"Fixes", L"ModelInfoFullRenderSlice", 1, iniPath.c_str()) != 0;
-    const bool enableOdinChildVisibility = GetPrivateProfileIntW(L"Fixes", L"OdinChildVisibilityGate", 1, iniPath.c_str()) != 0;
+    const bool enableOdinChildVisibility = GetPrivateProfileIntW(L"Fixes", L"OdinChildVisibilityGate", 0, iniPath.c_str()) != 0;
+    const bool enableWSDamageableVariant = GetPrivateProfileIntW(L"Fixes", L"WSDamageableVariantSelector", 1, iniPath.c_str()) != 0;
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
     g_odinEventLimit = GetPrivateProfileIntW(L"Diagnostics", L"OdinEventLimit", 5000, iniPath.c_str());
@@ -912,6 +965,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("WSModelFullRenderMask=%d", enableV310 ? 1 : 0);
     Log("ModelInfoFullRenderSlice=%d", enableV311 ? 1 : 0);
     Log("OdinChildVisibilityGate=%d", enableOdinChildVisibility ? 1 : 0);
+    Log("WSDamageableVariantSelector=%d", enableWSDamageableVariant ? 1 : 0);
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
     Log("OdinTraceAllQueries=%d", g_odinTraceAllQueries ? 1 : 0);
     Log("OdinEventLimit=%ld", g_odinEventLimit);
@@ -937,6 +991,9 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 
     if (enableOdinChildVisibility) ApplyOdinChildVisibilityGate(text, g_moduleBase);
     else Log("[OFF] Odin child-visibility A/B disabled by INI.");
+
+    if (enableWSDamageableVariant) ApplyWSDamageableVariantSelectorBypass(text, g_moduleBase);
+    else Log("[OFF] WSDamageablePart variant-selector A/B disabled by INI.");
 
     if (enableOdin)
     {
