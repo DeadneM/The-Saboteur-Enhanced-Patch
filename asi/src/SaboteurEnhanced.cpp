@@ -2101,7 +2101,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     else
         Log("[OFF] ClipRange High left native 1000.");
 
-    if (std::fabs(detailSystemDistance - 50.0f) > 0.01f)
+    if (detailSystemDistance > 0.0f)
         ApplyDetailSystemDistance(exe, detailSystemDistance);
     else
         Log("[OFF] WSDetailSystem left at native initial 50 / max 100 behavior.");
