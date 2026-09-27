@@ -156,6 +156,61 @@ static bool ApplyV311(const SectionRange& text, uintptr_t moduleBase)
     return true;
 }
 
+
+static bool ApplyOdinChildVisibilityGate(const SectionRange& text, uintptr_t moduleBase)
+{
+    // Hierarchical repeat/instanced-mesh visibility gate.
+    //
+    // Original logic around VA 0x00667CBB:
+    //   cmp byte ptr [esp+20h],0
+    //   je  invisible
+    //   cmp byte ptr [esp+24h],0
+    //   jne invisible        <-- target
+    //   mov al,1
+    // invisible:
+    //   xor al,al
+    //
+    // [esp+24h] is derived from a virtual float result compared against the
+    // exact 0.0f constant at VA 0x010A45B0. This A/B ignores only that
+    // zero-result rejection while preserving the parent-visible gate.
+    static const uint8_t sig[] = {
+        0x80,0x7C,0x24,0x20,0x00,
+        0x74,0x0B,
+        0x80,0x7C,0x24,0x24,0x00,
+        0x75,0x04,
+        0xB0,0x01,
+        0xEB,0x02,
+        0x32,0xC0
+    };
+
+    uint8_t* hit = FindExact(text, sig, sizeof(sig));
+    if (!hit)
+    {
+        Log("[SKIP] Odin child-visibility gate signature not found.");
+        return false;
+    }
+
+    uint8_t* target = hit + 12;
+    static const uint8_t expected[] = {0x75,0x04};
+    static const uint8_t patch[] = {0x90,0x90};
+
+    if (std::memcmp(target, expected, sizeof(expected)) != 0)
+    {
+        Log("[SKIP] Odin child-visibility gate target bytes mismatch.");
+        return false;
+    }
+
+    if (!WriteBytes(target, patch, sizeof(patch)))
+    {
+        Log("[FAIL] Odin child-visibility gate write failed.");
+        return false;
+    }
+
+    Log("[OK] Odin child-visibility zero-result rejection bypassed at RVA 0x%08X.",
+        static_cast<unsigned>(reinterpret_cast<uintptr_t>(target) - moduleBase));
+    return true;
+}
+
 // -----------------------------------------------------------------------------
 // ASI 0.2 OdinMeshInstance diagnostic
 // -----------------------------------------------------------------------------
@@ -833,14 +888,15 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.4 WIN32MESH FINGERPRINT");
-    Log("Architecture: validated Core 1 + Odin sync correlation + Win32Mesh fingerprinting");
+    Log("SaboteurEnhanced ASI 0.5 ODIN CHILD VISIBILITY A/B");
+    Log("Architecture: validated Core 1 + targeted Odin child-visibility A/B");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
     const std::wstring iniPath = dir + L"\\SaboteurEnhanced.ini";
     const bool enableV310 = GetPrivateProfileIntW(L"Fixes", L"WSModelFullRenderMask", 1, iniPath.c_str()) != 0;
     const bool enableV311 = GetPrivateProfileIntW(L"Fixes", L"ModelInfoFullRenderSlice", 1, iniPath.c_str()) != 0;
-    const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 1, iniPath.c_str()) != 0;
+    const bool enableOdinChildVisibility = GetPrivateProfileIntW(L"Fixes", L"OdinChildVisibilityGate", 1, iniPath.c_str()) != 0;
+    const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
     g_odinEventLimit = GetPrivateProfileIntW(L"Diagnostics", L"OdinEventLimit", 5000, iniPath.c_str());
     if (g_odinEventLimit < 100) g_odinEventLimit = 100;
@@ -855,6 +911,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("INI: %ls", iniPath.c_str());
     Log("WSModelFullRenderMask=%d", enableV310 ? 1 : 0);
     Log("ModelInfoFullRenderSlice=%d", enableV311 ? 1 : 0);
+    Log("OdinChildVisibilityGate=%d", enableOdinChildVisibility ? 1 : 0);
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
     Log("OdinTraceAllQueries=%d", g_odinTraceAllQueries ? 1 : 0);
     Log("OdinEventLimit=%ld", g_odinEventLimit);
@@ -877,6 +934,9 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 
     if (enableV311) ApplyV311(text, g_moduleBase);
     else Log("[OFF] V311 ModelInfo fix disabled by INI.");
+
+    if (enableOdinChildVisibility) ApplyOdinChildVisibilityGate(text, g_moduleBase);
+    else Log("[OFF] Odin child-visibility A/B disabled by INI.");
 
     if (enableOdin)
     {
