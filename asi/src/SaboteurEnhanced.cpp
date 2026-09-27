@@ -1007,6 +1007,140 @@ static bool ApplyParticleLodMinDistance(HMODULE exe, float distance)
 }
 
 
+
+static bool ApplyWaterReflectionResolution(HMODULE exe, float width, float height)
+{
+    if (!std::isfinite(width) || !std::isfinite(height) ||
+        width < 64.0f || width > 8192.0f ||
+        height < 32.0f || height > 8192.0f)
+    {
+        Log("[FAIL] Water reflection resolution %.1fx%.1f outside safe range.", width, height);
+        return false;
+    }
+
+    // WSWater::WaterReflection owns a shared width/height pair:
+    //   VA 0x011C13D8 = 512.0
+    //   VA 0x011C13DC = 128.0
+    // The same pair is consumed by creation and backend/surface paths,
+    // so changing the owner globals keeps all water-reflection consumers coherent.
+    const uintptr_t rvas[] = {0x00DC13D8, 0x00DC13DC};
+    const float expected[] = {512.0f, 128.0f};
+    const float values[] = {width, height};
+    return ApplyFloatGroup(exe, "Water reflection resolution", rvas, expected, 2, values);
+}
+
+static bool ApplyWaterNormalsResolution(HMODULE exe, int resolution)
+{
+    if (resolution < 64 || resolution > 2048)
+    {
+        Log("[FAIL] WaterNormalsResolution=%d outside 64..2048.", resolution);
+        return false;
+    }
+
+    // WSWaterNormals creates WaterNormals%d and WaterNormalsTemp%d.
+    // Both resources are 128x128 in retail, expressed as four exact
+    // "push 0x80" immediates at the call sites below.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    const uintptr_t sites[] = {
+        0x0053A599, 0x0053A5BE, 0x0053A629, 0x0053A634
+    };
+
+    for (uintptr_t rva : sites)
+    {
+        const auto* at = reinterpret_cast<const uint8_t*>(base + rva);
+        if (at[0] != 0x68)
+        {
+            Log("[SKIP] Water normals push opcode mismatch at RVA 0x%08X.",
+                static_cast<unsigned>(rva));
+            return false;
+        }
+        uint32_t current = 0;
+        std::memcpy(&current, at + 1, sizeof(current));
+        if (current != 128u)
+        {
+            Log("[SKIP] Water normals native dimension mismatch at RVA 0x%08X.",
+                static_cast<unsigned>(rva));
+            return false;
+        }
+    }
+
+    const uint32_t value = static_cast<uint32_t>(resolution);
+    for (uintptr_t rva : sites)
+    {
+        auto* at = reinterpret_cast<uint8_t*>(base + rva);
+        if (!WriteBytes(at + 1, &value, sizeof(value)))
+        {
+            Log("[FAIL] Water normals dimension write failed at RVA 0x%08X.",
+                static_cast<unsigned>(rva));
+            return false;
+        }
+    }
+
+    Log("[OK] WaterNormals/WaterNormalsTemp resolution 128 -> %d.", resolution);
+    return true;
+}
+
+static bool ApplyRainCubeResolution(HMODULE exe, int resolution)
+{
+    if (resolution < 32 || resolution > 2048)
+    {
+        Log("[FAIL] RainCubeResolution=%d outside 32..2048.", resolution);
+        return false;
+    }
+
+    // RainCubeRT is created from one exact push-immediate dimension.
+    // Keep this separate from HardwareRainDepthTexture, which shares the
+    // WSShadowZBuffer dimensions and is already owned by ShadowMapResolution.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    constexpr uintptr_t kRva = 0x00402785;
+    auto* at = reinterpret_cast<uint8_t*>(base + kRva);
+    if (at[0] != 0x68)
+    {
+        Log("[SKIP] RainCubeRT push opcode mismatch at RVA 0x%08X.",
+            static_cast<unsigned>(kRva));
+        return false;
+    }
+    uint32_t current = 0;
+    std::memcpy(&current, at + 1, sizeof(current));
+    if (current != 128u)
+    {
+        Log("[SKIP] RainCubeRT native dimension mismatch at RVA 0x%08X.",
+            static_cast<unsigned>(kRva));
+        return false;
+    }
+
+    const uint32_t value = static_cast<uint32_t>(resolution);
+    if (!WriteBytes(at + 1, &value, sizeof(value)))
+    {
+        Log("[FAIL] RainCubeRT dimension write failed.");
+        return false;
+    }
+
+    Log("[OK] RainCubeRT resolution 128 -> %d.", resolution);
+    return true;
+}
+
+static bool ApplyDepthBlurAutoTransition(HMODULE exe, float start, float range)
+{
+    if (!std::isfinite(start) || !std::isfinite(range) ||
+        start < 0.0f || start > 10000.0f ||
+        range <= 0.0f || range > 10000.0f)
+    {
+        Log("[FAIL] DepthBlur auto transition invalid: start=%.3f range=%.3f.", start, range);
+        return false;
+    }
+
+    // WSDepthBlurFilter primary path computes approximately:
+    //   clamp(max(sourceValue - 200, 0) / 50, 0, 1)
+    // at VA 0x007CE967 / 0x007CE97D.
+    // The exact semantic meaning of sourceValue is intentionally not guessed;
+    // these are exposed as the class-owned automatic transition start/range.
+    const uintptr_t rvas[] = {0x00D3A3C0, 0x00D3A3BC};
+    const float expected[] = {200.0f, 50.0f};
+    const float values[] = {start, range};
+    return ApplyFloatGroup(exe, "DepthBlur automatic transition", rvas, expected, 2, values);
+}
+
 static bool ApplyV310(const SectionRange& text, uintptr_t moduleBase)
 {
     static const uint8_t sig[] = {
@@ -1917,8 +2051,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.9 RETAIL EXE PARAMETER AUDIT");
-    Log("Architecture: validated Core 1 + modular graphics/engine parameter settings");
+    Log("SaboteurEnhanced ASI 0.10 RETAIL EXE PARAMETER AUDIT");
+    Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
     const std::wstring iniPath = dir + L"\\SaboteurEnhanced.ini";
@@ -1966,6 +2100,13 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const float highPaletteThreshold = ReadIniFloat(iniPath, L"Experimental", L"HighPaletteThreshold", 80.0f);
     const float motionBlurActivationThreshold = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"MotionBlurActivationThreshold", 0.12f);
 
+    const int waterNormalsResolution = GetPrivateProfileIntW(L"Water", L"NormalMapResolution", 128, iniPath.c_str());
+    const float waterReflectionWidth = ReadIniFloat(iniPath, L"Water", L"ReflectionWidth", 512.0f);
+    const float waterReflectionHeight = ReadIniFloat(iniPath, L"Water", L"ReflectionHeight", 128.0f);
+    const int rainCubeResolution = GetPrivateProfileIntW(L"Rain", L"CubeResolution", 128, iniPath.c_str());
+    const float depthBlurAutoStart = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"DepthBlurAutoStart", 200.0f);
+    const float depthBlurAutoRange = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"DepthBlurAutoRange", 50.0f);
+
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
     g_odinEventLimit = GetPrivateProfileIntW(L"Diagnostics", L"OdinEventLimit", 5000, iniPath.c_str());
@@ -1999,6 +2140,10 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         foliageModelLodDistance, shadowCasterMinLodDistance, particleLodMinDistance);
     Log("[Experimental] HighPaletteThreshold=%.1f", highPaletteThreshold);
     Log("[ExperimentalPostFX] MotionBlurActivationThreshold=%.4f", motionBlurActivationThreshold);
+    Log("[Water] Reflection=%.0fx%.0f Normals=%d", waterReflectionWidth, waterReflectionHeight, waterNormalsResolution);
+    Log("[Rain] CubeResolution=%d", rainCubeResolution);
+    Log("[ExperimentalPostFX] DepthBlurAutoStart=%.3f DepthBlurAutoRange=%.3f",
+        depthBlurAutoStart, depthBlurAutoRange);
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
     Log("OdinTraceAllQueries=%d", g_odinTraceAllQueries ? 1 : 0);
     Log("OdinEventLimit=%ld", g_odinEventLimit);
@@ -2135,6 +2280,28 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplyMotionBlurActivationThreshold(exe, motionBlurActivationThreshold);
     else
         Log("[OFF] MotionBlur activation threshold left native 0.12.");
+
+    if (std::fabs(waterReflectionWidth - 512.0f) > 0.01f ||
+        std::fabs(waterReflectionHeight - 128.0f) > 0.01f)
+        ApplyWaterReflectionResolution(exe, waterReflectionWidth, waterReflectionHeight);
+    else
+        Log("[OFF] Water reflection resolution left native 512x128.");
+
+    if (waterNormalsResolution != 128)
+        ApplyWaterNormalsResolution(exe, waterNormalsResolution);
+    else
+        Log("[OFF] Water normals resolution left native 128.");
+
+    if (rainCubeResolution != 128)
+        ApplyRainCubeResolution(exe, rainCubeResolution);
+    else
+        Log("[OFF] RainCubeRT resolution left native 128.");
+
+    if (std::fabs(depthBlurAutoStart - 200.0f) > 0.0001f ||
+        std::fabs(depthBlurAutoRange - 50.0f) > 0.0001f)
+        ApplyDepthBlurAutoTransition(exe, depthBlurAutoStart, depthBlurAutoRange);
+    else
+        Log("[OFF] DepthBlur automatic transition left native 200/50.");
 
     if (enableV310) ApplyV310(text, g_moduleBase);
     else Log("[OFF] V310 WSModel fix disabled by INI.");
