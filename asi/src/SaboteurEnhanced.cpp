@@ -5,6 +5,8 @@
 #include <cstdarg>
 #include <cstdint>
 #include <cstring>
+#include <cwchar>
+#include <cmath>
 #include <string>
 
 #pragma intrinsic(_ReturnAddress)
@@ -91,6 +93,394 @@ static bool WriteBytes(void* address, const void* bytes, size_t size)
     VirtualProtect(address, size, oldProtect, &ignored);
     return true;
 }
+
+
+static float ReadIniFloat(const std::wstring& path, const wchar_t* section, const wchar_t* key, float fallback)
+{
+    wchar_t fallbackText[64] = {};
+    wchar_t valueText[64] = {};
+    swprintf_s(fallbackText, L"%.9g", static_cast<double>(fallback));
+    GetPrivateProfileStringW(section, key, fallbackText, valueText, static_cast<DWORD>(_countof(valueText)), path.c_str());
+
+    wchar_t* end = nullptr;
+    const double value = std::wcstod(valueText, &end);
+    if (end == valueText || !std::isfinite(value))
+        return fallback;
+    return static_cast<float>(value);
+}
+
+static bool VerifyScalarBytes(const void* address, const void* expected, size_t size)
+{
+    return std::memcmp(address, expected, size) == 0;
+}
+
+static bool ApplyFloatGroup(HMODULE exe, const char* label, const uintptr_t* rvas,
+                            const float* expected, size_t count, const float* values)
+{
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    for (size_t i = 0; i < count; ++i)
+    {
+        const void* address = reinterpret_cast<const void*>(base + rvas[i]);
+        if (!VerifyScalarBytes(address, &expected[i], sizeof(float)))
+        {
+            Log("[SKIP] %s native value mismatch at RVA 0x%08X.", label, static_cast<unsigned>(rvas[i]));
+            return false;
+        }
+    }
+
+    for (size_t i = 0; i < count; ++i)
+    {
+        void* address = reinterpret_cast<void*>(base + rvas[i]);
+        if (!WriteBytes(address, &values[i], sizeof(float)))
+        {
+            Log("[FAIL] %s write failed at RVA 0x%08X.", label, static_cast<unsigned>(rvas[i]));
+            return false;
+        }
+    }
+
+    Log("[OK] %s applied.", label);
+    return true;
+}
+
+struct ExactBytePatch
+{
+    uintptr_t rva;
+    uint8_t expected;
+    uint8_t patch;
+};
+
+static bool ApplyExactBytePatchSet(HMODULE exe, const char* label,
+                                   const ExactBytePatch* patches, size_t count)
+{
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    for (size_t i = 0; i < count; ++i)
+    {
+        const auto* address = reinterpret_cast<const uint8_t*>(base + patches[i].rva);
+        if (*address != patches[i].expected)
+        {
+            Log("[SKIP] %s byte mismatch at RVA 0x%08X: expected %02X, got %02X.",
+                label, static_cast<unsigned>(patches[i].rva),
+                static_cast<unsigned>(patches[i].expected),
+                static_cast<unsigned>(*address));
+            return false;
+        }
+    }
+
+    for (size_t i = 0; i < count; ++i)
+    {
+        auto* address = reinterpret_cast<uint8_t*>(base + patches[i].rva);
+        if (!WriteBytes(address, &patches[i].patch, 1))
+        {
+            Log("[FAIL] %s write failed at RVA 0x%08X.", label, static_cast<unsigned>(patches[i].rva));
+            return false;
+        }
+    }
+
+    Log("[OK] %s applied.", label);
+    return true;
+}
+
+static bool ApplyEnvironmentMapResolution(HMODULE exe, int resolution)
+{
+    if (resolution < 128 || resolution > 4096)
+    {
+        Log("[FAIL] EnvironmentMapResolution=%d outside 128..4096.", resolution);
+        return false;
+    }
+    const uintptr_t rvas[] = {0x00DB6EA0, 0x00DB6EA4};
+    const float expected[] = {128.0f, 128.0f};
+    const float value = static_cast<float>(resolution);
+    const float values[] = {value, value};
+    return ApplyFloatGroup(exe, "Environment maps", rvas, expected, 2, values);
+}
+
+static bool ApplyShadowMapResolution(HMODULE exe, int resolution)
+{
+    if (resolution < 1024 || resolution > 8192)
+    {
+        Log("[FAIL] ShadowMapResolution=%d outside 1024..8192.", resolution);
+        return false;
+    }
+    const uintptr_t rvas[] = {0x00DD61B4, 0x00DD61B8};
+    const float expected[] = {1024.0f, 1024.0f};
+    const float value = static_cast<float>(resolution);
+    const float values[] = {value, value};
+    return ApplyFloatGroup(exe, "Shadow map resolution", rvas, expected, 2, values);
+}
+
+static bool ApplyAnisotropicFiltering(HMODULE exe, int level)
+{
+    if (level < 1 || level > 16)
+    {
+        Log("[FAIL] AnisotropicFiltering=%d outside 1..16.", level);
+        return false;
+    }
+
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    const uintptr_t filterRvas[] = {0x00DD624C, 0x00DD629C};
+    const uintptr_t anisoRvas[] = {0x00DD626C, 0x00DD62BC};
+
+    for (uintptr_t rva : filterRvas)
+    {
+        const uint8_t native = *reinterpret_cast<const uint8_t*>(base + rva);
+        if (native != 0x02)
+        {
+            Log("[SKIP] Anisotropic filter-mode mismatch at RVA 0x%08X.", static_cast<unsigned>(rva));
+            return false;
+        }
+    }
+    for (uintptr_t rva : anisoRvas)
+    {
+        const uint8_t native = *reinterpret_cast<const uint8_t*>(base + rva);
+        if (native != 0x04)
+        {
+            Log("[SKIP] Max-anisotropy mismatch at RVA 0x%08X.", static_cast<unsigned>(rva));
+            return false;
+        }
+    }
+
+    if (level > 4)
+    {
+        const uint8_t anisotropicMode = 0x03;
+        const uint8_t maxAniso = static_cast<uint8_t>(level);
+        for (uintptr_t rva : filterRvas)
+            if (!WriteBytes(reinterpret_cast<void*>(base + rva), &anisotropicMode, 1)) return false;
+        for (uintptr_t rva : anisoRvas)
+            if (!WriteBytes(reinterpret_cast<void*>(base + rva), &maxAniso, 1)) return false;
+    }
+
+    Log("[OK] AnisotropicFiltering=%d applied.", level);
+    return true;
+}
+
+static bool ApplyMipLodBias(HMODULE exe, float bias)
+{
+    if (bias < -2.0f || bias > 2.0f)
+    {
+        Log("[FAIL] MipLODBias=%.3f outside -2..2.", bias);
+        return false;
+    }
+    const uintptr_t rvas[] = {0x00DD625C, 0x00DD62AC};
+    const float expected[] = {0.0f, 0.0f};
+    const float values[] = {bias, bias};
+    return ApplyFloatGroup(exe, "MIP LOD bias", rvas, expected, 2, values);
+}
+
+static bool ApplyToneMap(HMODULE exe, float value)
+{
+    if (value < 0.01f || value > 2.0f)
+    {
+        Log("[FAIL] ToneMap=%.4f outside safe range.", value);
+        return false;
+    }
+    const uintptr_t rvas[] = {0x00D6487C};
+    const float expected[] = {0.25f};
+    const float values[] = {value};
+    return ApplyFloatGroup(exe, "ToneMap", rvas, expected, 1, values);
+}
+
+static bool ApplyCsmLambda(HMODULE exe, float value)
+{
+    if (value < 0.0f || value > 1.0f)
+    {
+        Log("[FAIL] CSMLambda=%.4f outside 0..1.", value);
+        return false;
+    }
+    const uintptr_t rvas[] = {0x00D20C04};
+    const float expected[] = {0.5f};
+    const float values[] = {value};
+    return ApplyFloatGroup(exe, "CSM lambda", rvas, expected, 1, values);
+}
+
+static bool ApplyCsmQuality(HMODULE exe, int value)
+{
+    if (value < 2 || value > 8)
+    {
+        Log("[FAIL] CSMQuality=%d outside 2..8.", value);
+        return false;
+    }
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* address = reinterpret_cast<uint8_t*>(base + 0x00D60F6C);
+    const uint8_t expected = 0x02;
+    if (*address != expected)
+    {
+        Log("[SKIP] CSM quality native byte mismatch at RVA 0x00D60F6C.");
+        return false;
+    }
+    const uint8_t patch = static_cast<uint8_t>(value);
+    if (!WriteBytes(address, &patch, 1))
+        return false;
+    Log("[OK] CSM internal quality selector 2 -> %d applied.", value);
+    return true;
+}
+
+static bool ApplyCsmFarDistance(HMODULE exe, float farDistance)
+{
+    if (farDistance < 10.0f || farDistance > 1000.0f)
+    {
+        Log("[FAIL] CSMFarDistance=%.3f outside 10..1000.", farDistance);
+        return false;
+    }
+
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* address = reinterpret_cast<double*>(base + 0x00BC1FF0);
+    uint64_t nativeBits = 0;
+    std::memcpy(&nativeBits, address, sizeof(nativeBits));
+    constexpr uint64_t expectedBits = 0x4058F99999980000ULL; // historical private ~99.9
+    if (nativeBits != expectedBits)
+    {
+        Log("[SKIP] CSM far private constant mismatch at RVA 0x00BC1FF0.");
+        return false;
+    }
+
+    const double value = static_cast<double>(farDistance) - 0.1;
+    if (!WriteBytes(address, &value, sizeof(value)))
+        return false;
+    Log("[OK] CSMFarDistance=%.3f applied through private far-minus-0.1 constant.", farDistance);
+    return true;
+}
+
+static bool ApplyFullResolutionAo(HMODULE exe)
+{
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    const float expectedScale = 2.0f;
+    const float fullResScale = 1.0f;
+    auto* scale = reinterpret_cast<float*>(base + 0x00D5FE30);
+    auto* dimPatchA = reinterpret_cast<uint8_t*>(base + 0x00D69362);
+    auto* dimPatchB = reinterpret_cast<uint8_t*>(base + 0x00D694FC);
+
+    if (!VerifyScalarBytes(scale, &expectedScale, sizeof(expectedScale)) ||
+        *dimPatchA != 0x80 || *dimPatchB != 0x04)
+    {
+        Log("[SKIP] Full-resolution AO native signature mismatch.");
+        return false;
+    }
+
+    const uint8_t zero = 0;
+    if (!WriteBytes(scale, &fullResScale, sizeof(fullResScale)) ||
+        !WriteBytes(dimPatchA, &zero, 1) ||
+        !WriteBytes(dimPatchB, &zero, 1))
+    {
+        Log("[FAIL] Full-resolution AO write failed.");
+        return false;
+    }
+
+    Log("[OK] Full-resolution AO buffers/sample scale restored.");
+    return true;
+}
+
+static bool ApplyAoBlurScale(HMODULE exe, float value)
+{
+    if (value < 0.5f || value > 3.0f) return false;
+    const uintptr_t rvas[] = {0x00D640C4};
+    const float expected[] = {2.0f};
+    const float values[] = {value};
+    return ApplyFloatGroup(exe, "AO blur scale", rvas, expected, 1, values);
+}
+
+static bool ApplyAoErodeScale(HMODULE exe, float value)
+{
+    if (value < 0.5f || value > 3.0f) return false;
+    const uintptr_t rvas[] = {0x00D644E8};
+    const float expected[] = {2.0f};
+    const float values[] = {value};
+    return ApplyFloatGroup(exe, "AO erode scale", rvas, expected, 1, values);
+}
+
+static bool ApplyShadowPcf5x5(HMODULE exe)
+{
+    static const ExactBytePatch patches[] = {
+        {0x00D7C27B,0xBA,0xB9},{0x00D7C283,0x3A,0x39},
+        {0x00D7CA0F,0xBA,0xB9},{0x00D7CA17,0x3A,0x39},
+        {0x00D7D30B,0xBA,0xB9},{0x00D7D313,0xBA,0xB9},
+        {0x00D7D31F,0x3A,0x39},{0x00D7D323,0xBA,0xB9},
+        {0x00D7D337,0x3A,0x39},{0x00D7D33B,0xBA,0xB9},
+        {0x00D7D367,0x3A,0x39},{0x00D7D36B,0xBA,0xB9},
+        {0x00D7D37F,0x3A,0x39},{0x00D7D383,0xBA,0xB9},
+        {0x00D7DF0F,0xBA,0xB9},{0x00D7DF17,0xBA,0xB9},
+        {0x00D7DF23,0x3A,0x39},{0x00D7DF27,0xBA,0xB9},
+        {0x00D7DF3B,0x3A,0x39},{0x00D7DF3F,0xBA,0xB9},
+        {0x00D7DF6B,0x3A,0x39},{0x00D7DF6F,0xBA,0xB9},
+        {0x00D7DF83,0x3A,0x39},{0x00D7DF87,0xBA,0xB9}
+    };
+    return ApplyExactBytePatchSet(exe, "Shadow PCF 5x5 redirects", patches, _countof(patches));
+}
+
+static bool ApplyShadowBiasScales(HMODULE exe, float depthScale, float slopeScale)
+{
+    if (depthScale < 0.1f || depthScale > 2.0f ||
+        slopeScale < 0.1f || slopeScale > 2.0f)
+    {
+        Log("[FAIL] Shadow bias scales outside 0.1..2.");
+        return false;
+    }
+
+    const uintptr_t depthRvas[] = {
+        0x00DD99AC,0x00DD99B0,0x00DD99B4,0x00DD99B8,0x00DD99BC
+    };
+    const float depthExpected[] = {-500.0f,-3500.0f,-4000.0f,-5000.0f,-5000.0f};
+    float depthValues[_countof(depthRvas)] = {};
+    for (size_t i = 0; i < _countof(depthRvas); ++i)
+        depthValues[i] = depthExpected[i] * depthScale;
+
+    const uintptr_t slopeRvas[] = {
+        0x00DD99C0,0x00DD99C4,0x00DD99C8,0x00DD99CC,0x00DD99D0
+    };
+    const float slopeExpected[] = {-1.8f,-1.8f,-2.2f,-3.0f,-13.0f};
+    float slopeValues[_countof(slopeRvas)] = {};
+    for (size_t i = 0; i < _countof(slopeRvas); ++i)
+        slopeValues[i] = slopeExpected[i] * slopeScale;
+
+    if (!ApplyFloatGroup(exe, "Shadow depth-bias table", depthRvas, depthExpected,
+                         _countof(depthRvas), depthValues))
+        return false;
+    if (!ApplyFloatGroup(exe, "Shadow slope-bias table", slopeRvas, slopeExpected,
+                         _countof(slopeRvas), slopeValues))
+        return false;
+
+    Log("[OK] Shadow bias scales depth=%.3f slope=%.3f.", depthScale, slopeScale);
+    return true;
+}
+
+static bool ApplyStreamCoverage(HMODULE exe, float low, float medium, float high)
+{
+    if (low < 1000.0f || medium < 100.0f || high < 100.0f)
+    {
+        Log("[FAIL] StreamCoverage values too small.");
+        return false;
+    }
+    const uintptr_t rvas[] = {0x00C4B044,0x00C4B048,0x00C4B04C};
+    const float expected[] = {1500.0f,300.0f,250.0f};
+    const float values[] = {low,medium,high};
+    return ApplyFloatGroup(exe, "Streaming coverage Low/Medium/High", rvas, expected, 3, values);
+}
+
+static bool ApplyFarSceneDistance(HMODULE exe, float value)
+{
+    if (value < 50.0f || value > 5000.0f)
+    {
+        Log("[FAIL] FarSceneDistance=%.3f outside 50..5000.", value);
+        return false;
+    }
+    const uintptr_t rvas[] = {0x00D14DD0,0x00D14DD4,0x00D14DD8};
+    const float expected[] = {200.0f,200.0f,200.0f};
+    const float values[] = {value,value,value};
+    return ApplyFloatGroup(exe, "FarScene x3", rvas, expected, 3, values);
+}
+
+static bool ApplyDecalVisibilityDistance(HMODULE exe, float distance)
+{
+    if (distance < 20.0f || distance > 1000.0f)
+    {
+        Log("[FAIL] DecalVisibilityDistance=%.3f outside 20..1000.", distance);
+        return false;
+    }
+    const uintptr_t rvas[] = {0x00BF1A50};
+    const float expected[] = {14400.0f};
+    const float values[] = {distance * distance};
+    return ApplyFloatGroup(exe, "Decal visibility squared distance", rvas, expected, 1, values);
+}
+
 
 static bool ApplyV310(const SectionRange& text, uintptr_t moduleBase)
 {
@@ -1002,8 +1392,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.6 WSDYNAMICPART PRIORITY RADIUS A/B");
-    Log("Architecture: validated Core 1 + WSDynamicPart priority-radius A/B");
+    Log("SaboteurEnhanced ASI 0.7 GRAPHICS INI MIGRATION");
+    Log("Architecture: validated Core 1 + modular graphics/shadow/AO/streaming settings");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
     const std::wstring iniPath = dir + L"\\SaboteurEnhanced.ini";
@@ -1012,6 +1402,30 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const bool enableOdinChildVisibility = GetPrivateProfileIntW(L"Fixes", L"OdinChildVisibilityGate", 0, iniPath.c_str()) != 0;
     const bool enableWSDamageableVariant = GetPrivateProfileIntW(L"Fixes", L"WSDamageableVariantSelector", 0, iniPath.c_str()) != 0;
     const int wsDynamicPartPriorityRadius = GetPrivateProfileIntW(L"Fixes", L"WSDynamicPartPriorityRadius", 25, iniPath.c_str());
+    const int environmentMapResolution = GetPrivateProfileIntW(L"Graphics", L"EnvironmentMapResolution", 2048, iniPath.c_str());
+    const int anisotropicFiltering = GetPrivateProfileIntW(L"Graphics", L"AnisotropicFiltering", 16, iniPath.c_str());
+    const float mipLodBias = ReadIniFloat(iniPath, L"Graphics", L"MipLODBias", -0.25f);
+    const float toneMap = ReadIniFloat(iniPath, L"Graphics", L"ToneMap", 0.15f);
+
+    const int shadowMapResolution = GetPrivateProfileIntW(L"Shadows", L"ShadowMapResolution", 4096, iniPath.c_str());
+    const bool shadowPcf5x5 = GetPrivateProfileIntW(L"Shadows", L"ShadowPCF5x5", 1, iniPath.c_str()) != 0;
+    const int csmQuality = GetPrivateProfileIntW(L"Shadows", L"CSMQuality", 5, iniPath.c_str());
+    const float csmLambda = ReadIniFloat(iniPath, L"Shadows", L"CSMLambda", 0.60f);
+    const float csmFarDistance = ReadIniFloat(iniPath, L"Shadows", L"CSMFarDistance", 150.0f);
+    const float shadowDepthBiasScale = ReadIniFloat(iniPath, L"Shadows", L"DepthBiasScale", 0.75f);
+    const float shadowSlopeBiasScale = ReadIniFloat(iniPath, L"Shadows", L"SlopeBiasScale", 0.90f);
+
+    const bool fullResolutionAo = GetPrivateProfileIntW(L"AmbientOcclusion", L"FullResolution", 1, iniPath.c_str()) != 0;
+    const float aoBlurScale = ReadIniFloat(iniPath, L"AmbientOcclusion", L"BlurScale", 1.25f);
+    const float aoErodeScale = ReadIniFloat(iniPath, L"AmbientOcclusion", L"ErodeScale", 1.25f);
+
+    const float streamCoverageLow = ReadIniFloat(iniPath, L"Streaming", L"CoverageLow", 16000.0f);
+    const float streamCoverageMedium = ReadIniFloat(iniPath, L"Streaming", L"CoverageMedium", 3200.0f);
+    const float streamCoverageHigh = ReadIniFloat(iniPath, L"Streaming", L"CoverageHigh", 2500.0f);
+
+    const float farSceneDistance = ReadIniFloat(iniPath, L"Distances", L"FarScene", 320.0f);
+    const float decalVisibilityDistance = ReadIniFloat(iniPath, L"Distances", L"DecalVisibility", 160.0f);
+
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
     g_odinEventLimit = GetPrivateProfileIntW(L"Diagnostics", L"OdinEventLimit", 5000, iniPath.c_str());
@@ -1030,6 +1444,14 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("OdinChildVisibilityGate=%d", enableOdinChildVisibility ? 1 : 0);
     Log("WSDamageableVariantSelector=%d", enableWSDamageableVariant ? 1 : 0);
     Log("WSDynamicPartPriorityRadius=%d", wsDynamicPartPriorityRadius);
+    Log("[Graphics] EnvironmentMapResolution=%d AF=%d MipLODBias=%.3f ToneMap=%.3f",
+        environmentMapResolution, anisotropicFiltering, mipLodBias, toneMap);
+    Log("[Shadows] ShadowMapResolution=%d PCF5x5=%d CSMQuality=%d Lambda=%.3f Far=%.3f Bias=%.3f/%.3f",
+        shadowMapResolution, shadowPcf5x5 ? 1 : 0, csmQuality, csmLambda, csmFarDistance,
+        shadowDepthBiasScale, shadowSlopeBiasScale);
+    Log("[AO] FullResolution=%d Blur=%.3f Erode=%.3f", fullResolutionAo ? 1 : 0, aoBlurScale, aoErodeScale);
+    Log("[Streaming] Coverage=%.1f/%.1f/%.1f", streamCoverageLow, streamCoverageMedium, streamCoverageHigh);
+    Log("[Distances] FarScene=%.1f DecalVisibility=%.1f", farSceneDistance, decalVisibilityDistance);
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
     Log("OdinTraceAllQueries=%d", g_odinTraceAllQueries ? 1 : 0);
     Log("OdinEventLimit=%ld", g_odinEventLimit);
@@ -1046,6 +1468,65 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log(".text range: RVA 0x%08X, size 0x%08X",
         static_cast<unsigned>(reinterpret_cast<uintptr_t>(text.begin) - g_moduleBase),
         static_cast<unsigned>(text.size));
+
+    // Restored validated graphics/render findings. Every family is controlled
+    // independently by SaboteurEnhanced.ini and verified against Core1/native bytes.
+    if (environmentMapResolution != 128) ApplyEnvironmentMapResolution(exe, environmentMapResolution);
+    else Log("[OFF] Environment maps left at native 128.");
+
+    if (shadowMapResolution != 1024) ApplyShadowMapResolution(exe, shadowMapResolution);
+    else Log("[OFF] Shadow maps left at native 1024.");
+
+    if (anisotropicFiltering != 4) ApplyAnisotropicFiltering(exe, anisotropicFiltering);
+    else Log("[OFF] Anisotropic filtering left at native level 4.");
+
+    if (std::fabs(mipLodBias) > 0.0001f) ApplyMipLodBias(exe, mipLodBias);
+    else Log("[OFF] MIP LOD bias left at native 0.");
+
+    if (std::fabs(toneMap - 0.25f) > 0.0001f) ApplyToneMap(exe, toneMap);
+    else Log("[OFF] ToneMap left at native 0.25.");
+
+    if (shadowPcf5x5) ApplyShadowPcf5x5(exe);
+    else Log("[OFF] Shadow PCF 5x5 disabled.");
+
+    if (csmQuality != 2) ApplyCsmQuality(exe, csmQuality);
+    else Log("[OFF] CSM internal quality selector left at native 2.");
+
+    if (std::fabs(csmLambda - 0.5f) > 0.0001f) ApplyCsmLambda(exe, csmLambda);
+    else Log("[OFF] CSM lambda left at native 0.5.");
+
+    if (std::fabs(csmFarDistance - 100.0f) > 0.01f) ApplyCsmFarDistance(exe, csmFarDistance);
+    else Log("[OFF] CSM far distance left at native ~100.");
+
+    if (fullResolutionAo) ApplyFullResolutionAo(exe);
+    else Log("[OFF] Full-resolution AO disabled.");
+
+    if (std::fabs(aoBlurScale - 2.0f) > 0.0001f) ApplyAoBlurScale(exe, aoBlurScale);
+    else Log("[OFF] AO blur scale left at native 2.0.");
+
+    if (std::fabs(aoErodeScale - 2.0f) > 0.0001f) ApplyAoErodeScale(exe, aoErodeScale);
+    else Log("[OFF] AO erode scale left at native 2.0.");
+
+    if (std::fabs(shadowDepthBiasScale - 1.0f) > 0.0001f ||
+        std::fabs(shadowSlopeBiasScale - 1.0f) > 0.0001f)
+        ApplyShadowBiasScales(exe, shadowDepthBiasScale, shadowSlopeBiasScale);
+    else
+        Log("[OFF] Shadow bias tables left native.");
+
+    if (std::fabs(streamCoverageLow - 1500.0f) > 0.01f ||
+        std::fabs(streamCoverageMedium - 300.0f) > 0.01f ||
+        std::fabs(streamCoverageHigh - 250.0f) > 0.01f)
+        ApplyStreamCoverage(exe, streamCoverageLow, streamCoverageMedium, streamCoverageHigh);
+    else
+        Log("[OFF] Streaming coverage left native.");
+
+    if (std::fabs(farSceneDistance - 200.0f) > 0.01f) ApplyFarSceneDistance(exe, farSceneDistance);
+    else Log("[OFF] FarScene left at native 200.");
+
+    if (std::fabs(decalVisibilityDistance - 120.0f) > 0.01f)
+        ApplyDecalVisibilityDistance(exe, decalVisibilityDistance);
+    else
+        Log("[OFF] Decal visibility left at native 120.");
 
     if (enableV310) ApplyV310(text, g_moduleBase);
     else Log("[OFF] V310 WSModel fix disabled by INI.");
