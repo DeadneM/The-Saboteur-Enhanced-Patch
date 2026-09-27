@@ -1,6 +1,6 @@
 # SaboteurEnhanced ASI
 
-## Current test build: 0.6 — WSDynamicPart priority radius A/B
+## Current test build: 0.7 — modular graphics/engine INI migration
 
 Validated baseline retained:
 - Core 1
@@ -8,80 +8,66 @@ Validated baseline retained:
 - V311 explicit ModelInfo RenderSlice full-mask correction
 - x86 dinput8 proxy loader
 
-## 0.5 result
+## Purpose
 
-ASI 0.5 had **no visible effect** on the balcony/facade pop and is rejected.
+ASI 0.7 begins restoring the proven graphics/render findings that were
+intentionally removed from the cleaned Core executable.
 
-Static follow-up explains why: the virtual float used by the 0.5 branch is
-WSDamageable slot 9 at VA `0x00451360`, which is simply:
+The rule is now simple: one proven setting, one independent INI entry.
+Nothing is silently hard-baked into Core 1.
 
-```asm
-fld dword ptr [ecx+0Ch]
-ret
-```
+Every migrated patch verifies the original Core1/retail value or byte sequence
+before writing. A mismatch is skipped and logged.
 
-It is WSDamageable state, not a camera-distance or LOD metric.
+## Migrated graphics families
 
-## Actual value found for 0.6
+### Graphics
+- Environment maps: 128 -> 2048
+- anisotropic filtering: 4x -> 16x
+- MIP LOD bias: 0.0 -> -0.25
+- ToneMap: 0.25 -> 0.15
 
-The relevant destructible/repeated facade path reaches
-`WSDynamicPart::Update`, which calls the priority function at VA
-`0x00669980`.
+### Shadows
+- main shadow maps: 1024 -> 4096
+- PCF 3x3 parameter family -> PCF 5x5
+- internal shadow/CSM quality selector: 2 -> 5
+- CSM lambda: 0.50 -> 0.60
+- recovered private CSM far target: ~100 -> 150
+- shadow depth-bias table scale: 1.00 -> 0.75
+- shadow slope-bias table scale: 1.00 -> 0.90
 
-That function computes a score containing the proximity term:
+The internal quality value 5 is deliberately described as a selector, not as a
+literal count of cascades. Historical analysis separately identified a four
+cascade CSM layout.
 
-```text
-max(625 - x², 0)
-```
+### Ambient occlusion
+- full-resolution AO buffer/sample path
+- AO blur scale: 2.0 -> 1.25
+- AO erode scale: 2.0 -> 1.25
 
-Therefore the native radius represented by the formula is:
+### Streaming / distances
+- streaming coverage Low/Medium/High: 1500/300/250 -> 16000/3200/2500
+- FarScene x3: 200 -> 320
+- decal visibility distance: 120 -> 160, stored internally as 14400 -> 25600
 
-```text
-sqrt(625) = 25
-```
+## Existing fixes
 
-The score is then combined with WSDynamicPart fields at +0x200/+0x204 and an
-optional 10000-point priority term, and is compared by the WSDynamicPart manager
-when selecting the active/current part.
+V310 and V311 remain independent default-on entries under [Fixes].
 
-The two 625 constants are local to this one function. Static xref audit found:
+The WSDynamicPart priority-radius A/B remains available as
+WSDynamicPartPriorityRadius. Rejected Odin/WSDamageable experiments remain
+disabled.
 
-```text
-VA 0x00FC76DC   float 625.0   one reference
-VA 0x00FC77C8   double 625.0  two references
-```
+## Still being migrated
 
-All references come from VA `0x00669980`.
+Some historical findings depended on V200/V257 injected code caves rather than
+clean native owners. They are NOT blindly copied into Core1/ASI 0.7. These
+include the old ObjectLOD/foliage/shadow-caster/particle-LOD cave family and
+other legacy distance hooks. They require clean native/runtime owners before
+activation.
 
-## A/B patch
+The historical Spot Shadows 4K 0.5 -> 1.0 factor is also preserved in the
+research history, but its exact owner is not yet proven from the retained
+manifest, so 0.7 does not fake an INI switch for it.
 
-ASI 0.6 sets:
-
-```ini
-WSDynamicPartPriorityRadius=50
-```
-
-At runtime it writes both constants coherently:
-
-```text
-625.0  -> 2500.0
-25²    -> 50²
-```
-
-This preserves the native scoring formula and merely doubles the radius over
-which the proximity term contributes.
-
-No Odin diagnostic hooks are enabled and the rejected 0.5 branch is disabled.
-
-## Test
-
-No logging procedure or hotkey is required.
-
-Go to the same balcony/facade location and check whether:
-- the late detail appears farther away or no longer visibly pops;
-- nearby destructible/repeated facade pieces remain sane;
-- performance remains normal.
-
-If it changes the balcony, the radius is a real controlling value and can be
-refined. If it does nothing, this priority radius is rejected and we move on
-without more instrumentation.
+No tuner.txt modification is used.
