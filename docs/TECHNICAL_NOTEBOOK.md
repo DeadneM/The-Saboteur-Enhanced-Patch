@@ -958,3 +958,27 @@ Hashes:
 - ZIP: `76f950e4aee986c59eb71fbd125e1500e22839842c6843abca7318fdcb65da2c`
 
 See `docs/ASI_0_3_ODIN_SYNC.md`.
+
+
+## ASI 0.4 Win32Mesh fingerprint diagnostic
+
+ASI 0.3 produced a repeatable correlation with the balcony/facade transition:
+the same six OdinMeshInstance/root pairs appeared immediately before F9 markers
+#2/#4/#6/#8, while the same three-instance group appeared before #5/#7.
+
+Every correlated root used vtable `0x0108198C`, statically identified as
+**Win32Mesh**.
+
+ASI 0.4 therefore fingerprints every unique Win32Mesh root seen within 1200 ms
+before F9. It records structural/raw hashes, the first 0xC0 bytes, direct
+printable strings and direct AHSM mesh names where available.
+
+No rendering or streaming decision is modified.
+
+Build hashes:
+- ASI: `0936d7534821db66c586148df6264b702caeb0decb60870208bf8aa00becc1a4`
+- dinput8: `3d7435365b06dce7344cb239e7e2dd4424d6da856a2cdc074d7609472f24576d`
+- full five-file ZIP:
+  `a633b844246a9bc15a464f37840ebeb487bd25c5d1b898f6188f92fe9400c726`
+
+See `docs/ASI_0_4_WIN32MESH_FINGERPRINT.md`.
