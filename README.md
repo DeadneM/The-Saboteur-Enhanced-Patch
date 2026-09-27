@@ -3,9 +3,9 @@
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
 > **Current validated architecture: Core 1 + SaboteurEnhanced ASI 0.1**  
-> **Current test branch: SaboteurEnhanced ASI 0.6 WSDynamicPart priority-radius A/B**  
+> **Current test branch: SaboteurEnhanced ASI 0.8 EXE parameter audit**  
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current work: WSDynamicPart native priority radius 25 -> 50 A/B**
+> **Current work: migrate proven EXE parameters to independent INI controls**
 
 ## Current canonical build
 
@@ -631,6 +631,19 @@ Interpretation:
 
 V311 remains canonical until a later executable candidate is validated.
 
+
+## ASI 0.8 EXE parameter audit
+
+The ASI now exposes the clean native owners recovered during the parameter audit:
+- RenderSlice/ShadowSlice High class-3 far bound
+- High final/outer slice endpoint
+- ModelInfo default LODDIST
+- VeryFarSceneTerrain distance
+- SS_HighPalette threshold as an experimental native-default control
+
+The complete migration matrix, including pool/cap candidates and values that
+still require native-owner recovery, is documented in
+`docs/EXE_PARAMETER_AUDIT.md`.
 
 ## Core EXE / ASI architectural reset
 
