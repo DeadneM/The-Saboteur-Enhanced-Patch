@@ -3,9 +3,9 @@
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
 > **Current validated architecture: Core 1 + SaboteurEnhanced ASI 0.1**  
-> **Current test branch: SaboteurEnhanced ASI 0.4 Win32Mesh fingerprint diagnostic**  
+> **Current test branch: SaboteurEnhanced ASI 0.6 WSDamageablePart variant A/B**
 > **Current Windows patcher source/CI target: v1Pv260**  
-> **Current work: ASI 0.4 stable Win32Mesh fingerprinting around correlated F9 transitions**
+> **Current work: direct 0/1 WSDamageablePart child-variant selector A/B**
 
 ## Current canonical build
 
@@ -706,3 +706,26 @@ See `docs/ASI_0_1_VALIDATION.md` for the sanitized validation log.
 
 This promotes **Core 1 + ASI 0.1** from test candidate to the current validated
 architecture. V311 remains historical research reference only.
+
+
+## ASI 0.6 WSDamageablePart variant-selector A/B
+
+ASI 0.5 produced no visible change and is rejected.
+
+Static follow-up found that VA `0x006678E0` recalculates the actual child
+visibility bit and selects between two WSDamageablePart child groups using
+`this+0x20 == 0/1` and `resource+0x28 & 1`.
+
+ASI 0.6 changes only VA `0x006679AE`:
+
+`22 44 24 24 -> 8A 44 24 24`
+
+This preserves the incoming visibility and bypasses only the local variant
+selector.
+
+Hashes:
+- ASI: `87418a751d62444cfe42a93902038f7a16e355f6d0ed0aaf3258cd753305a0cb`
+- dinput8: `84c17e0b05749afd61ab9e0711f893d126bda259467f5bf5b42d09618d3b23b1`
+- ZIP: `996684a339308b83dfc064089e74e047d5a36f03eb207ab9866599a81f45ad39`
+
+See `docs/ASI_0_6_WSDAMAGEABLE_AB.md`.
