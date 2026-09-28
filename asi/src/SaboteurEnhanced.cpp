@@ -2838,6 +2838,9 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("[Particles] RenderTargetResolutionMultiplier=%d", particleRenderTargetResolutionMultiplier);
     Log("[Lighting] LightVolumeResolutionMultiplier=%d", lightVolumeResolutionMultiplier);
     Log("[WillToFight] TransitionRingResolution=%d", wtfTransitionRingResolution);
+    Log("[EngineLimits] WSLuaCall=%d Parking=%d ParticleInfo=%d ActivateSphere=%d WallGraph=%d",
+        wsLuaCallCapacity, wsParkingSpaceCapacity, wsParticleInfoDataCapacity,
+        wsActivateSphereCapacity, wallGraphCapacity);
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
     Log("OdinTraceAllQueries=%d", g_odinTraceAllQueries ? 1 : 0);
     Log("OdinEventLimit=%ld", g_odinEventLimit);
@@ -3063,6 +3066,21 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplyWtfTransitionRingResolution(exe, wtfTransitionRingResolution);
     else
         Log("[OFF] WTF transition-ring RT family left native 128x128.");
+
+    if (wsLuaCallCapacity != 20 ||
+        wsParkingSpaceCapacity != 32 ||
+        wsParticleInfoDataCapacity != 1400 ||
+        wsActivateSphereCapacity != 256 ||
+        wallGraphCapacity != 50)
+        ApplySimpleEngineLimits(
+            exe,
+            wsLuaCallCapacity,
+            wsParkingSpaceCapacity,
+            wsParticleInfoDataCapacity,
+            wsActivateSphereCapacity,
+            wallGraphCapacity);
+    else
+        Log("[OFF] Simple engine limits left at retail capacities.");
 
     if (enableV310) ApplyV310(text, g_moduleBase);
     else Log("[OFF] V310 WSModel fix disabled by INI.");
