@@ -1501,6 +1501,65 @@ static bool ApplySkyDomeResolutionMultiplier(HMODULE exe, int multiplier)
     return true;
 }
 
+
+static bool ApplyDamageBlurResolutionScale(HMODULE exe, double scale)
+{
+    if (!std::isfinite(scale) || scale < 0.25 || scale > 1.0)
+    {
+        Log("[FAIL] DamageBlurResolutionScale=%.3f outside 0.25..1.0.", scale);
+        return false;
+    }
+
+    // BackBufferLDRPostFiltersDamageBlur is created from one local 0.5 scale
+    // used coherently for width and height at VA 0x007D72D3.
+    static double storage = 0.5;
+    storage = scale;
+    const bool ok = PatchAbsoluteOperand32(
+        exe, 0x003D72D3, 0xDD, 0x05, 0x00B7AC88,
+        &storage, "DamageBlur render-target resolution scale");
+    if (ok)
+        Log("[OK] DamageBlur render-target resolution scale 0.500 -> %.3f.", scale);
+    return ok;
+}
+
+static bool ApplyRainDensityOverride(HMODULE exe, int percent)
+{
+    if (percent < 25 || percent > 200)
+    {
+        Log("[FAIL] RainDensityPercentOverride=%d outside native effective range 25..200.", percent);
+        return false;
+    }
+
+    // Renderer initialization calls the hidden RainDensity integer setting at
+    // VA 0x00801EFC. Retail default registration is 100, then the consumer
+    // divides by 100 and clamps the normalized value to 0.25..2.0.
+    //
+    // Replace only this five-byte CALL with mov eax,imm32. The following native
+    // store/divide/clamp sequence remains intact.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    constexpr uintptr_t kRva = 0x00401EFC;
+    auto* at = reinterpret_cast<uint8_t*>(base + kRva);
+    const uint8_t expected[5] = {0xE8,0x1F,0xAB,0xFB,0xFF};
+    if (std::memcmp(at, expected, sizeof(expected)) != 0)
+    {
+        Log("[SKIP] RainDensity consumer CALL mismatch at RVA 0x%08X.",
+            static_cast<unsigned>(kRva));
+        return false;
+    }
+
+    uint8_t patch[5] = {0xB8,0,0,0,0};
+    const uint32_t value = static_cast<uint32_t>(percent);
+    std::memcpy(patch + 1, &value, sizeof(value));
+    if (!WriteBytes(at, patch, sizeof(patch)))
+    {
+        Log("[FAIL] RainDensity override patch failed.");
+        return false;
+    }
+
+    Log("[OK] RainDensity hidden setting overridden to %d%%; native 25..200%% clamp retained.", percent);
+    return true;
+}
+
 static bool ApplyV310(const SectionRange& text, uintptr_t moduleBase)
 {
     static const uint8_t sig[] = {
@@ -2479,6 +2538,9 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const float depthBlurColorPyramidFactor = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"DepthBlurColorPyramidFactor", 0.75f);
     const int skyDomeResolutionMultiplier = GetPrivateProfileIntW(L"Sky", L"ResolutionMultiplier", 1, iniPath.c_str());
 
+    const float damageBlurResolutionScale = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"DamageBlurResolutionScale", 0.5f);
+    const int rainDensityPercentOverride = GetPrivateProfileIntW(L"Rain", L"DensityPercentOverride", 0, iniPath.c_str());
+
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
     g_odinEventLimit = GetPrivateProfileIntW(L"Diagnostics", L"OdinEventLimit", 5000, iniPath.c_str());
@@ -2725,6 +2787,16 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplySkyDomeResolutionMultiplier(exe, skyDomeResolutionMultiplier);
     else
         Log("[OFF] SkyDome render-target family left at native resolution.");
+
+    if (std::fabs(damageBlurResolutionScale - 0.5f) > 0.0001f)
+        ApplyDamageBlurResolutionScale(exe, static_cast<double>(damageBlurResolutionScale));
+    else
+        Log("[OFF] DamageBlur render target left native half-resolution.");
+
+    if (rainDensityPercentOverride != 0)
+        ApplyRainDensityOverride(exe, rainDensityPercentOverride);
+    else
+        Log("[OFF] RainDensity override disabled; native hidden setting is used.");
 
     if (enableV310) ApplyV310(text, g_moduleBase);
     else Log("[OFF] V310 WSModel fix disabled by INI.");
