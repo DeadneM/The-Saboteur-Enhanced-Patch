@@ -474,3 +474,67 @@ Distortion family:
 
 No individual SkyDome subtarget key is exposed because that would make the
 family internally inconsistent.
+
+
+## L. DamageBlur, RainDensity and WSParticleRender audit
+
+### DamageBlur render target
+
+`BackBufferLDRPostFiltersDamageBlur` derives width and height from one local
+double 0.5 consumer:
+
+- VA `0x007D72D3`
+- RVA `0x003D72D3`
+- opcode `DD 05`
+- expected source RVA `0x00B7AC88`
+- retail scale: 0.5
+
+The ASI redirects only that local consumer. The shared 0.5 constant remains
+untouched because it is used by unrelated systems.
+
+INI:
+`ExperimentalPostFX.DamageBlurResolutionScale=0.5`
+
+### Hidden RainDensity setting
+
+Retail registers a hidden integer graphics setting named `RainDensity` with
+default 100.
+
+The renderer consumes it at:
+
+- VA `0x00801EFC`
+- RVA `0x00401EFC`
+- exact CALL bytes `E8 1F AB FB FF`
+
+The following native code divides the integer by 100 and clamps the normalized
+value to 0.25..2.0, corresponding to 25..200 percent.
+
+INI:
+`Rain.DensityPercentOverride=0`
+
+Zero means no override. For 25..200 the ASI replaces only the getter CALL with
+`mov eax,imm32`; the native store, divide and clamp remain intact.
+
+### WSParticleRender render-target hierarchy
+
+The main ParticleBB0 / particle-light-volume / distortion family reuses one
+half-resolution width/height pair:
+
+- RVA `0x002E7DFA`: `66 D1 E9` = `shr cx,1`
+- RVA `0x002E7DFE`: `66 D1 ED` = `shr bp,1`
+
+The ParticleBB3 family uses /16:
+
+- RVA `0x002E7FAF`: `66 C1 E9 04`
+- RVA `0x002E7FB4`: `66 C1 ED 04`
+
+INI:
+`Particles.RenderTargetResolutionMultiplier=1`
+
+Supported 2x quality keeps the relative hierarchy coherent:
+
+- main family /2 -> full
+- BB3 family /16 -> /8
+
+No individual particle target is exposed separately because doing so would
+break the renderer's shared dimension assumptions.
