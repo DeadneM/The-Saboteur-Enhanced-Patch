@@ -1797,6 +1797,183 @@ static bool ApplySimpleEngineLimits(HMODULE exe,
     return true;
 }
 
+
+static bool PatchPushImm32(HMODULE exe, uintptr_t rva, uint32_t expected,
+                           uint32_t value, const char* label)
+{
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* at = reinterpret_cast<uint8_t*>(base + rva);
+    if (at[0] != 0x68)
+    {
+        Log("[SKIP] %s push opcode mismatch at RVA 0x%08X.",
+            label, static_cast<unsigned>(rva));
+        return false;
+    }
+
+    uint32_t current = 0;
+    std::memcpy(&current, at + 1, sizeof(current));
+    if (current != expected)
+    {
+        Log("[SKIP] %s push immediate mismatch at RVA 0x%08X: expected %u got %u.",
+            label, static_cast<unsigned>(rva), expected, current);
+        return false;
+    }
+
+    if (!WriteBytes(at + 1, &value, sizeof(value)))
+    {
+        Log("[FAIL] %s push immediate write failed at RVA 0x%08X.",
+            label, static_cast<unsigned>(rva));
+        return false;
+    }
+
+    return true;
+}
+
+static bool PatchCmpImm32AtPlus6(HMODULE exe, uintptr_t rva, uint32_t expected,
+                                uint32_t value, const char* label)
+{
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* at = reinterpret_cast<uint8_t*>(base + rva);
+
+    if (at[0] != 0x81)
+    {
+        Log("[SKIP] %s cmp opcode mismatch at RVA 0x%08X.",
+            label, static_cast<unsigned>(rva));
+        return false;
+    }
+
+    uint32_t current = 0;
+    std::memcpy(&current, at + 6, sizeof(current));
+    if (current != expected)
+    {
+        Log("[SKIP] %s cmp immediate mismatch at RVA 0x%08X: expected %u got %u.",
+            label, static_cast<unsigned>(rva), expected, current);
+        return false;
+    }
+
+    if (!WriteBytes(at + 6, &value, sizeof(value)))
+    {
+        Log("[FAIL] %s cmp immediate write failed at RVA 0x%08X.",
+            label, static_cast<unsigned>(rva));
+        return false;
+    }
+
+    return true;
+}
+
+static bool ApplyWSPhysicsParticleCapacity(HMODULE exe, int capacity)
+{
+    if (capacity < 100 || capacity > 20000)
+    {
+        Log("[FAIL] WSPhysicsParticleCapacity=%d outside 100..20000.", capacity);
+        return false;
+    }
+    if (capacity == 1000)
+        return true;
+
+    // Retail owns the same 1000 limit at:
+    // - pool allocation/init push, VA 0x009DB5D2
+    // - runtime active ceiling,   VA 0x009DB66B
+    if (!PatchPushImm32(exe, 0x005DB5D2, 1000,
+                        static_cast<uint32_t>(capacity),
+                        "WSPhysicsParticle allocation"))
+        return false;
+
+    if (!PatchCmpImm32AtPlus6(exe, 0x005DB66B, 1000,
+                              static_cast<uint32_t>(capacity),
+                              "WSPhysicsParticle runtime ceiling"))
+        return false;
+
+    Log("[OK] WSPhysicsParticle capacity 1000 -> %d (allocation + runtime ceiling).", capacity);
+    return true;
+}
+
+static bool ApplyWSParticleRenderCapacities(HMODULE exe,
+                                            int mainCapacity,
+                                            int mediumCapacity,
+                                            int smallCapacity)
+{
+    if (mainCapacity < 1000 || mainCapacity > 50000 ||
+        mediumCapacity < 250 || mediumCapacity > 20000 ||
+        smallCapacity < 100 || smallCapacity > 10000)
+    {
+        Log("[FAIL] WSParticleRender capacities outside guarded ranges.");
+        return false;
+    }
+
+    if (mainCapacity == 4500 && mediumCapacity == 1000 && smallCapacity == 500)
+        return true;
+
+    const uint64_t mainBytes64 = static_cast<uint64_t>(mainCapacity) * 68ull;
+    const uint64_t mediumBytes64 = static_cast<uint64_t>(mediumCapacity) * 68ull;
+    const uint64_t smallBytes64 = static_cast<uint64_t>(smallCapacity) * 68ull;
+    const uint64_t mainScratch64 = static_cast<uint64_t>(mainCapacity) * 8ull;
+    const uint64_t mediumScratch64 = static_cast<uint64_t>(mediumCapacity) * 8ull;
+    if (mainBytes64 > 0xFFFFFFFFull || mediumBytes64 > 0xFFFFFFFFull ||
+        smallBytes64 > 0xFFFFFFFFull || mainScratch64 > 0xFFFFFFFFull ||
+        mediumScratch64 > 0xFFFFFFFFull)
+    {
+        Log("[FAIL] WSParticleRender derived allocation size overflow.");
+        return false;
+    }
+
+    const uint32_t mainBytes = static_cast<uint32_t>(mainBytes64);
+    const uint32_t mediumBytes = static_cast<uint32_t>(mediumBytes64);
+    const uint32_t smallBytes = static_cast<uint32_t>(smallBytes64);
+    const uint32_t mainScratch = static_cast<uint32_t>(mainScratch64);
+    const uint32_t mediumScratch = static_cast<uint32_t>(mediumScratch64);
+
+    // Allocation arenas: count * 68 bytes.
+    if (!PatchPushImm32(exe, 0x002E7B83, 4500u * 68u, mainBytes,
+                        "WSParticleRender main arena"))
+        return false;
+    if (!PatchPushImm32(exe, 0x002E7BAD, 1000u * 68u, mediumBytes,
+                        "WSParticleRender medium arena"))
+        return false;
+    if (!PatchPushImm32(exe, 0x002E7B9C, 500u * 68u, smallBytes,
+                        "WSParticleRender small arena"))
+        return false;
+
+    // Sort scratch follows main and medium counts at 8 bytes/entry.
+    if (!PatchPushImm32(exe, 0x002E7BBE, 4500u * 8u, mainScratch,
+                        "WSParticleRender main sort scratch"))
+        return false;
+    if (!PatchPushImm32(exe, 0x002E7BCF, 1000u * 8u, mediumScratch,
+                        "WSParticleRender medium sort scratch"))
+        return false;
+
+    // Main class runtime caps.
+    const uintptr_t mainCaps[] = {0x002E3F72, 0x002E4066, 0x002E40CD};
+    for (uintptr_t rva : mainCaps)
+        if (!PatchCmpImm32AtPlus6(exe, rva, 4500,
+                                  static_cast<uint32_t>(mainCapacity),
+                                  "WSParticleRender main runtime cap"))
+            return false;
+
+    // Medium runtime cap.
+    if (!PatchCmpImm32AtPlus6(exe, 0x002E4097, 1000,
+                              static_cast<uint32_t>(mediumCapacity),
+                              "WSParticleRender medium runtime cap"))
+        return false;
+
+    // Small class uses both N and N-1 comparisons in retail.
+    const uint32_t smallMinusOne = static_cast<uint32_t>(smallCapacity - 1);
+    if (!PatchCmpImm32AtPlus6(exe, 0x002E40FA, 499, smallMinusOne,
+                              "WSParticleRender small runtime cap A"))
+        return false;
+    if (!PatchCmpImm32AtPlus6(exe, 0x002E412E, 500,
+                              static_cast<uint32_t>(smallCapacity),
+                              "WSParticleRender small runtime cap B"))
+        return false;
+    if (!PatchCmpImm32AtPlus6(exe, 0x002E416A, 499, smallMinusOne,
+                              "WSParticleRender small runtime cap C"))
+        return false;
+
+    Log("[OK] WSParticleRender capacities main=%d medium=%d small=%d with matched arenas/caps/scratch.",
+        mainCapacity, mediumCapacity, smallCapacity);
+    return true;
+}
+
 static bool ApplyV310(const SectionRange& text, uintptr_t moduleBase)
 {
     static const uint8_t sig[] = {
