@@ -1974,6 +1974,108 @@ static bool ApplyWSParticleRenderCapacities(HMODULE exe,
     return true;
 }
 
+
+static bool ApplyHavokToiEventQueue(HMODULE exe, int capacity)
+{
+    if (capacity < 64 || capacity > 8192)
+    {
+        Log("[FAIL] HavokTOIEventQueue=%d outside 64..8192.", capacity);
+        return false;
+    }
+    if (capacity == 250)
+        return true;
+
+    // Exact retail field initialization at VA 0x00AC53AD:
+    //   C7 46 64 FA 00 00 00
+    // => m_sizeOfToiEventQueue-like field = 250.
+    // The old cumulative V262 note 512 -> 1024 was therefore not the retail
+    // baseline; an earlier cumulative stage had already raised 250 -> 512.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* at = reinterpret_cast<uint8_t*>(base + 0x006C53AD);
+    const uint8_t expectedPrefix[3] = {0xC7,0x46,0x64};
+    if (std::memcmp(at, expectedPrefix, sizeof(expectedPrefix)) != 0)
+    {
+        Log("[SKIP] Havok TOI field signature mismatch.");
+        return false;
+    }
+
+    uint32_t current = 0;
+    std::memcpy(&current, at + 3, sizeof(current));
+    if (current != 250u)
+    {
+        Log("[SKIP] Havok TOI retail value mismatch: expected 250 got %u.", current);
+        return false;
+    }
+
+    const uint32_t value = static_cast<uint32_t>(capacity);
+    if (!WriteBytes(at + 3, &value, sizeof(value)))
+        return false;
+
+    Log("[OK] Havok TOI event queue 250 -> %d.", capacity);
+    return true;
+}
+
+static bool ApplyStreamingJobCapacity(HMODULE exe, int capacity)
+{
+    if (capacity < 128 || capacity > 16384)
+    {
+        Log("[FAIL] StreamingJobCapacity=%d outside 128..16384.", capacity);
+        return false;
+    }
+    if (capacity == 1200)
+        return true;
+
+    // .secu VA 0x0162F336:
+    //   BF B0 04 00 00   mov edi,1200
+    // EDI is then stored into BOTH WSReadJob and WSUncompressJob pool
+    // capacity pairs before any later overwrite.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* at = reinterpret_cast<uint8_t*>(base + 0x0122F336);
+    if (at[0] != 0xBF)
+    {
+        Log("[SKIP] Streaming job capacity opcode mismatch.");
+        return false;
+    }
+
+    uint32_t current = 0;
+    std::memcpy(&current, at + 1, sizeof(current));
+    if (current != 1200u)
+    {
+        Log("[SKIP] Streaming job retail capacity mismatch: expected 1200 got %u.", current);
+        return false;
+    }
+
+    const uint32_t value = static_cast<uint32_t>(capacity);
+    if (!WriteBytes(at + 1, &value, sizeof(value)))
+        return false;
+
+    Log("[OK] WSReadJob / WSUncompressJob capacity 1200/1200 -> %d/%d.",
+        capacity, capacity);
+    return true;
+}
+
+static bool ApplyPblCrcTreeNodeCapacity(HMODULE exe, int capacity)
+{
+    if (capacity < 1000 || capacity > 65534)
+    {
+        Log("[FAIL] PblCRCTreeNodeCapacity=%d outside 1000..65534.", capacity);
+        return false;
+    }
+    if (capacity == 40000)
+        return true;
+
+    // .secu VA 0x016055F2: push 40000.
+    // Tree links are WORD-sized and use 0xFFFF as sentinel, so 65534 is the
+    // hard structural ceiling.
+    if (!PatchPushImm32(exe, 0x012055F2, 40000u,
+                        static_cast<uint32_t>(capacity),
+                        "PblCRCTreeNode"))
+        return false;
+
+    Log("[OK] PblCRCTreeNode capacity 40000 -> %d.", capacity);
+    return true;
+}
+
 static bool ApplyV310(const SectionRange& text, uintptr_t moduleBase)
 {
     static const uint8_t sig[] = {
