@@ -171,3 +171,22 @@ their exact retail defaults:
   main blend /4 -> /2, 3x3 /12 -> /6 and distortion /8 -> /4.
 
 Both remain retail-native by default.
+
+
+## 0.10 fourth retail pass
+
+Additional exact-retail owners are now exposed at native defaults:
+
+- `ExperimentalPostFX.DamageBlurResolutionScale=0.5`
+  controls only the BackBufferLDRPostFiltersDamageBlur render target. Retail is
+  half-resolution; 1.0 is the clean full-resolution A/B.
+- `Rain.DensityPercentOverride=0`
+  leaves the hidden retail RainDensity setting untouched. A nonzero override
+  uses the engine's own effective 25..200 percent range and preserves the
+  native normalization/clamp logic.
+- `Particles.RenderTargetResolutionMultiplier=1`
+  keeps the WSParticleRender hierarchy native. Value 2 changes the shared main
+  particle post-FX family from /2 to full resolution and ParticleBB3 from /16
+  to /8, preserving the hierarchy coherently.
+
+These controls are native/default-neutral until explicitly changed.
