@@ -1245,6 +1245,156 @@ static bool ApplyBloomResolutionMultiplier(HMODULE exe, int multiplier)
     return true;
 }
 
+
+static bool ApplyScaledTextureFullResolution(HMODULE exe)
+{
+    // PostFX ScaledTexture is created from backbuffer dimensions divided by 2.
+    // Retail exact sites:
+    //   VA 0x007C9EAF: shr cx,1
+    //   VA 0x007C9EBE: shr cx,1
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    const uintptr_t sites[] = {0x003C9EAF, 0x003C9EBE};
+    const uint8_t expected[] = {0x66,0xD1,0xE9};
+    const uint8_t nops[] = {0x90,0x90,0x90};
+
+    for (uintptr_t rva : sites)
+    {
+        const auto* at = reinterpret_cast<const uint8_t*>(base + rva);
+        if (std::memcmp(at, expected, sizeof(expected)) != 0)
+        {
+            Log("[SKIP] ScaledTexture half-resolution shift mismatch at RVA 0x%08X.",
+                static_cast<unsigned>(rva));
+            return false;
+        }
+    }
+
+    for (uintptr_t rva : sites)
+        if (!WriteBytes(reinterpret_cast<void*>(base + rva), nops, sizeof(nops)))
+            return false;
+
+    Log("[OK] ScaledTexture half-resolution -> full-resolution.");
+    return true;
+}
+
+static bool ApplyDepthBlurMaskResolutionScale(HMODULE exe, double scale)
+{
+    if (!std::isfinite(scale) || scale < 0.25 || scale > 2.0)
+    {
+        Log("[FAIL] DepthBlurMaskResolutionScale=%.3f outside 0.25..2.0.", scale);
+        return false;
+    }
+
+    // DepthBlurMask2x2 / DepthBlurMask2x2Temp derive their dimensions from
+    // one local 0.5 double at VA 0x007CFE4A. Redirect only that consumer.
+    static double storage = 0.5;
+    storage = scale;
+    const bool ok = PatchAbsoluteOperand32(
+        exe, 0x003CFE4A, 0xDD, 0x05, 0x00B7AC88,
+        &storage, "DepthBlur mask resolution scale");
+    if (ok)
+        Log("[OK] DepthBlur mask resolution scale 0.500 -> %.3f.", scale);
+    return ok;
+}
+
+static bool ApplyWillToFightGridResolution(HMODULE exe, int resolution)
+{
+    if (resolution < 64 || resolution > 2048)
+    {
+        Log("[FAIL] WillToFight GridResolution=%d outside 64..2048.", resolution);
+        return false;
+    }
+
+    // WSWillToFightGrid owns:
+    // - CPU grid dimension loaded at VA 0x0097690C from native float 256
+    // - LowResWorldWTF 256x256
+    // - LowResWorldWTFVertex 256x256
+    // Keep all five dimension consumers coherent.
+    static float cpuDimension = 256.0f;
+    cpuDimension = static_cast<float>(resolution);
+
+    if (!PatchAbsoluteOperand32(
+            exe, 0x0057690C, 0xD9, 0x05, 0x00C27748,
+            &cpuDimension, "WSWillToFightGrid CPU dimension"))
+        return false;
+
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    const uintptr_t sites[] = {
+        0x0057603B, 0x00576040, 0x00576085, 0x0057608A
+    };
+
+    for (uintptr_t rva : sites)
+    {
+        const auto* at = reinterpret_cast<const uint8_t*>(base + rva);
+        if (at[0] != 0x68)
+        {
+            Log("[SKIP] WTF render-target push opcode mismatch at RVA 0x%08X.",
+                static_cast<unsigned>(rva));
+            return false;
+        }
+        uint32_t current = 0;
+        std::memcpy(&current, at + 1, sizeof(current));
+        if (current != 256u)
+        {
+            Log("[SKIP] WTF render-target native dimension mismatch at RVA 0x%08X.",
+                static_cast<unsigned>(rva));
+            return false;
+        }
+    }
+
+    const uint32_t value = static_cast<uint32_t>(resolution);
+    for (uintptr_t rva : sites)
+    {
+        auto* at = reinterpret_cast<uint8_t*>(base + rva);
+        if (!WriteBytes(at + 1, &value, sizeof(value)))
+        {
+            Log("[FAIL] WTF render-target dimension write failed at RVA 0x%08X.",
+                static_cast<unsigned>(rva));
+            return false;
+        }
+    }
+
+    Log("[OK] WSWillToFightGrid CPU/GPU resolution 256 -> %d.", resolution);
+    return true;
+}
+
+static bool ApplyVeryFarSceneProfileThresholds(HMODULE exe, float profile0, float profile1)
+{
+    if (!std::isfinite(profile0) || !std::isfinite(profile1) ||
+        profile0 < 1.0f || profile0 > 10000.0f ||
+        profile1 < 1.0f || profile1 > 10000.0f)
+    {
+        Log("[FAIL] VeryFarScene profile thresholds invalid %.3f/%.3f.", profile0, profile1);
+        return false;
+    }
+
+    // VeryFarScene profile record +0x08:
+    // profile 0 = 22, profile 1 = 49.
+    // Redirect ONLY the six VeryFarScene loads. The shared 49.0 constant has
+    // an unrelated consumer at VA 0x008C04F5 and must remain untouched.
+    static float p0 = 22.0f;
+    static float p1 = 49.0f;
+    p0 = profile0;
+    p1 = profile1;
+
+    const uintptr_t p0Sites[] = {0x004014EE, 0x0040153A, 0x00401A9B};
+    const uintptr_t p1Sites[] = {0x004014C2, 0x0040151E, 0x00401A7B};
+
+    for (uintptr_t rva : p0Sites)
+        if (!PatchAbsoluteOperand32(
+                exe, rva, 0xD9, 0x05, 0x00BFCFE4,
+                &p0, "VeryFarScene profile-0 threshold"))
+            return false;
+
+    for (uintptr_t rva : p1Sites)
+        if (!PatchAbsoluteOperand32(
+                exe, rva, 0xD9, 0x05, 0x00BFCFE8,
+                &p1, "VeryFarScene profile-1 threshold"))
+            return false;
+
+    Log("[OK] VeryFarScene profile thresholds 22/49 -> %.3f/%.3f.", profile0, profile1);
+    return true;
+}
+
 static bool ApplyV310(const SectionRange& text, uintptr_t moduleBase)
 {
     static const uint8_t sig[] = {
@@ -2214,6 +2364,12 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const bool motionBlurFullResolution = GetPrivateProfileIntW(L"ExperimentalPostFX", L"MotionBlurFullResolution", 0, iniPath.c_str()) != 0;
     const int bloomResolutionMultiplier = GetPrivateProfileIntW(L"ExperimentalPostFX", L"BloomResolutionMultiplier", 1, iniPath.c_str());
 
+    const bool scaledTextureFullResolution = GetPrivateProfileIntW(L"ExperimentalPostFX", L"ScaledTextureFullResolution", 0, iniPath.c_str()) != 0;
+    const float depthBlurMaskResolutionScale = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"DepthBlurMaskResolutionScale", 0.5f);
+    const int willToFightGridResolution = GetPrivateProfileIntW(L"WillToFight", L"GridResolution", 256, iniPath.c_str());
+    const float veryFarSceneProfile0Threshold = ReadIniFloat(iniPath, L"ExperimentalDistances", L"VeryFarSceneProfile0Threshold", 22.0f);
+    const float veryFarSceneProfile1Threshold = ReadIniFloat(iniPath, L"ExperimentalDistances", L"VeryFarSceneProfile1Threshold", 49.0f);
+
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
     g_odinEventLimit = GetPrivateProfileIntW(L"Diagnostics", L"OdinEventLimit", 5000, iniPath.c_str());
@@ -2253,6 +2409,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         depthBlurAutoStart, depthBlurAutoRange);
     Log("[ExperimentalPostFX] MotionBlurFullResolution=%d BloomResolutionMultiplier=%d",
         motionBlurFullResolution ? 1 : 0, bloomResolutionMultiplier);
+    Log("[ExperimentalPostFX] ScaledTextureFullResolution=%d DepthBlurMaskResolutionScale=%.3f",
+        scaledTextureFullResolution ? 1 : 0, depthBlurMaskResolutionScale);
+    Log("[WillToFight] GridResolution=%d", willToFightGridResolution);
+    Log("[ExperimentalDistances] VeryFarSceneProfileThresholds=%.3f/%.3f",
+        veryFarSceneProfile0Threshold, veryFarSceneProfile1Threshold);
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
     Log("OdinTraceAllQueries=%d", g_odinTraceAllQueries ? 1 : 0);
     Log("OdinEventLimit=%ld", g_odinEventLimit);
@@ -2421,6 +2582,28 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplyBloomResolutionMultiplier(exe, bloomResolutionMultiplier);
     else
         Log("[OFF] Bloom/GodRays pyramid left at native resolution.");
+
+    if (scaledTextureFullResolution)
+        ApplyScaledTextureFullResolution(exe);
+    else
+        Log("[OFF] ScaledTexture left native half-resolution.");
+
+    if (std::fabs(depthBlurMaskResolutionScale - 0.5f) > 0.0001f)
+        ApplyDepthBlurMaskResolutionScale(exe, static_cast<double>(depthBlurMaskResolutionScale));
+    else
+        Log("[OFF] DepthBlur mask resolution scale left native 0.5.");
+
+    if (willToFightGridResolution != 256)
+        ApplyWillToFightGridResolution(exe, willToFightGridResolution);
+    else
+        Log("[OFF] WSWillToFightGrid left native 256x256.");
+
+    if (std::fabs(veryFarSceneProfile0Threshold - 22.0f) > 0.0001f ||
+        std::fabs(veryFarSceneProfile1Threshold - 49.0f) > 0.0001f)
+        ApplyVeryFarSceneProfileThresholds(
+            exe, veryFarSceneProfile0Threshold, veryFarSceneProfile1Threshold);
+    else
+        Log("[OFF] VeryFarScene profile thresholds left native 22/49.");
 
     if (enableV310) ApplyV310(text, g_moduleBase);
     else Log("[OFF] V310 WSModel fix disabled by INI.");
