@@ -1395,6 +1395,112 @@ static bool ApplyVeryFarSceneProfileThresholds(HMODULE exe, float profile0, floa
     return true;
 }
 
+
+static bool ApplyDepthBlurColorPyramidFactor(HMODULE exe, double factor)
+{
+    if (!std::isfinite(factor) || factor < 0.25 || factor > 2.0)
+    {
+        Log("[FAIL] DepthBlurColorPyramidFactor=%.3f outside 0.25..2.0.", factor);
+        return false;
+    }
+
+    // DepthBlurColor%dx%d builds four levels using:
+    //   divisor = factor * 2^(level+1)
+    // Retail factor = 0.75 => divisors 1.5 / 3 / 6 / 12.
+    // Only the local multiplier at VA 0x007CFA3B is redirected.
+    // The same shared 0.75 constant has unrelated consumers, including a
+    // DepthBlur arithmetic path at VA 0x007CF84C, which must remain untouched.
+    static double storage = 0.75;
+    storage = factor;
+    const bool ok = PatchAbsoluteOperand32(
+        exe, 0x003CFA3B, 0xDD, 0x05, 0x00B8A368,
+        &storage, "DepthBlur color-pyramid factor");
+    if (ok)
+        Log("[OK] DepthBlur color-pyramid factor 0.750 -> %.3f.", factor);
+    return ok;
+}
+
+static bool ApplySkyDomeResolutionMultiplier(HMODULE exe, int multiplier)
+{
+    if (multiplier != 1 && multiplier != 2)
+    {
+        Log("[FAIL] SkyDomeResolutionMultiplier=%d; supported values are 1 or 2.", multiplier);
+        return false;
+    }
+    if (multiplier == 1)
+        return true;
+
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+
+    // Main SkyDomeBlendTexture family: retail backbuffer /4 -> /2.
+    struct Shift4
+    {
+        uintptr_t rva;
+        uint8_t regOpcode;
+    };
+    const Shift4 baseSites[] = {
+        {0x00615C32, 0xE8}, // shr ax,2
+        {0x00615C37, 0xED}, // shr bp,2
+    };
+    for (const auto& site : baseSites)
+    {
+        const auto* at = reinterpret_cast<const uint8_t*>(base + site.rva);
+        if (at[0] != 0x66 || at[1] != 0xC1 || at[2] != site.regOpcode || at[3] != 0x02)
+        {
+            Log("[SKIP] SkyDome /4 shift mismatch at RVA 0x%08X.",
+                static_cast<unsigned>(site.rva));
+            return false;
+        }
+    }
+
+    // SkyDomeBlendTexture3x3 family uses positive screen dimensions divided
+    // by 12: magic multiply by ~1/6 followed by sar edx,1.
+    // Removing only the final /2 yields /6, preserving a coherent 2x increase.
+    const uintptr_t div12Sites[] = {0x00615D92, 0x00615DA8};
+    const uint8_t div12Expected[] = {0xD1,0xFA};
+    for (uintptr_t rva : div12Sites)
+    {
+        const auto* at = reinterpret_cast<const uint8_t*>(base + rva);
+        if (std::memcmp(at, div12Expected, sizeof(div12Expected)) != 0)
+        {
+            Log("[SKIP] SkyDome /12 tail mismatch at RVA 0x%08X.",
+                static_cast<unsigned>(rva));
+            return false;
+        }
+    }
+
+    // SkyDomeDistortionTexture: retail /8 -> /4.
+    const uintptr_t distortionSites[] = {0x00615E2C, 0x00615E4E};
+    for (uintptr_t rva : distortionSites)
+    {
+        const auto* at = reinterpret_cast<const uint8_t*>(base + rva);
+        if (at[0] != 0x66 || at[1] != 0xC1 || at[2] != 0xE9 || at[3] != 0x03)
+        {
+            Log("[SKIP] SkyDome distortion /8 shift mismatch at RVA 0x%08X.",
+                static_cast<unsigned>(rva));
+            return false;
+        }
+    }
+
+    const uint8_t one = 0x01;
+    for (const auto& site : baseSites)
+        if (!WriteBytes(reinterpret_cast<void*>(base + site.rva + 3), &one, 1))
+            return false;
+
+    const uint8_t nops2[] = {0x90,0x90};
+    for (uintptr_t rva : div12Sites)
+        if (!WriteBytes(reinterpret_cast<void*>(base + rva), nops2, sizeof(nops2)))
+            return false;
+
+    const uint8_t two = 0x02;
+    for (uintptr_t rva : distortionSites)
+        if (!WriteBytes(reinterpret_cast<void*>(base + rva + 3), &two, 1))
+            return false;
+
+    Log("[OK] SkyDome render-target family resolution multiplier 1x -> 2x.");
+    return true;
+}
+
 static bool ApplyV310(const SectionRange& text, uintptr_t moduleBase)
 {
     static const uint8_t sig[] = {
@@ -2370,6 +2476,9 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const float veryFarSceneProfile0Threshold = ReadIniFloat(iniPath, L"ExperimentalDistances", L"VeryFarSceneProfile0Threshold", 22.0f);
     const float veryFarSceneProfile1Threshold = ReadIniFloat(iniPath, L"ExperimentalDistances", L"VeryFarSceneProfile1Threshold", 49.0f);
 
+    const float depthBlurColorPyramidFactor = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"DepthBlurColorPyramidFactor", 0.75f);
+    const int skyDomeResolutionMultiplier = GetPrivateProfileIntW(L"Sky", L"ResolutionMultiplier", 1, iniPath.c_str());
+
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
     g_odinEventLimit = GetPrivateProfileIntW(L"Diagnostics", L"OdinEventLimit", 5000, iniPath.c_str());
@@ -2414,6 +2523,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("[WillToFight] GridResolution=%d", willToFightGridResolution);
     Log("[ExperimentalDistances] VeryFarSceneProfileThresholds=%.3f/%.3f",
         veryFarSceneProfile0Threshold, veryFarSceneProfile1Threshold);
+    Log("[ExperimentalPostFX] DepthBlurColorPyramidFactor=%.3f", depthBlurColorPyramidFactor);
+    Log("[Sky] ResolutionMultiplier=%d", skyDomeResolutionMultiplier);
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
     Log("OdinTraceAllQueries=%d", g_odinTraceAllQueries ? 1 : 0);
     Log("OdinEventLimit=%ld", g_odinEventLimit);
@@ -2604,6 +2715,16 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
             exe, veryFarSceneProfile0Threshold, veryFarSceneProfile1Threshold);
     else
         Log("[OFF] VeryFarScene profile thresholds left native 22/49.");
+
+    if (std::fabs(depthBlurColorPyramidFactor - 0.75f) > 0.0001f)
+        ApplyDepthBlurColorPyramidFactor(exe, static_cast<double>(depthBlurColorPyramidFactor));
+    else
+        Log("[OFF] DepthBlur color pyramid left at native factor 0.75.");
+
+    if (skyDomeResolutionMultiplier != 1)
+        ApplySkyDomeResolutionMultiplier(exe, skyDomeResolutionMultiplier);
+    else
+        Log("[OFF] SkyDome render-target family left at native resolution.");
 
     if (enableV310) ApplyV310(text, g_moduleBase);
     else Log("[OFF] V310 WSModel fix disabled by INI.");
