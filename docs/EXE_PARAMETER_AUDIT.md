@@ -323,3 +323,90 @@ deliberately conservative:
 - low-cloud / cloud-shadow statics
 - water/reflection shader constants
 - post-process intensity/tone constants whose semantic mapping is not yet proven
+
+
+## J. Exact-retail post-process / WTF / VeryFarScene pass
+
+### ScaledTexture
+
+The generic post-process `ScaledTexture` is created at half backbuffer
+resolution by two exact shifts:
+
+- VA `0x007C9EAF` / RVA `0x003C9EAF`: `shr cx,1`
+- VA `0x007C9EBE` / RVA `0x003C9EBE`: `shr cx,1`
+
+`ExperimentalPostFX.ScaledTextureFullResolution=1` removes only those two
+shifts. Default 0 retains retail.
+
+### DepthBlur mask
+
+`DepthBlurMask2x2` and `DepthBlurMask2x2Temp` share one local dimension
+scale load:
+
+- VA `0x007CFE4A` / RVA `0x003CFE4A`
+- native source VA `0x00F7AC88`: double 0.5
+
+The ASI redirects only this consumer to an owned double:
+`ExperimentalPostFX.DepthBlurMaskResolutionScale=0.5`.
+
+### Will To Fight grid
+
+Retail WSWillToFightGrid is coherently 256x256 across CPU and GPU:
+
+- CPU dimension load VA `0x0097690C` / RVA `0x0057690C`
+- source VA `0x01027748`: float 256
+- LowResWorldWTF dimensions at RVAs `0x0057603B`, `0x00576040`
+- LowResWorldWTFVertex dimensions at RVAs `0x00576085`, `0x0057608A`
+
+The INI exposes one coherent owner:
+`WillToFight.GridResolution=256`.
+
+Historical 1024 testing did not solve the distant red-material issue, so native
+256 remains the default.
+
+### VeryFarScene profile thresholds
+
+Profile record +0x08 owns two real thresholds:
+
+- profile 0 = 22
+- profile 1 = 49
+
+Only VeryFarScene loads are redirected:
+
+22.0:
+- RVA `0x004014EE`
+- RVA `0x0040153A`
+- RVA `0x00401A9B`
+
+49.0:
+- RVA `0x004014C2`
+- RVA `0x0040151E`
+- RVA `0x00401A7B`
+
+The unrelated 49.0 consumer at VA `0x008C04F5` remains untouched.
+
+These are exposed under `[ExperimentalDistances]` at native defaults. The
+historical 22/49 -> 88/196 experiment did not move the balcony/facade symptom,
+so they are documented as real engine parameters, not as a proven fix.
+
+### HDR luminance chain
+
+The post-process initializer creates an explicit fixed reduction pyramid:
+
+- LuminanceTexture64x64 = 64x64
+- LuminanceTexture16x16 = 16x16
+- LuminanceTexture4x4 = 4x4
+- LuminanceTexture1x1 = 1x1
+- adaptive luminance resources remain 1x1
+
+This is not exposed as a resolution option. Increasing only part of the chain
+would make the reduction topology incoherent, while increasing the final 1x1
+resource would change the semantic endpoint rather than merely quality.
+
+### CloudShadowLowRes
+
+The CPU side requests `CloudShadowLowRes` as a named resource and the VS path
+loads `CloudShadowLowRes-PC.dds`. No independent render-target dimension
+owner exists in the retail executable. Resolution changes belong to asset
+replacement, not to an EXE/INI scalar, so no CloudShadowResolution key is
+invented.
