@@ -410,3 +410,67 @@ loads `CloudShadowLowRes-PC.dds`. No independent render-target dimension
 owner exists in the retail executable. Resolution changes belong to asset
 replacement, not to an EXE/INI scalar, so no CloudShadowResolution key is
 invented.
+
+
+## K. DepthBlur color pyramid and SkyDome RT audit
+
+### DepthBlurColor pyramid
+
+The DepthBlur color-resource loop creates four levels and computes its divisor
+from a local multiplication by double 0.75.
+
+- consumer VA `0x007CFA3B`
+- consumer RVA `0x003CFA3B`
+- opcode `DD 05`
+- native source VA `0x00F8A368`
+- native source RVA `0x00B8A368`
+- native value: double 0.75
+
+The resulting retail divisors are approximately:
+
+- level 0: 1.5 => ~2/3 screen
+- level 1: 3 => ~1/3
+- level 2: 6 => ~1/6
+- level 3: 12 => ~1/12
+
+The ASI redirects only this local consumer. The shared 0.75 constant is NOT
+modified because it has unrelated consumers, including another DepthBlur
+arithmetic path.
+
+INI:
+`ExperimentalPostFX.DepthBlurColorPyramidFactor=0.75`
+
+A factor of 0.5 is the clean higher-quality A/B because it produces divisors
+1 / 2 / 4 / 8 without altering level count.
+
+### SkyDome render-target family
+
+The SkyDome initializer contains three related downsample families.
+
+Main blend family:
+
+- RVA `0x00615C32`: `shr ax,2`
+- RVA `0x00615C37`: `shr bp,2`
+- retail: backbuffer /4
+
+3x3 family:
+
+- uses a divide-by-6 magic multiply followed by a final `sar edx,1`
+- RVA `0x00615D92`: `D1 FA`
+- RVA `0x00615DA8`: `D1 FA`
+- retail result: /12
+
+Distortion family:
+
+- RVA `0x00615E2C`: `shr cx,3`
+- RVA `0x00615E4E`: `shr cx,3`
+- retail: /8
+
+`Sky.ResolutionMultiplier=2` changes all three coherently:
+
+- main /4 -> /2
+- 3x3 /12 -> /6
+- distortion /8 -> /4
+
+No individual SkyDome subtarget key is exposed because that would make the
+family internally inconsistent.
