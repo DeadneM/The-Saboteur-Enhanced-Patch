@@ -3246,6 +3246,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         havokToiEventQueue, streamingJobCapacity, pblCrcTreeNodeCapacity);
     Log("[EngineLimits] DamageSphere=%d InventoryStow=%d",
         wsDamageSphereCapacity, wsInventoryStateStowCapacity);
+    Log("[EngineLimits] WSDecal=%d", wsDecalCapacity);
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
     Log("OdinTraceAllQueries=%d", g_odinTraceAllQueries ? 1 : 0);
     Log("OdinEventLimit=%ld", g_odinEventLimit);
@@ -3526,6 +3527,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
             wsInventoryStateStowCapacity);
     else
         Log("[OFF] WSDamageSphere and WSInventoryStateStow left at retail capacities.");
+
+    if (wsDecalCapacity != 400)
+        ApplyWSDecalCapacity(exe, wsDecalCapacity);
+    else
+        Log("[OFF] WSDecal left at retail pool/active ceiling 400.");
 
     if (enableV310) ApplyV310(text, g_moduleBase);
     else Log("[OFF] V310 WSModel fix disabled by INI.");
