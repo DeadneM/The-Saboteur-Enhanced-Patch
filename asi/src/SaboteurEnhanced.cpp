@@ -2964,6 +2964,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const int wsActivateSphereCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WSActivateSphereCapacity", 256, iniPath.c_str());
     const int wallGraphCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WallGraphCapacity", 50, iniPath.c_str());
 
+    const int wsPhysicsParticleCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WSPhysicsParticleCapacity", 1000, iniPath.c_str());
+    const int wsParticleRenderMainCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WSParticleRenderMainCapacity", 4500, iniPath.c_str());
+    const int wsParticleRenderMediumCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WSParticleRenderMediumCapacity", 1000, iniPath.c_str());
+    const int wsParticleRenderSmallCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WSParticleRenderSmallCapacity", 500, iniPath.c_str());
+
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
     g_odinEventLimit = GetPrivateProfileIntW(L"Diagnostics", L"OdinEventLimit", 5000, iniPath.c_str());
