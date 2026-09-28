@@ -3361,6 +3361,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     else
         Log("[OFF] Streaming coverage left native.");
 
+    if (coalescedReadBatchByteLimit != 512000)
+        ApplyCoalescedReadBatchByteLimit(exe, coalescedReadBatchByteLimit);
+    else
+        Log("[OFF] Coalesced-read batch byte limit left retail 512000.");
+
     if (std::fabs(farSceneDistance - 200.0f) > 0.01f) ApplyFarSceneDistance(exe, farSceneDistance);
     else Log("[OFF] FarScene left at native 200.");
 
