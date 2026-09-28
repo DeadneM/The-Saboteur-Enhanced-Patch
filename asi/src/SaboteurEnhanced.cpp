@@ -1560,6 +1560,61 @@ static bool ApplyRainDensityOverride(HMODULE exe, int percent)
     return true;
 }
 
+
+static bool ApplyParticleRenderTargetResolutionMultiplier(HMODULE exe, int multiplier)
+{
+    if (multiplier != 1 && multiplier != 2)
+    {
+        Log("[FAIL] ParticleRenderTargetResolutionMultiplier=%d; supported values are 1 or 2.", multiplier);
+        return false;
+    }
+    if (multiplier == 1)
+        return true;
+
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+
+    // WSParticleRender uses one half-resolution width/height pair for the
+    // ParticleBB0 / AfterParticleLightVolume / distortion family, then a
+    // separate /16 pair for the ParticleBB3 family.
+    //
+    // 2x quality keeps the hierarchy coherent:
+    //   /2  -> full
+    //   /16 -> /8
+    static const uint8_t halfCx[] = {0x66,0xD1,0xE9};
+    static const uint8_t halfBp[] = {0x66,0xD1,0xED};
+    static const uint8_t sixteenthCx[] = {0x66,0xC1,0xE9,0x04};
+    static const uint8_t sixteenthBp[] = {0x66,0xC1,0xED,0x04};
+
+    auto* halfCxAt = reinterpret_cast<uint8_t*>(base + 0x002E7DFA);
+    auto* halfBpAt = reinterpret_cast<uint8_t*>(base + 0x002E7DFE);
+    auto* sixteenthCxAt = reinterpret_cast<uint8_t*>(base + 0x002E7FAF);
+    auto* sixteenthBpAt = reinterpret_cast<uint8_t*>(base + 0x002E7FB4);
+
+    if (std::memcmp(halfCxAt, halfCx, sizeof(halfCx)) != 0 ||
+        std::memcmp(halfBpAt, halfBp, sizeof(halfBp)) != 0 ||
+        std::memcmp(sixteenthCxAt, sixteenthCx, sizeof(sixteenthCx)) != 0 ||
+        std::memcmp(sixteenthBpAt, sixteenthBp, sizeof(sixteenthBp)) != 0)
+    {
+        Log("[SKIP] WSParticleRender target-resolution signatures do not match retail.");
+        return false;
+    }
+
+    const uint8_t nops3[] = {0x90,0x90,0x90};
+    const uint8_t shift3 = 0x03;
+
+    if (!WriteBytes(halfCxAt, nops3, sizeof(nops3)) ||
+        !WriteBytes(halfBpAt, nops3, sizeof(nops3)) ||
+        !WriteBytes(sixteenthCxAt + 3, &shift3, 1) ||
+        !WriteBytes(sixteenthBpAt + 3, &shift3, 1))
+    {
+        Log("[FAIL] WSParticleRender target-resolution writes failed.");
+        return false;
+    }
+
+    Log("[OK] WSParticleRender target family 2x quality applied (/2->full, /16->/8).");
+    return true;
+}
+
 static bool ApplyV310(const SectionRange& text, uintptr_t moduleBase)
 {
     static const uint8_t sig[] = {
@@ -2540,6 +2595,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 
     const float damageBlurResolutionScale = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"DamageBlurResolutionScale", 0.5f);
     const int rainDensityPercentOverride = GetPrivateProfileIntW(L"Rain", L"DensityPercentOverride", 0, iniPath.c_str());
+    const int particleRenderTargetResolutionMultiplier = GetPrivateProfileIntW(L"Particles", L"RenderTargetResolutionMultiplier", 1, iniPath.c_str());
 
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
@@ -2587,6 +2643,9 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         veryFarSceneProfile0Threshold, veryFarSceneProfile1Threshold);
     Log("[ExperimentalPostFX] DepthBlurColorPyramidFactor=%.3f", depthBlurColorPyramidFactor);
     Log("[Sky] ResolutionMultiplier=%d", skyDomeResolutionMultiplier);
+    Log("[ExperimentalPostFX] DamageBlurResolutionScale=%.3f", damageBlurResolutionScale);
+    Log("[Rain] DensityPercentOverride=%d", rainDensityPercentOverride);
+    Log("[Particles] RenderTargetResolutionMultiplier=%d", particleRenderTargetResolutionMultiplier);
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
     Log("OdinTraceAllQueries=%d", g_odinTraceAllQueries ? 1 : 0);
     Log("OdinEventLimit=%ld", g_odinEventLimit);
@@ -2797,6 +2856,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplyRainDensityOverride(exe, rainDensityPercentOverride);
     else
         Log("[OFF] RainDensity override disabled; native hidden setting is used.");
+
+    if (particleRenderTargetResolutionMultiplier != 1)
+        ApplyParticleRenderTargetResolutionMultiplier(exe, particleRenderTargetResolutionMultiplier);
+    else
+        Log("[OFF] WSParticleRender target hierarchy left native (/2 and /16).");
 
     if (enableV310) ApplyV310(text, g_moduleBase);
     else Log("[OFF] V310 WSModel fix disabled by INI.");
