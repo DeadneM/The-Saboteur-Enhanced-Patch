@@ -2180,6 +2180,46 @@ static bool ApplyWSDecalCapacity(HMODULE exe, int capacity)
     return true;
 }
 
+
+static bool ApplyCoalescedReadBatchByteLimit(HMODULE exe, int byteLimit)
+{
+    if (byteLimit < 65536 || byteLimit > 268435456)
+    {
+        Log("[FAIL] CoalescedReadBatchByteLimit=%d outside 64KiB..256MiB.", byteLimit);
+        return false;
+    }
+    if (byteLimit == 512000)
+        return true;
+
+    // Streaming/coalescing path at VA 0x00DB5CE9:
+    //   accumulatedBytes + candidateBytes
+    //   cmp eax,0x7D000
+    // Candidate bytes are derived from sector span * 0x800 (2048 bytes).
+    // Retail threshold = 0x7D000 = 512000 bytes.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* at = reinterpret_cast<uint8_t*>(base + 0x009B5CE9);
+    if (at[0] != 0x3D)
+    {
+        Log("[SKIP] Coalesced-read batch cmp opcode mismatch.");
+        return false;
+    }
+
+    uint32_t current = 0;
+    std::memcpy(&current, at + 1, sizeof(current));
+    if (current != 0x0007D000u)
+    {
+        Log("[SKIP] Coalesced-read batch retail limit mismatch: expected 512000 got %u.", current);
+        return false;
+    }
+
+    const uint32_t value = static_cast<uint32_t>(byteLimit);
+    if (!WriteBytes(at + 1, &value, sizeof(value)))
+        return false;
+
+    Log("[OK] Coalesced read batch byte limit 512000 -> %d.", byteLimit);
+    return true;
+}
+
 static bool ApplyV310(const SectionRange& text, uintptr_t moduleBase)
 {
     static const uint8_t sig[] = {
