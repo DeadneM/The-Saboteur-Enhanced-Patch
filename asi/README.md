@@ -1,6 +1,6 @@
 # SaboteurEnhanced ASI
 
-## Current test build: 0.10 — retail EXE parameter audit
+## Current test build: 0.10 — exact retail EXE audit
 
 Validated baseline retained:
 - Core 1
@@ -134,3 +134,24 @@ Important shared-owner correction:
 
 These new entries are native by default and therefore do not alter visuals
 until explicitly changed.
+
+
+## 0.10 second retail pass
+
+Additional exact owners are now exposed at native defaults:
+
+- `ScaledTextureFullResolution=0`: retail ScaledTexture is backbuffer/2.
+- `DepthBlurMaskResolutionScale=0.5`: local owner for DepthBlurMask2x2 and its temp.
+- `WillToFight.GridResolution=256`: CPU influence grid plus both WTF low-res render targets are kept coherent.
+- `VeryFarSceneProfile0Threshold=22` and `VeryFarSceneProfile1Threshold=49`: only the six VeryFarScene consumers are redirected; an unrelated 49.0 consumer remains untouched.
+
+All four are native-default controls. They do not change the visual baseline
+unless explicitly edited.
+
+The retail HDR luminance chain was also reconstructed as
+64 -> 16 -> 4 -> 1 followed by adaptive 1x1 textures. It is intentionally not
+presented as a generic resolution knob because changing one level alone would
+make the reduction pyramid incoherent.
+
+CloudShadowLowRes is loaded from a named DDS resource rather than created from
+an EXE-owned dimension. No fake CloudShadowResolution control is added.
