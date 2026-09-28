@@ -3130,6 +3130,9 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const int streamingJobCapacity = GetPrivateProfileIntW(L"EngineLimits", L"StreamingJobCapacity", 1200, iniPath.c_str());
     const int pblCrcTreeNodeCapacity = GetPrivateProfileIntW(L"EngineLimits", L"PblCRCTreeNodeCapacity", 40000, iniPath.c_str());
 
+    const int wsDamageSphereCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WSDamageSphereCapacity", 512, iniPath.c_str());
+    const int wsInventoryStateStowCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WSInventoryStateStowCapacity", 32, iniPath.c_str());
+
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
     g_odinEventLimit = GetPrivateProfileIntW(L"Diagnostics", L"OdinEventLimit", 5000, iniPath.c_str());
