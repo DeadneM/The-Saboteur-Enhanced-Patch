@@ -155,3 +155,19 @@ make the reduction pyramid incoherent.
 
 CloudShadowLowRes is loaded from a named DDS resource rather than created from
 an EXE-owned dimension. No fake CloudShadowResolution control is added.
+
+
+## 0.10 third retail pass
+
+Two additional render-target owners are now independently configurable at
+their exact retail defaults:
+
+- `ExperimentalPostFX.DepthBlurColorPyramidFactor=0.75`
+  controls only the local divisor used to build the four DepthBlurColor levels.
+  Retail produces approximate screen fractions 2/3, 1/3, 1/6 and 1/12.
+  A factor 0.5 would instead produce 1, 1/2, 1/4 and 1/8.
+- `Sky.ResolutionMultiplier=1`
+  controls the complete SkyDome RT family coherently. A value of 2 changes
+  main blend /4 -> /2, 3x3 /12 -> /6 and distortion /8 -> /4.
+
+Both remain retail-native by default.
