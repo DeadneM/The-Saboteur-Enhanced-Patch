@@ -2076,6 +2076,61 @@ static bool ApplyPblCrcTreeNodeCapacity(HMODULE exe, int capacity)
     return true;
 }
 
+
+static bool PatchDwordScalar(HMODULE exe, uintptr_t rva, uint32_t expected,
+                             uint32_t value, const char* label)
+{
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* at = reinterpret_cast<uint32_t*>(base + rva);
+    uint32_t current = 0;
+    std::memcpy(&current, at, sizeof(current));
+    if (current != expected)
+    {
+        Log("[SKIP] %s scalar mismatch at RVA 0x%08X: expected %u got %u.",
+            label, static_cast<unsigned>(rva), expected, current);
+        return false;
+    }
+
+    if (!WriteBytes(at, &value, sizeof(value)))
+    {
+        Log("[FAIL] %s scalar write failed at RVA 0x%08X.",
+            label, static_cast<unsigned>(rva));
+        return false;
+    }
+
+    Log("[OK] %s %u -> %u.", label, expected, value);
+    return true;
+}
+
+static bool ApplyClassOwnedPoolConstants(HMODULE exe,
+                                         int wsDamageSphere,
+                                         int wsInventoryStateStow)
+{
+    if (wsDamageSphere < 64 || wsDamageSphere > 8192 ||
+        wsInventoryStateStow < 8 || wsInventoryStateStow > 1024)
+    {
+        Log("[FAIL] Class-owned pool constant outside guarded range.");
+        return false;
+    }
+
+    // Retail .rdata constants, each with one proven pool-initializer consumer:
+    // WSDamageSphere    VA 0x00F87564 = 512
+    // InventoryStow     VA 0x00FD0AF4 = 32
+    if (wsDamageSphere != 512 &&
+        !PatchDwordScalar(exe, 0x00B87564, 512,
+                          static_cast<uint32_t>(wsDamageSphere),
+                          "WSDamageSphere capacity"))
+        return false;
+
+    if (wsInventoryStateStow != 32 &&
+        !PatchDwordScalar(exe, 0x00BD0AF4, 32,
+                          static_cast<uint32_t>(wsInventoryStateStow),
+                          "WSInventoryStateStow capacity"))
+        return false;
+
+    return true;
+}
+
 static bool ApplyV310(const SectionRange& text, uintptr_t moduleBase)
 {
     static const uint8_t sig[] = {
