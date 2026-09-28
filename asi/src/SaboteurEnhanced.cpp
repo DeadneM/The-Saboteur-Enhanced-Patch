@@ -2131,6 +2131,55 @@ static bool ApplyClassOwnedPoolConstants(HMODULE exe,
     return true;
 }
 
+
+static bool ApplyWSDecalCapacity(HMODULE exe, int capacity)
+{
+    if (capacity < 100 || capacity > 5000)
+    {
+        Log("[FAIL] WSDecalCapacity=%d outside 100..5000.", capacity);
+        return false;
+    }
+    if (capacity == 400)
+        return true;
+
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+
+    // WSDecal pool initialization, VA 0x0098D7C9:
+    //   push 0x190
+    if (!PatchPushImm32(exe, 0x0058D7C9, 400u,
+                        static_cast<uint32_t>(capacity),
+                        "WSDecal pool"))
+        return false;
+
+    // WSDecal active-list ceiling, VA 0x0098E997:
+    //   cmp ecx,0x190
+    auto* cap = reinterpret_cast<uint8_t*>(base + 0x0058E997);
+    const uint8_t expectedPrefix[2] = {0x81,0xF9};
+    if (std::memcmp(cap, expectedPrefix, sizeof(expectedPrefix)) != 0)
+    {
+        Log("[SKIP] WSDecal active-ceiling opcode mismatch.");
+        return false;
+    }
+
+    uint32_t current = 0;
+    std::memcpy(&current, cap + 2, sizeof(current));
+    if (current != 400u)
+    {
+        Log("[SKIP] WSDecal active-ceiling value mismatch: expected 400 got %u.", current);
+        return false;
+    }
+
+    const uint32_t value = static_cast<uint32_t>(capacity);
+    if (!WriteBytes(cap + 2, &value, sizeof(value)))
+    {
+        Log("[FAIL] WSDecal active-ceiling write failed.");
+        return false;
+    }
+
+    Log("[OK] WSDecal pool + active ceiling 400 -> %d.", capacity);
+    return true;
+}
+
 static bool ApplyV310(const SectionRange& text, uintptr_t moduleBase)
 {
     static const uint8_t sig[] = {
