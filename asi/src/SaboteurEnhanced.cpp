@@ -3194,6 +3194,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         wsParticleRenderSmallCapacity);
     Log("[EngineLimits] HavokTOI=%d StreamingJobs=%d PblCRC=%d",
         havokToiEventQueue, streamingJobCapacity, pblCrcTreeNodeCapacity);
+    Log("[EngineLimits] DamageSphere=%d InventoryStow=%d",
+        wsDamageSphereCapacity, wsInventoryStateStowCapacity);
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
     Log("OdinTraceAllQueries=%d", g_odinTraceAllQueries ? 1 : 0);
     Log("OdinEventLimit=%ld", g_odinEventLimit);
@@ -3465,6 +3467,15 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplyPblCrcTreeNodeCapacity(exe, pblCrcTreeNodeCapacity);
     else
         Log("[OFF] PblCRCTreeNode left at retail 40000.");
+
+    if (wsDamageSphereCapacity != 512 ||
+        wsInventoryStateStowCapacity != 32)
+        ApplyClassOwnedPoolConstants(
+            exe,
+            wsDamageSphereCapacity,
+            wsInventoryStateStowCapacity);
+    else
+        Log("[OFF] WSDamageSphere and WSInventoryStateStow left at retail capacities.");
 
     if (enableV310) ApplyV310(text, g_moduleBase);
     else Log("[OFF] V310 WSModel fix disabled by INI.");
