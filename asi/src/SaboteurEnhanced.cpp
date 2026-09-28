@@ -1615,6 +1615,104 @@ static bool ApplyParticleRenderTargetResolutionMultiplier(HMODULE exe, int multi
     return true;
 }
 
+
+static bool ApplyLightVolumeResolutionMultiplier(HMODULE exe, int multiplier)
+{
+    if (multiplier != 1 && multiplier != 2)
+    {
+        Log("[FAIL] LightVolumeResolutionMultiplier=%d; supported values are 1 or 2.", multiplier);
+        return false;
+    }
+    if (multiplier == 1)
+        return true;
+
+    // LightVolumeRT derives its width/height directly from the backbuffer,
+    // then halves both dimensions at the two local instructions below:
+    //   VA 0x0080001F : shr cx,1
+    //   VA 0x00800022 : shr dx,1
+    // 2x quality removes only those two shifts => full resolution.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* widthShift  = reinterpret_cast<uint8_t*>(base + 0x0040001F);
+    auto* heightShift = reinterpret_cast<uint8_t*>(base + 0x00400022);
+    static const uint8_t expectedW[] = {0x66,0xD1,0xE9};
+    static const uint8_t expectedH[] = {0x66,0xD1,0xEA};
+    static const uint8_t nops[] = {0x90,0x90,0x90};
+
+    if (std::memcmp(widthShift, expectedW, sizeof(expectedW)) != 0 ||
+        std::memcmp(heightShift, expectedH, sizeof(expectedH)) != 0)
+    {
+        Log("[SKIP] LightVolumeRT half-resolution signatures do not match retail.");
+        return false;
+    }
+
+    if (!WriteBytes(widthShift, nops, sizeof(nops)) ||
+        !WriteBytes(heightShift, nops, sizeof(nops)))
+    {
+        Log("[FAIL] LightVolumeRT full-resolution writes failed.");
+        return false;
+    }
+
+    Log("[OK] LightVolumeRT resolution multiplier 1x -> 2x (/2 -> full).");
+    return true;
+}
+
+static bool ApplyWtfTransitionRingResolution(HMODULE exe, int resolution)
+{
+    if (resolution < 32 || resolution > 2048)
+    {
+        Log("[FAIL] WTF TransitionRingResolution=%d outside 32..2048.", resolution);
+        return false;
+    }
+
+    // Three related transition render targets are all 128x128 in retail:
+    //   WTFTransitionRingRT
+    //   WTFTransitionRingRTTemp
+    //   PreviousWTFTransitionRingRT
+    //
+    // Keep all six dimensions coherent.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    const uintptr_t sites[] = {
+        0x0057C4F0, 0x0057C4F5,
+        0x0057C571, 0x0057C576,
+        0x0057C5B3, 0x0057C5D8
+    };
+
+    for (uintptr_t rva : sites)
+    {
+        const auto* at = reinterpret_cast<const uint8_t*>(base + rva);
+        if (at[0] != 0x68)
+        {
+            Log("[SKIP] WTF transition-ring push opcode mismatch at RVA 0x%08X.",
+                static_cast<unsigned>(rva));
+            return false;
+        }
+
+        uint32_t current = 0;
+        std::memcpy(&current, at + 1, sizeof(current));
+        if (current != 128u)
+        {
+            Log("[SKIP] WTF transition-ring native dimension mismatch at RVA 0x%08X.",
+                static_cast<unsigned>(rva));
+            return false;
+        }
+    }
+
+    const uint32_t value = static_cast<uint32_t>(resolution);
+    for (uintptr_t rva : sites)
+    {
+        auto* at = reinterpret_cast<uint8_t*>(base + rva);
+        if (!WriteBytes(at + 1, &value, sizeof(value)))
+        {
+            Log("[FAIL] WTF transition-ring dimension write failed at RVA 0x%08X.",
+                static_cast<unsigned>(rva));
+            return false;
+        }
+    }
+
+    Log("[OK] WTF transition-ring RT family 128x128 -> %dx%d.", resolution, resolution);
+    return true;
+}
+
 static bool ApplyV310(const SectionRange& text, uintptr_t moduleBase)
 {
     static const uint8_t sig[] = {
@@ -2596,6 +2694,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const float damageBlurResolutionScale = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"DamageBlurResolutionScale", 0.5f);
     const int rainDensityPercentOverride = GetPrivateProfileIntW(L"Rain", L"DensityPercentOverride", 0, iniPath.c_str());
     const int particleRenderTargetResolutionMultiplier = GetPrivateProfileIntW(L"Particles", L"RenderTargetResolutionMultiplier", 1, iniPath.c_str());
+    const int lightVolumeResolutionMultiplier = GetPrivateProfileIntW(L"Lighting", L"LightVolumeResolutionMultiplier", 1, iniPath.c_str());
+    const int wtfTransitionRingResolution = GetPrivateProfileIntW(L"WillToFight", L"TransitionRingResolution", 128, iniPath.c_str());
 
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
@@ -2646,6 +2746,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("[ExperimentalPostFX] DamageBlurResolutionScale=%.3f", damageBlurResolutionScale);
     Log("[Rain] DensityPercentOverride=%d", rainDensityPercentOverride);
     Log("[Particles] RenderTargetResolutionMultiplier=%d", particleRenderTargetResolutionMultiplier);
+    Log("[Lighting] LightVolumeResolutionMultiplier=%d", lightVolumeResolutionMultiplier);
+    Log("[WillToFight] TransitionRingResolution=%d", wtfTransitionRingResolution);
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
     Log("OdinTraceAllQueries=%d", g_odinTraceAllQueries ? 1 : 0);
     Log("OdinEventLimit=%ld", g_odinEventLimit);
@@ -2861,6 +2963,16 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplyParticleRenderTargetResolutionMultiplier(exe, particleRenderTargetResolutionMultiplier);
     else
         Log("[OFF] WSParticleRender target hierarchy left native (/2 and /16).");
+
+    if (lightVolumeResolutionMultiplier != 1)
+        ApplyLightVolumeResolutionMultiplier(exe, lightVolumeResolutionMultiplier);
+    else
+        Log("[OFF] LightVolumeRT left native half-resolution.");
+
+    if (wtfTransitionRingResolution != 128)
+        ApplyWtfTransitionRingResolution(exe, wtfTransitionRingResolution);
+    else
+        Log("[OFF] WTF transition-ring RT family left native 128x128.");
 
     if (enableV310) ApplyV310(text, g_moduleBase);
     else Log("[OFF] V310 WSModel fix disabled by INI.");
