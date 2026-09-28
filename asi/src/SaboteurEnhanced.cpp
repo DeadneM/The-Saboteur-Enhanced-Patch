@@ -3222,6 +3222,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const int wsDamageSphereCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WSDamageSphereCapacity", 512, iniPath.c_str());
     const int wsInventoryStateStowCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WSInventoryStateStowCapacity", 32, iniPath.c_str());
     const int wsDecalCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WSDecalCapacity", 400, iniPath.c_str());
+    const int coalescedReadBatchByteLimit = GetPrivateProfileIntW(L"Streaming", L"CoalescedReadBatchByteLimit", 512000, iniPath.c_str());
 
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
