@@ -1713,6 +1713,90 @@ static bool ApplyWtfTransitionRingResolution(HMODULE exe, int resolution)
     return true;
 }
 
+
+static bool PatchMovEaxImm32(HMODULE exe, uintptr_t rva, uint32_t expected,
+                             uint32_t value, const char* label)
+{
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* at = reinterpret_cast<uint8_t*>(base + rva);
+
+    if (at[0] != 0xB8)
+    {
+        Log("[SKIP] %s opcode mismatch at RVA 0x%08X.", label,
+            static_cast<unsigned>(rva));
+        return false;
+    }
+
+    uint32_t current = 0;
+    std::memcpy(&current, at + 1, sizeof(current));
+    if (current != expected)
+    {
+        Log("[SKIP] %s native value mismatch at RVA 0x%08X: expected %u got %u.",
+            label, static_cast<unsigned>(rva), expected, current);
+        return false;
+    }
+
+    if (!WriteBytes(at + 1, &value, sizeof(value)))
+    {
+        Log("[FAIL] %s write failed at RVA 0x%08X.", label,
+            static_cast<unsigned>(rva));
+        return false;
+    }
+
+    Log("[OK] %s capacity %u -> %u.", label, expected, value);
+    return true;
+}
+
+static bool ApplySimpleEngineLimits(HMODULE exe,
+                                    int wsLuaCall,
+                                    int wsParkingSpace,
+                                    int wsParticleInfoData,
+                                    int wsActivateSphere,
+                                    int wallGraph)
+{
+    if (wsLuaCall < 1 || wsLuaCall > 4096 ||
+        wsParkingSpace < 1 || wsParkingSpace > 4096 ||
+        wsParticleInfoData < 100 || wsParticleInfoData > 20000 ||
+        wsActivateSphere < 16 || wsActivateSphere > 8192 ||
+        wallGraph < 1 || wallGraph > 4096)
+    {
+        Log("[FAIL] One or more simple engine-limit values are outside guarded ranges.");
+        return false;
+    }
+
+    if (wsLuaCall != 20 &&
+        !PatchMovEaxImm32(exe, 0x005F6C74, 20,
+                          static_cast<uint32_t>(wsLuaCall), "WSLuaCall"))
+        return false;
+
+    if (wsParkingSpace != 32 &&
+        !PatchMovEaxImm32(exe, 0x0050706E, 32,
+                          static_cast<uint32_t>(wsParkingSpace), "WSParkingSpace"))
+        return false;
+
+    if (wsParticleInfoData != 1400 &&
+        !PatchMovEaxImm32(exe, 0x005D3173, 1400,
+                          static_cast<uint32_t>(wsParticleInfoData), "WSParticleInfoData"))
+        return false;
+
+    if (wsActivateSphere != 256 &&
+        !PatchMovEaxImm32(exe, 0x005AE7E6, 256,
+                          static_cast<uint32_t>(wsActivateSphere), "WSActivateSphere pool"))
+        return false;
+
+    if (wallGraph != 50)
+    {
+        if (!PatchMovEaxImm32(exe, 0x005F6B91, 50,
+                              static_cast<uint32_t>(wallGraph), "WallPoint"))
+            return false;
+        if (!PatchMovEaxImm32(exe, 0x005F6BDE, 50,
+                              static_cast<uint32_t>(wallGraph), "WallSegment"))
+            return false;
+    }
+
+    return true;
+}
+
 static bool ApplyV310(const SectionRange& text, uintptr_t moduleBase)
 {
     static const uint8_t sig[] = {
