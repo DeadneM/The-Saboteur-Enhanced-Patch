@@ -3023,6 +3023,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("[EngineLimits] WSLuaCall=%d Parking=%d ParticleInfo=%d ActivateSphere=%d WallGraph=%d",
         wsLuaCallCapacity, wsParkingSpaceCapacity, wsParticleInfoDataCapacity,
         wsActivateSphereCapacity, wallGraphCapacity);
+    Log("[EngineLimits] WSPhysicsParticle=%d ParticleRender=%d/%d/%d",
+        wsPhysicsParticleCapacity,
+        wsParticleRenderMainCapacity,
+        wsParticleRenderMediumCapacity,
+        wsParticleRenderSmallCapacity);
     Log("OdinInstancing=%d", enableOdin ? 1 : 0);
     Log("OdinTraceAllQueries=%d", g_odinTraceAllQueries ? 1 : 0);
     Log("OdinEventLimit=%ld", g_odinEventLimit);
@@ -3263,6 +3268,22 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
             wallGraphCapacity);
     else
         Log("[OFF] Simple engine limits left at retail capacities.");
+
+    if (wsPhysicsParticleCapacity != 1000)
+        ApplyWSPhysicsParticleCapacity(exe, wsPhysicsParticleCapacity);
+    else
+        Log("[OFF] WSPhysicsParticle left at retail capacity 1000.");
+
+    if (wsParticleRenderMainCapacity != 4500 ||
+        wsParticleRenderMediumCapacity != 1000 ||
+        wsParticleRenderSmallCapacity != 500)
+        ApplyWSParticleRenderCapacities(
+            exe,
+            wsParticleRenderMainCapacity,
+            wsParticleRenderMediumCapacity,
+            wsParticleRenderSmallCapacity);
+    else
+        Log("[OFF] WSParticleRender capacities left retail 4500/1000/500.");
 
     if (enableV310) ApplyV310(text, g_moduleBase);
     else Log("[OFF] V310 WSModel fix disabled by INI.");
