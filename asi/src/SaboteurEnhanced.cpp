@@ -2781,6 +2781,12 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const int lightVolumeResolutionMultiplier = GetPrivateProfileIntW(L"Lighting", L"LightVolumeResolutionMultiplier", 1, iniPath.c_str());
     const int wtfTransitionRingResolution = GetPrivateProfileIntW(L"WillToFight", L"TransitionRingResolution", 128, iniPath.c_str());
 
+    const int wsLuaCallCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WSLuaCallCapacity", 20, iniPath.c_str());
+    const int wsParkingSpaceCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WSParkingSpaceCapacity", 32, iniPath.c_str());
+    const int wsParticleInfoDataCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WSParticleInfoDataCapacity", 1400, iniPath.c_str());
+    const int wsActivateSphereCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WSActivateSphereCapacity", 256, iniPath.c_str());
+    const int wallGraphCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WallGraphCapacity", 50, iniPath.c_str());
+
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
     g_odinEventLimit = GetPrivateProfileIntW(L"Diagnostics", L"OdinEventLimit", 5000, iniPath.c_str());
