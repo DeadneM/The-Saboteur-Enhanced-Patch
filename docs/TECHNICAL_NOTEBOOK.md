@@ -1533,3 +1533,85 @@ CI:
 - `dinput8.dll` SHA-256:
   `be5716d82ccd4f8683aabf3e7e0e1179f1e7089147acc15a389d21530a2d5083`
 - both binaries verified PE machine x86 / 0x14C.
+
+
+## ASI 0.15 result -> 0.16 particle RestoreDepthBuffer CorrectUV audit
+
+0.15 result:
+- `LightVolumeResolutionMultiplier=2` remained enabled;
+- `LightVolumeCoordinateResolutionScale=1.0` made the second manager-side
+  width/height and reciprocal profile coherent with the full-resolution target;
+- user screenshot result: **the same bright white fragmented/polygonal artifact
+  remains** around the bright window.
+
+Conclusion:
+- the LightVolume half-resolution coordinate owner was real and worth
+  correcting, but it is not sufficient to explain this artifact;
+- retain the 0.15 correction;
+- continue the same CorrectUV method on the remaining 0.13 full-resolution
+  consumers rather than reverting quality.
+
+### Exact particle RestoreDepthBuffer shader finding
+
+Static reference:
+- exact historical V200 executable SHA-256:
+  `9d13022f1e889e5aeb16e97b6012c300ffb7acfa0b72b90971143fe7447fccaf`
+- embedded shader source/debug identity:
+  `WildStar/Particles/ApplyPS.hlsl`
+- compiled variant:
+  `RestoreDepthBuffer`
+
+The retail WSParticleRender main target family is created at half backbuffer
+resolution. 0.13 removes the two local `shr 1` operations and promotes that
+family to full resolution, while retaining the BB3 hierarchy increase /16 -> /8.
+
+The RestoreDepthBuffer variant contains a separate hard-coded half-column
+reconstruction. Exact embedded constants:
+
+- RVA `0x00D40DDC`: float `0.0125` = 1/80
+- RVA `0x00D40DE8`: float `2.0`
+- RVA `0x00D40DF8`: float `-80.0`
+- RVA `0x00D40DFC`: float `80.0`
+
+The shader uses these values to classify/reconstruct alternating packed columns
+before applying `g_Resolution`. That is appropriate for the retail /2
+ParticleBB0 layout but remains stale after the target becomes full resolution.
+
+### 0.16 coherent full-resolution mapping
+
+New INI:
+`Particles.FullResolutionDepthRestore`
+
+Native/default-safe meaning:
+- 0 = retail packed half-column mapping.
+
+0.16 candidate:
+- 1 = pair the full-resolution particle RT with full-resolution depth-restore
+  coordinates.
+
+Atomic shader values:
+- 0.0125 -> 0.0
+- 2.0 -> 1.0
+- -80.0 -> 0.0
+- +80.0 -> 0.0
+
+With these substitutions, the packed half-column transformation collapses to
+the normal full-resolution screen coordinate before multiplication by
+`g_Resolution`.
+
+Safety:
+- all four exact retail floats are verified before the particle target resize
+  is attempted;
+- the new correction is only meaningful when
+  `Particles.RenderTargetResolutionMultiplier=2`;
+- the existing render-target signatures still fail closed;
+- no 0.13 quality increase is disabled;
+- all 0.14 DepthBlur and 0.15 LightVolume coherence corrections remain enabled.
+
+Source commits:
+- `eb3643594dca911593def963b4575ff96503778c` — particle shader owner and coherent application path
+- `0fce30db5bf5b8a3526638558274bf6083526294` — 0.16 INI profile
+- `08291cf17931a0137630aad7719beb5637c03660` — CI artifact label
+- `8e2ed461bf8e8ac32059a2976b3485054b66af91` — README/test plan
+
+0.12 remains canonical until explicit user validation.
