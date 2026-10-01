@@ -1859,3 +1859,59 @@ Source/config:
 
 0.19 rejected. 0.16 remains the last visually clean reference before brightness
 experiments.
+
+
+## ASI 0.20 rejected -> 0.21 PsBloom prefilter energy normalization
+
+0.20 result:
+- true historical V29 path tested;
+- user result: excessive brightness still unchanged.
+
+Therefore neither isolated ToneMap changes nor the V29 final-composite sampler
+path is the owner of the current local overbright lamps/mirrors.
+
+A fresh audit of the retail PsBloom bytecode found the upstream extraction gain
+that was not yet exposed:
+
+WSBloomFilterHDR.hlsl / PsBloom
+- retail DEF c1 = { 1.0, 4.0, 0.0, -1/3 }
+- shader sequence:
+  - sample bloom source;
+  - multiply sampled RGB by c1.y;
+  - compute luminance with c2 = {0.27, 0.67, 0.06, 0.01};
+  - subtract the runtime luminance threshold;
+  - clamp at zero;
+  - feed the resulting bright-pass into the blur/composite chain.
+
+Exact owner:
+- raw retail file offset: 0x00D68568
+- PE runtime RVA: 0x00D69B68
+- retail float: 4.0
+
+This is upstream of the blur and final composite, making it a cleaner brightness
+normalization owner than BloomFinalContribution.
+
+0.21 deliberately restores the visually clean 0.16 brightness/composite path:
+- ToneMap=0.25
+- BloomFinalContribution=4.0
+- SkyBloom sampler retail
+- DownsampledBackBuffer sampler retail
+
+All 0.13-0.16 quality/CorrectUV improvements remain enabled.
+
+New INI:
+ExperimentalPostFX.BloomPrefilterGain
+
+- retail = 4.0
+- 0.21 test = 1.0
+- rationale: BloomResolutionMultiplier=2 changes the bloom pyramid from /4 to
+  /2, doubling width and height. 1.0 is the exact 1/4 area-energy normalization
+  test relative to the retail gain 4.0, while keeping the higher-resolution
+  pyramid itself.
+
+Source/config:
+- `5453b65e4f0589458d31db89db436c05a68d4904` — PsBloom gain owner
+- `abd39f6607f1d314edbbe2c32494f68ad80e741c` — 0.21 profile
+- `45061cdbdb0361c6b1829a610eb9cef0565319c2` — CI artifact label
+
+0.16 remains the last visually clean reference before brightness experiments.
