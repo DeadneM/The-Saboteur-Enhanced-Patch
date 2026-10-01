@@ -399,3 +399,42 @@ group is written. A mismatch fails closed.
 This candidate deliberately does not invent compensation controls for
 MotionBlur, DamageBlur, LightVolume or particle buffers until their shader-side
 owner is proven with the same level of confidence.
+
+
+## 0.15 coherent LightVolume full-resolution candidate
+
+Status: **TEST CANDIDATE — 0.12 remains canonical**.
+
+0.14 result: the bright fragmented/polygonal artifact remained unchanged, so
+the DepthBlur shader compensation is not the owner of that defect.
+
+The exact retail executable was re-audited. A second half-resolution owner was
+found inside the WSLightVolumeManager vtable refresh path:
+
+- method entry: VA `0x007FE560`
+- helper: VA `0x007FE060`
+- local scale load: VA `0x007FE0A5`, RVA `0x003FE0A5`
+- retail operand: VA `0x00F7AC88` = double `0.5`
+- the same loaded factor feeds both backbuffer width and height
+- all reciprocal/coordinate values are then derived from those scaled dimensions
+
+This owner is independent from the two `shr 1` instructions that create
+`LightVolumeRT` at half resolution. Therefore 0.13 made the target full
+resolution while this manager-side coordinate profile still behaved as
+half-resolution.
+
+New INI control:
+
+`Lighting.LightVolumeCoordinateResolutionScale`
+
+- retail/native: `0.5`
+- 0.15 test: `1.0`
+
+With `LightVolumeResolutionMultiplier=2`, value 1.0 makes both the render
+target and the manager's coordinate/reciprocal profile full-resolution.
+
+Only the local FLD operand is redirected to ASI-owned storage. The shared 0.5
+constant is not modified.
+
+All 0.13 quality increases and the coherent 0.14 DepthBlur compensation remain
+enabled. Nothing is removed for this test.
