@@ -1761,6 +1761,44 @@ static bool ApplyParticleRenderTargetResolutionMultiplier(HMODULE exe, int multi
 }
 
 
+static bool ApplyLightVolumeCoordinateResolutionScale(HMODULE exe, double scale)
+{
+    if (!std::isfinite(scale) || scale < 0.25 || scale > 2.0)
+    {
+        Log("[FAIL] LightVolumeCoordinateResolutionScale=%.3f outside 0.25..2.0.", scale);
+        return false;
+    }
+
+    // WSLightVolumeManager::refresh/render-state path (vtable method 0x7FE560
+    // -> helper 0x7FE060) derives a second internal resolution profile from
+    // the physical backbuffer dimensions.
+    //
+    // Exact retail flow:
+    //   VA 0x007FE07F..0x007FE09D : cache full screen width
+    //   VA 0x007FE0A5             : fld qword ptr [0x00F7AC88] = 0.5
+    //   VA 0x007FE0AD..0x007FE0CD : width * 0.5
+    //   VA 0x007FE0D7..0x007FE121 : height * 0.5 using the same loaded factor
+    //   VA 0x007FE139 onward       : derives reciprocal/coordinate values
+    //                                from those cached dimensions.
+    //
+    // LightVolumeRT itself is /2 in retail. When the RT is raised to full
+    // resolution, leaving this independent coordinate profile at 0.5 keeps
+    // the LightVolume renderer mathematically half-resolution and can expose
+    // the raw light-volume geometry during composition.
+    //
+    // Redirect ONLY this local FLD operand. The shared retail 0.5 constant is
+    // not modified because it has many unrelated consumers.
+    static double storage = 0.5;
+    storage = scale;
+    const bool ok = PatchAbsoluteOperand32(
+        exe, 0x003FE0A5, 0xDD, 0x05, 0x00B7AC88,
+        &storage, "LightVolume coordinate-resolution scale");
+    if (ok)
+        Log("[OK] WSLightVolume coordinate-resolution scale 0.500 -> %.3f.", scale);
+    return ok;
+}
+
+
 static bool ApplyLightVolumeResolutionMultiplier(HMODULE exe, int multiplier)
 {
     if (multiplier != 1 && multiplier != 2)
@@ -3275,7 +3313,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.14 CORRECT UV / TEXEL COMPENSATION TEST");
+    Log("SaboteurEnhanced ASI 0.15 LIGHTVOLUME COHERENT FULL-RES TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -3348,6 +3386,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const int rainDensityPercentOverride = GetPrivateProfileIntW(L"Rain", L"DensityPercentOverride", 0, iniPath.c_str());
     const int particleRenderTargetResolutionMultiplier = GetPrivateProfileIntW(L"Particles", L"RenderTargetResolutionMultiplier", 1, iniPath.c_str());
     const int lightVolumeResolutionMultiplier = GetPrivateProfileIntW(L"Lighting", L"LightVolumeResolutionMultiplier", 1, iniPath.c_str());
+    const float lightVolumeCoordinateResolutionScale = ReadIniFloat(iniPath, L"Lighting", L"LightVolumeCoordinateResolutionScale", 0.5f);
     const int wtfTransitionRingResolution = GetPrivateProfileIntW(L"WillToFight", L"TransitionRingResolution", 128, iniPath.c_str());
 
     const int wsLuaCallCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WSLuaCallCapacity", 20, iniPath.c_str());
@@ -3421,7 +3460,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("[ExperimentalPostFX] DamageBlurResolutionScale=%.3f", damageBlurResolutionScale);
     Log("[Rain] DensityPercentOverride=%d", rainDensityPercentOverride);
     Log("[Particles] RenderTargetResolutionMultiplier=%d", particleRenderTargetResolutionMultiplier);
-    Log("[Lighting] LightVolumeResolutionMultiplier=%d", lightVolumeResolutionMultiplier);
+    Log("[Lighting] LightVolumeResolutionMultiplier=%d CoordinateResolutionScale=%.3f",
+        lightVolumeResolutionMultiplier, lightVolumeCoordinateResolutionScale);
     Log("[WillToFight] TransitionRingResolution=%d", wtfTransitionRingResolution);
     Log("[EngineLimits] WSLuaCall=%d Parking=%d ParticleInfo=%d ActivateSphere=%d WallGraph=%d",
         wsLuaCallCapacity, wsParkingSpaceCapacity, wsParticleInfoDataCapacity,
@@ -3665,6 +3705,12 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplyParticleRenderTargetResolutionMultiplier(exe, particleRenderTargetResolutionMultiplier);
     else
         Log("[OFF] WSParticleRender target hierarchy left native (/2 and /16).");
+
+    if (std::fabs(lightVolumeCoordinateResolutionScale - 0.5f) > 0.0001f)
+        ApplyLightVolumeCoordinateResolutionScale(
+            exe, static_cast<double>(lightVolumeCoordinateResolutionScale));
+    else
+        Log("[OFF] WSLightVolume coordinate-resolution profile left native 0.5x.");
 
     if (lightVolumeResolutionMultiplier != 1)
         ApplyLightVolumeResolutionMultiplier(exe, lightVolumeResolutionMultiplier);
