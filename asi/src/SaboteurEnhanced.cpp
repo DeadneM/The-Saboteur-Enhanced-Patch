@@ -1351,6 +1351,36 @@ static bool ApplyBloomFinalContribution(HMODULE exe, float value)
 }
 
 
+static bool ApplyBloomFinalDownsampledBackBufferSampler(HMODULE exe)
+{
+    // Historical V28/V29 anti-blur path:
+    // PsBloomFinal samples DownsampledBackBufferSampler at s2 in one texld.
+    // Redirect ONLY that sampler operand to BackBufferSampler s0.
+    //
+    // Exact shader operand raw offset in the retail file: 0x00D67E3C.
+    // PE runtime RVA = raw + 0x1600 = 0x00D6943C.
+    //
+    // This is distinct from the later V200 SkyBloomTextureSampler s4 -> s0
+    // experiment at RVA 0x00D694FC, which is intentionally left untouched.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* sampler = reinterpret_cast<uint8_t*>(base + 0x00D6943C);
+    const uint8_t expected = 0x02;
+    const uint8_t value = 0x00;
+
+    if (*sampler != expected)
+    {
+        Log("[SKIP] PsBloomFinal DownsampledBackBuffer sampler mismatch at RVA 0x00D6943C.");
+        return false;
+    }
+
+    if (!WriteBytes(sampler, &value, 1))
+        return false;
+
+    Log("[OK] PsBloomFinal sampler DownsampledBackBuffer s2 -> BackBuffer s0.");
+    return true;
+}
+
+
 static bool ApplyBloomFinalBackBufferSampler(HMODULE exe)
 {
     // PsBloomFinal retail samples SkyBloomTextureSampler at s4 here.
@@ -3420,7 +3450,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.19 TONEMAP 0.15 ISOLATION TEST");
+    Log("SaboteurEnhanced ASI 0.20 TRUE V29 BLOOM PATH TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -3479,6 +3509,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const int bloomResolutionMultiplier = GetPrivateProfileIntW(L"ExperimentalPostFX", L"BloomResolutionMultiplier", 1, iniPath.c_str());
     const float bloomFinalContribution = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"BloomFinalContribution", 4.0f);
     const bool bloomFinalBackBufferSampler = GetPrivateProfileIntW(L"ExperimentalPostFX", L"BloomFinalBackBufferSampler", 0, iniPath.c_str()) != 0;
+    const bool bloomFinalDownsampledBackBufferSampler = GetPrivateProfileIntW(L"ExperimentalPostFX", L"BloomFinalDownsampledBackBufferSampler", 0, iniPath.c_str()) != 0;
 
     const bool scaledTextureFullResolution = GetPrivateProfileIntW(L"ExperimentalPostFX", L"ScaledTextureFullResolution", 0, iniPath.c_str()) != 0;
     const float depthBlurMaskResolutionScale = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"DepthBlurMaskResolutionScale", 0.5f);
@@ -3558,8 +3589,10 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         depthBlurAutoStart, depthBlurAutoRange);
     Log("[ExperimentalPostFX] MotionBlurFullResolution=%d BloomResolutionMultiplier=%d",
         motionBlurFullResolution ? 1 : 0, bloomResolutionMultiplier);
-    Log("[ExperimentalPostFX] BloomFinalContribution=%.3f BackBufferSampler=%d",
-        bloomFinalContribution, bloomFinalBackBufferSampler ? 1 : 0);
+    Log("[ExperimentalPostFX] BloomFinalContribution=%.3f SkyBloomBackBufferSampler=%d DownsampledBackBufferSampler=%d",
+        bloomFinalContribution,
+        bloomFinalBackBufferSampler ? 1 : 0,
+        bloomFinalDownsampledBackBufferSampler ? 1 : 0);
     Log("[ExperimentalPostFX] ScaledTextureFullResolution=%d DepthBlurMaskResolutionScale=%.3f",
         scaledTextureFullResolution ? 1 : 0, depthBlurMaskResolutionScale);
     Log("[ExperimentalPostFX] DepthBlurMaskTapOffsetScale=%.6f DepthBlurColorTexelOffsetScale=%.6f",
@@ -3771,6 +3804,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplyBloomFinalBackBufferSampler(exe);
     else
         Log("[OFF] PsBloomFinal source sampler left native SkyBloom s4.");
+
+    if (bloomFinalDownsampledBackBufferSampler)
+        ApplyBloomFinalDownsampledBackBufferSampler(exe);
+    else
+        Log("[OFF] PsBloomFinal DownsampledBackBuffer source left native s2.");
 
     if (scaledTextureFullResolution)
         ApplyScaledTextureFullResolution(exe);
