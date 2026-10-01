@@ -1295,3 +1295,46 @@ CI:
 - `dinput8.dll` SHA-256:
   `0d09e614a46e3ef649bf219702b5f1eb48e02caf2ecb874c8890b80bcdbf23bc`
 - both binaries verified PE machine x86 / 0x14C
+
+
+## ASI 0.13A result and 0.13B ScaledTexture isolation
+
+0.13A result:
+- Bloom/GodRays pyramid was restored from 2x to the retail 1x layout.
+- User screenshot still shows the same bright fragmented artifact above the
+  window/light source.
+- Conclusion: BloomResolutionMultiplier=2 is not the primary owner of the bug.
+  Keep it native during isolation, but do not attribute the artifact to it.
+
+0.13B changes exactly one additional setting from 0.13A:
+- `ExperimentalPostFX.ScaledTextureFullResolution 1 -> 0`
+
+Rationale:
+- retail ScaledTexture is a half-resolution screen-space source;
+- several downstream post-FX paths consume it with retail sampling/layout
+  assumptions;
+- changing only its dimensions without changing every downstream coordinate
+  transform is a plausible source of the observed white fragmented mask.
+
+Everything else from 0.13A stays enabled:
+- MotionBlurFullResolution=1
+- DepthBlurMaskResolutionScale=1.0
+- DepthBlurColorPyramidFactor=0.5
+- DamageBlurResolutionScale=1.0
+- LightVolumeResolutionMultiplier=2
+- Particles.RenderTargetResolutionMultiplier=2
+
+Frozen canonical 0.12 features remain untouched:
+- PCF 5x5 ON
+- coherent full-resolution AO ON
+- ShadowMapResolution 4096 with derived texel offsets
+- ToneMap 0.25
+- native CSM/bias profile from the 0.11 cleanup
+
+Source/config:
+- `ee6e24676bac5bcc304b79363822d1fb8317e3f4`
+- CI label commit:
+  `b4abe2eadd1794fec3538690dfcefcb5aa247926`
+
+0.12 remains canonical until a later 0.13-family candidate is clean and
+explicitly validated by the user.
