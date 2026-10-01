@@ -254,9 +254,9 @@ compare directly against the 0.8 screenshot area and check:
 4. whether AO produces any halo or edge artifact.
 
 
-## 0.12 quality A/B candidate
+## 0.12 validated quality baseline
 
-Status: **test candidate built strictly from the validated 0.11 architecture**.
+Status: **VALIDATED — current canonical quality baseline, built strictly from the validated 0.11 architecture**.
 
 No new hook or binary owner is introduced in 0.12. The corrected 0.11 code is
 unchanged. This candidate only enables two independently configurable,
@@ -281,8 +281,13 @@ A/B isolation without rebuilding:
 - to test full-resolution AO only: set `ShadowPCF5x5=0`;
 - to return to the validated 0.11 visual profile: set both to 0.
 
-Validation target:
-1. shadow-edge quality and stability;
-2. absence of the old cascade/banding lines;
-3. AO contact detail and edge halos;
-4. brightness/contrast unchanged from validated 0.11.
+Validation result (2026-10-01): **validated by the user**.
+
+Canonical 0.12 profile:
+- true PCF 5x5 enabled;
+- coherent full-resolution AO enabled;
+- ShadowMapResolution remains 4096 with derived sampling offsets;
+- all other 0.11 cleanup/isolation decisions remain unchanged.
+
+0.11 is retained as the immediate rollback/reference profile by setting both
+`ShadowPCF5x5=0` and `FullResolution=0`.
