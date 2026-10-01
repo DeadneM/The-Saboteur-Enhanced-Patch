@@ -432,29 +432,55 @@ static bool ApplyCsmFarDistance(HMODULE exe, float farDistance)
 static bool ApplyFullResolutionAo(HMODULE exe)
 {
     const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+
+    // Retail AmbientOcclusionBB is created at half resolution.
+    // V200's coherent full-resolution path removes BOTH CPU /2 shifts,
+    // changes PsAmbientOcclusion scale 2.0 -> 1.0, and rewrites the linked
+    // PsDepthConv instruction operands. All five owners are verified before
+    // the first byte is written.
+    auto* widthShift  = reinterpret_cast<uint8_t*>(base + 0x003D0E8C);
+    auto* heightShift = reinterpret_cast<uint8_t*>(base + 0x003D0E90);
+    auto* aoScale     = reinterpret_cast<float*>(base + 0x00D5FE30);
+    auto* depthOp     = reinterpret_cast<uint8_t*>(base + 0x00D60F6C);
+    auto* depthSrc    = reinterpret_cast<uint8_t*>(base + 0x00D60F78);
+    auto* depthSwz    = reinterpret_cast<uint8_t*>(base + 0x00D60F7A);
+
+    const uint8_t expectedWidth[3]  = {0x66,0xD1,0xE9}; // shr cx,1
+    const uint8_t expectedHeight[3] = {0x66,0xD1,0xED}; // shr bp,1
     const float expectedScale = 2.0f;
+    const uint8_t expectedDepthOp = 0x02;
+    const uint8_t expectedDepthSrc = 0x00;
+    const uint8_t expectedDepthSwz[2] = {0xE4,0x80};
+
+    if (std::memcmp(widthShift, expectedWidth, sizeof(expectedWidth)) != 0 ||
+        std::memcmp(heightShift, expectedHeight, sizeof(expectedHeight)) != 0 ||
+        !VerifyScalarBytes(aoScale, &expectedScale, sizeof(expectedScale)) ||
+        *depthOp != expectedDepthOp ||
+        *depthSrc != expectedDepthSrc ||
+        std::memcmp(depthSwz, expectedDepthSwz, sizeof(expectedDepthSwz)) != 0)
+    {
+        Log("[SKIP] Full-resolution AO atomic retail signature mismatch; nothing written.");
+        return false;
+    }
+
+    const uint8_t nops[3] = {0x90,0x90,0x90};
     const float fullResScale = 1.0f;
-    auto* scale = reinterpret_cast<float*>(base + 0x00D5FE30);
-    auto* dimPatchA = reinterpret_cast<uint8_t*>(base + 0x00D69362);
-    auto* dimPatchB = reinterpret_cast<uint8_t*>(base + 0x00D694FC);
+    const uint8_t newDepthOp = 0x05;
+    const uint8_t newDepthSrc = 0x01;
+    const uint8_t newDepthSwz[2] = {0xFF,0xA0};
 
-    if (!VerifyScalarBytes(scale, &expectedScale, sizeof(expectedScale)) ||
-        *dimPatchA != 0x80 || *dimPatchB != 0x04)
+    if (!WriteBytes(widthShift, nops, sizeof(nops)) ||
+        !WriteBytes(heightShift, nops, sizeof(nops)) ||
+        !WriteBytes(aoScale, &fullResScale, sizeof(fullResScale)) ||
+        !WriteBytes(depthOp, &newDepthOp, 1) ||
+        !WriteBytes(depthSrc, &newDepthSrc, 1) ||
+        !WriteBytes(depthSwz, newDepthSwz, sizeof(newDepthSwz)))
     {
-        Log("[SKIP] Full-resolution AO native signature mismatch.");
+        Log("[FAIL] Full-resolution AO coherent write failed.");
         return false;
     }
 
-    const uint8_t zero = 0;
-    if (!WriteBytes(scale, &fullResScale, sizeof(fullResScale)) ||
-        !WriteBytes(dimPatchA, &zero, 1) ||
-        !WriteBytes(dimPatchB, &zero, 1))
-    {
-        Log("[FAIL] Full-resolution AO write failed.");
-        return false;
-    }
-
-    Log("[OK] Full-resolution AO buffers/sample scale restored.");
+    Log("[OK] Full-resolution AO applied coherently: RT /2 removed + PsAmbientOcclusion/PsDepthConv matched.");
     return true;
 }
 
