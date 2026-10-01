@@ -21,6 +21,11 @@ jobs:
         with:
           arch: x86
 
+      - name: Audit historical V200 bloom patch manifest
+        shell: pwsh
+        run: |
+          python -c "import base64,zlib,json,pathlib; p=pathlib.Path('patches/original_to_v200.json.zlib.b64').read_text().strip(); o=json.loads(zlib.decompress(base64.b64decode(p))); print('TYPE',type(o).__name__); print('KEYS', list(o.keys()) if isinstance(o,dict) else 'LIST'); print('HEAD', (list(o.items())[:2] if isinstance(o,dict) else o[:3]))"
+          python -c "import base64,zlib,json,pathlib; o=json.loads(zlib.decompress(base64.b64decode(pathlib.Path('patches/original_to_v200.json.zlib.b64').read_text().strip()))); seq=o.get('patches',o.get('changes',o if isinstance(o,list) else [])); print('COUNT',len(seq)); [print('BLOOM_PATCH',x) for x in seq if any((isinstance(v,int) and 0xD65000 <= v <= 0xD6B000) or (isinstance(v,str) and any(k in v.lower() for k in ['d65','d66','d67','d68','d69','bloom'])) for v in (x.values() if isinstance(x,dict) else []))]"
       - name: Build x86 proxy and ASI
         shell: cmd
         run: |
