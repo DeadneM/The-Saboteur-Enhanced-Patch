@@ -1351,6 +1351,34 @@ static bool ApplyBloomFinalContribution(HMODULE exe, float value)
 }
 
 
+static bool ApplyBloomFinalBackBufferSampler(HMODULE exe)
+{
+    // PsBloomFinal retail samples SkyBloomTextureSampler at s4 here.
+    // Historical V200/V28 anti-blur path redirects only this sampler operand
+    // to BackBufferSampler s0. Exact manifest delta:
+    //   RVA 0x00D694FC: 0x04 -> 0x00
+    //
+    // Keep this independently configurable from the 4.0 -> 2.0 contribution
+    // scalar so resolution, energy and source sharpness remain separate knobs.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* sampler = reinterpret_cast<uint8_t*>(base + 0x00D694FC);
+    const uint8_t expected = 0x04;
+    const uint8_t value = 0x00;
+
+    if (*sampler != expected)
+    {
+        Log("[SKIP] PsBloomFinal sampler retail byte mismatch at RVA 0x00D694FC.");
+        return false;
+    }
+
+    if (!WriteBytes(sampler, &value, 1))
+        return false;
+
+    Log("[OK] PsBloomFinal sampler SkyBloom s4 -> BackBuffer s0.");
+    return true;
+}
+
+
 static bool ApplyScaledTextureFullResolution(HMODULE exe)
 {
     // PostFX ScaledTexture is created from backbuffer dimensions divided by 2.
@@ -3392,7 +3420,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.17 BLOOM ENERGY COMPENSATION TEST");
+    Log("SaboteurEnhanced ASI 0.18 HISTORICAL SHARP BLOOM / TONEMAP TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -3450,6 +3478,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const bool motionBlurFullResolution = GetPrivateProfileIntW(L"ExperimentalPostFX", L"MotionBlurFullResolution", 0, iniPath.c_str()) != 0;
     const int bloomResolutionMultiplier = GetPrivateProfileIntW(L"ExperimentalPostFX", L"BloomResolutionMultiplier", 1, iniPath.c_str());
     const float bloomFinalContribution = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"BloomFinalContribution", 4.0f);
+    const bool bloomFinalBackBufferSampler = GetPrivateProfileIntW(L"ExperimentalPostFX", L"BloomFinalBackBufferSampler", 0, iniPath.c_str()) != 0;
 
     const bool scaledTextureFullResolution = GetPrivateProfileIntW(L"ExperimentalPostFX", L"ScaledTextureFullResolution", 0, iniPath.c_str()) != 0;
     const float depthBlurMaskResolutionScale = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"DepthBlurMaskResolutionScale", 0.5f);
@@ -3529,7 +3558,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         depthBlurAutoStart, depthBlurAutoRange);
     Log("[ExperimentalPostFX] MotionBlurFullResolution=%d BloomResolutionMultiplier=%d",
         motionBlurFullResolution ? 1 : 0, bloomResolutionMultiplier);
-    Log("[ExperimentalPostFX] BloomFinalContribution=%.3f", bloomFinalContribution);
+    Log("[ExperimentalPostFX] BloomFinalContribution=%.3f BackBufferSampler=%d",
+        bloomFinalContribution, bloomFinalBackBufferSampler ? 1 : 0);
     Log("[ExperimentalPostFX] ScaledTextureFullResolution=%d DepthBlurMaskResolutionScale=%.3f",
         scaledTextureFullResolution ? 1 : 0, depthBlurMaskResolutionScale);
     Log("[ExperimentalPostFX] DepthBlurMaskTapOffsetScale=%.6f DepthBlurColorTexelOffsetScale=%.6f",
@@ -3736,6 +3766,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplyBloomFinalContribution(exe, bloomFinalContribution);
     else
         Log("[OFF] PsBloomFinal contribution left native 4.0.");
+
+    if (bloomFinalBackBufferSampler)
+        ApplyBloomFinalBackBufferSampler(exe);
+    else
+        Log("[OFF] PsBloomFinal source sampler left native SkyBloom s4.");
 
     if (scaledTextureFullResolution)
         ApplyScaledTextureFullResolution(exe);
