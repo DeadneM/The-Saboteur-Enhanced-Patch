@@ -1172,3 +1172,64 @@ Future graphics/engine improvements must start from the 0.12 architecture:
 verified PCF 5x5 enabled, coherent full-resolution AO enabled, and all other
 0.11 cleanup/isolation decisions preserved. 0.11 remains the immediate
 rollback/reference profile, but is no longer the current canonical build.
+
+
+## ASI 0.13 full-resolution PostFX candidate
+
+Status: **TEST CANDIDATE; 0.12 remains canonical until user validation**
+
+Base:
+- Core 1 validated EXE
+- ASI 0.12 canonical quality baseline
+- no C++ hook/owner changes in 0.13
+
+0.13 enables one coherent screen-space render-target quality pass through
+already audited owners:
+
+- MotionBlurDownsampledBackBuffer: half -> full resolution
+- Bloom/GodRays pyramid multiplier: 1x -> 2x
+- ScaledTexture source: half -> full resolution
+- DepthBlurMask2x2/Temp scale: 0.5 -> 1.0
+- DepthBlurColor pyramid factor: 0.75 -> 0.5
+- DamageBlur target scale: 0.5 -> 1.0
+- LightVolumeRT multiplier: 1x -> 2x
+- WSParticleRender RT multiplier: 1x -> 2x
+
+Exact INI deltas from 0.12:
+- `MotionBlurFullResolution 0 -> 1`
+- `BloomResolutionMultiplier 1 -> 2`
+- `ScaledTextureFullResolution 0 -> 1`
+- `DepthBlurMaskResolutionScale 0.5 -> 1.0`
+- `DepthBlurColorPyramidFactor 0.75 -> 0.5`
+- `DamageBlurResolutionScale 0.5 -> 1.0`
+- `LightVolumeResolutionMultiplier 1 -> 2`
+- `Particles.RenderTargetResolutionMultiplier 1 -> 2`
+
+Frozen from canonical 0.12:
+- PCF 5x5 ON
+- full-resolution AO ON
+- ShadowMapResolution 4096 with coherent 24-offset scaling
+- ToneMap 0.25
+- CSM lambda 0.50 / far ~100
+- depth/slope bias 1.0 / 1.0
+- SpotShadowResolutionScale 0.5
+- all validated distance/LOD fixes
+- no tuner.txt modification
+
+Water, sky, rain and WTF render-target families remain native for this build.
+They are reserved for a later world-render-target quality pass so 0.13 remains
+diagnostically useful.
+
+Source/config commits:
+- `1277b0aab879b5557df50bb5c9e1bef5196ee386`: 0.13 INI profile
+- `aa7cbc861e9e24a1d7401178576411de799bf5bd`: 0.13 CI artifact label
+- `8c4d1cc7aa17ce14f911bbd1744cefae1293cdc4`: 0.13 README/test plan
+
+Validation target:
+1. no brightness/contrast regression against 0.12;
+2. cleaner post-FX edges;
+3. no broken compositing, halos or screen-space banding;
+4. no particle/light-volume regression;
+5. evaluate GPU cost separately from correctness.
+
+Do not promote 0.13 until user validation.
