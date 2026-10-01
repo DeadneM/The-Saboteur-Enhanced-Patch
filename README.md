@@ -1,5 +1,23 @@
 # The Saboteur Enhanced Patch
 
+
+## ⚠️ Current ASI research status
+
+**Core 1 + ASI 0.1 remains the validated architecture baseline.**
+
+The later ASI 0.7–0.10 line is currently under a retail-EXE re-audit and must
+not be treated as a validated release. The re-audit found incorrect ownership
+in several experimental graphics controls, including the old `CSMQuality`
+interpretation and the current full-resolution AO grouping.
+
+Before the next test build, AO, shadow PCF selection, shadow-map texel offsets,
+ToneMap defaults and ShadowSlice/RenderSlice controls will be reconstructed
+from their exact retail owners.
+
+Authoritative recovery checkpoint:
+`docs/RETAIL_EXE_REAUDIT_CHECKPOINT.md`.
+
+
 Experimental PC enhancement patch for **The Saboteur**, developed through static binary auditing and in-game validation.
 
 > **Current validated architecture: Core 1 + SaboteurEnhanced ASI 0.1**  
