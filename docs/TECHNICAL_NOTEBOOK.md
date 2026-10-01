@@ -1073,9 +1073,9 @@ Full authoritative restart plan:
 `docs/RETAIL_EXE_REAUDIT_CHECKPOINT.md`.
 
 
-## ASI 0.11 clean visual baseline candidate
+## ASI 0.11 clean visual baseline
 
-Status: **test candidate, not yet validated**
+Status: **VALIDATED — canonical ASI baseline**
 
 Final candidate source/docs head:
 `b61ddf1f8a05f14c1d2433dd945bbcc98f2b6040`
@@ -1121,11 +1121,12 @@ It returns the audited visual suspects to retail:
 - ShadowSlice High bounds 100/500
 - invalid CSMQuality path removed entirely
 
-Required user validation:
-1. compare the same scene used for the 0.8 screenshot;
-2. verify horizontal/cascade lines are gone;
-3. verify brightness/contrast no longer looks dull;
-4. inspect shadow edges/transitions with the 4096 map;
-5. report any AO halo or new pop-in regression.
+User validation result (2026-10-01): **"tout marche bien"**.
 
-Do not promote 0.11 until this visual A/B is reported.
+The 0.11 clean visual baseline is therefore promoted to the canonical ASI
+baseline. The exact tested artifact and hashes above are frozen as the
+reference build.
+
+Future graphics/engine improvements must start from this 0.11 architecture and
+be reintroduced by proven owner/family. Do not restore the invalid 0.8
+CSMQuality/AO/PCF assumptions.
