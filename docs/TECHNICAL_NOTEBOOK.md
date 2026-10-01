@@ -1677,3 +1677,17 @@ Source commits:
 0.12 remains the formal canonical baseline until the full 0.13+ quality branch
 is explicitly promoted, but 0.16's particle CorrectUV fix is now a retained
 validated correction within that branch.
+
+
+CI:
+- workflow run: 128
+- run ID: `36927173448`
+- artifact ID: `11194447259`
+- artifact: `SaboteurEnhanced_ASI_0.17_BLOOM_ENERGY_COMPENSATION_TEST_x86`
+- artifact ZIP SHA-256:
+  `68395d8c7076615dce1cfc5bc45b076c7df9283f33c51799e7ae745786367d47`
+- `SaboteurEnhanced.asi` SHA-256:
+  `54bb5f54d5fda5644cafb05e80790705151f241b27e2dd691ce149cc512a5fac`
+- `dinput8.dll` SHA-256:
+  `fff71781d69636232e60c82c6cb8311ab4f454e0e59197b86fc2b32b69fcc7c6`
+- both binaries verified PE machine x86 / 0x14C.
