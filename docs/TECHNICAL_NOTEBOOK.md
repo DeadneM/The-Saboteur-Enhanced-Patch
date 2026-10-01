@@ -1132,9 +1132,9 @@ be reintroduced by proven owner/family. Do not restore the invalid 0.8
 CSMQuality/AO/PCF assumptions.
 
 
-## ASI 0.12 true PCF5x5 + full-resolution AO candidate
+## ASI 0.12 true PCF5x5 + full-resolution AO
 
-Status: **test candidate; 0.11 remains canonical until user validation**
+Status: **VALIDATED — canonical ASI baseline**
 
 Source/config commit:
 `afc0f62ae1d35c14d436d99cd23d070138b83fc1`
@@ -1163,4 +1163,12 @@ A/B fallback using the shipped INI:
 - AO only: `ShadowPCF5x5=0`
 - exact validated 0.11 visual profile: both = 0
 
-Do not promote 0.12 until the user confirms visual stability.
+User validation result (2026-10-01): **validated**.
+
+ASI 0.12 is therefore promoted to the canonical ASI baseline. The exact tested
+artifact and hashes above are frozen as the reference build.
+
+Future graphics/engine improvements must start from the 0.12 architecture:
+verified PCF 5x5 enabled, coherent full-resolution AO enabled, and all other
+0.11 cleanup/isolation decisions preserved. 0.11 remains the immediate
+rollback/reference profile, but is no longer the current canonical build.
