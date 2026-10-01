@@ -1615,3 +1615,17 @@ Source commits:
 - `8e2ed461bf8e8ac32059a2976b3485054b66af91` — README/test plan
 
 0.12 remains canonical until explicit user validation.
+
+
+CI:
+- workflow run: 125
+- run ID: `36923747387`
+- artifact ID: `11192398903`
+- artifact: `SaboteurEnhanced_ASI_0.16_PARTICLE_DEPTH_RESTORE_CORRECTUV_TEST_x86`
+- artifact ZIP SHA-256:
+  `a4100fa3ae838ea7c9e19e26740a1b7c30c4d9b5dc5e496d7b9b1ead0a34391f`
+- `SaboteurEnhanced.asi` SHA-256:
+  `7d7545103f0c32afc4f99725f67169067de44d6119a9c66b1b95f16962205079`
+- `dinput8.dll` SHA-256:
+  `0aa1e3338f7cd340900bdfb8f10090b045fae453b61a5a0b399c00046785dd3e`
+- both binaries verified PE machine x86 / 0x14C.
