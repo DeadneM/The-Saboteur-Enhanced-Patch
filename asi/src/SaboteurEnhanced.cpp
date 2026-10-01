@@ -1329,6 +1329,28 @@ static bool ApplyBloomResolutionMultiplier(HMODULE exe, int multiplier)
 }
 
 
+static bool ApplyBloomFinalContribution(HMODULE exe, float value)
+{
+    if (!std::isfinite(value) || value < 0.5f || value > 4.0f)
+    {
+        Log("[FAIL] BloomFinalContribution=%.3f outside 0.5..4.0.", value);
+        return false;
+    }
+
+    // PsBloomFinal retail constant c0.w = 4.0 at RVA 0x00D69360.
+    // Historical V200 changed only this scalar 4.0 -> 2.0 AND separately
+    // changed a sampler selector. For brightness control we expose ONLY the
+    // scalar and deliberately leave the retail SkyBloomTextureSampler intact.
+    //
+    // This reduces final bloom energy without changing ToneMap, exposure,
+    // render-target resolution or sampler routing.
+    const uintptr_t rvas[] = {0x00D69360};
+    const float expected[] = {4.0f};
+    const float values[] = {value};
+    return ApplyFloatGroup(exe, "PsBloomFinal contribution", rvas, expected, 1, values);
+}
+
+
 static bool ApplyScaledTextureFullResolution(HMODULE exe)
 {
     // PostFX ScaledTexture is created from backbuffer dimensions divided by 2.
@@ -3370,7 +3392,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.16 PARTICLE DEPTH-RESTORE CORRECTUV TEST");
+    Log("SaboteurEnhanced ASI 0.17 BLOOM ENERGY COMPENSATION TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -3427,6 +3449,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 
     const bool motionBlurFullResolution = GetPrivateProfileIntW(L"ExperimentalPostFX", L"MotionBlurFullResolution", 0, iniPath.c_str()) != 0;
     const int bloomResolutionMultiplier = GetPrivateProfileIntW(L"ExperimentalPostFX", L"BloomResolutionMultiplier", 1, iniPath.c_str());
+    const float bloomFinalContribution = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"BloomFinalContribution", 4.0f);
 
     const bool scaledTextureFullResolution = GetPrivateProfileIntW(L"ExperimentalPostFX", L"ScaledTextureFullResolution", 0, iniPath.c_str()) != 0;
     const float depthBlurMaskResolutionScale = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"DepthBlurMaskResolutionScale", 0.5f);
@@ -3506,6 +3529,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         depthBlurAutoStart, depthBlurAutoRange);
     Log("[ExperimentalPostFX] MotionBlurFullResolution=%d BloomResolutionMultiplier=%d",
         motionBlurFullResolution ? 1 : 0, bloomResolutionMultiplier);
+    Log("[ExperimentalPostFX] BloomFinalContribution=%.3f", bloomFinalContribution);
     Log("[ExperimentalPostFX] ScaledTextureFullResolution=%d DepthBlurMaskResolutionScale=%.3f",
         scaledTextureFullResolution ? 1 : 0, depthBlurMaskResolutionScale);
     Log("[ExperimentalPostFX] DepthBlurMaskTapOffsetScale=%.6f DepthBlurColorTexelOffsetScale=%.6f",
@@ -3707,6 +3731,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplyBloomResolutionMultiplier(exe, bloomResolutionMultiplier);
     else
         Log("[OFF] Bloom/GodRays pyramid left at native resolution.");
+
+    if (std::fabs(bloomFinalContribution - 4.0f) > 0.0001f)
+        ApplyBloomFinalContribution(exe, bloomFinalContribution);
+    else
+        Log("[OFF] PsBloomFinal contribution left native 4.0.");
 
     if (scaledTextureFullResolution)
         ApplyScaledTextureFullResolution(exe);
