@@ -1351,3 +1351,102 @@ CI:
 - `dinput8.dll` SHA-256:
   `3c626c01b6b107a7c4fd33c879864659440f56077ea4f83b732d3c8c09668d90`
 - both binaries verified PE machine x86 / 0x14C.
+
+
+## ASI 0.13B result -> ASI 0.14 CorrectUV / texel compensation
+
+0.13B result:
+- Bloom/GodRays had already been returned to native in 0.13A;
+- ScaledTexture was additionally returned to native half-resolution in 0.13B;
+- user result: **the same bright fragmented artifact remains**.
+
+Conclusion:
+- neither BloomResolutionMultiplier=2 nor ScaledTextureFullResolution=1 is
+  sufficient on its own to explain the artifact;
+- do not continue solving the problem by deleting quality increases;
+- follow the historical full-resolution AO lesson instead: keep the higher
+  render-target resolution and repair shader-side sampling assumptions.
+
+User direction:
+- keep all 0.13 quality improvements;
+- expose additional independently configurable INI controls.
+
+### 0.14 static shader audit
+
+The complete historical V200 executable was re-opened only as a static shader
+reference. Its SHA-256 is:
+`9d13022f1e889e5aeb16e97b6012c300ffb7acfa0b72b90971143fe7447fccaf`.
+
+The embedded DepthBlur shaders around the exact retail/V200 shader layout
+contain two independently recoverable spatial-sampling families.
+
+#### DepthBlur mask tap offsets
+
+Two verified mask shaders use `g_uvScale` plus literal spatial offsets.
+
+Shader family A retail offsets:
+- RVA `0x00D66AE0`: 7.5
+- RVAs `0x00D66AF8/FC/B00/B04`: 2 / 4 / 6 / 8
+
+Shader family B retail offsets:
+- RVAs `0x00D66DB8/DBC`: 6 / 7.5
+- RVAs `0x00D66DD0/D4/D8/DC`: 2 / 4 / 5 / 8
+
+The separate 1/9 normalization constants are deliberately not modified.
+
+New INI:
+`ExperimentalPostFX.DepthBlurMaskTapOffsetScale`
+
+- native = 1.0
+- 0.14 test = 0.5
+- reason: DepthBlurMaskResolutionScale changes 0.5 -> 1.0, exactly doubling
+  the target resolution per dimension; multiplying spatial tap offsets by 0.5
+  preserves their retail screen-space radius.
+
+#### DepthBlur color texel offsets
+
+Two verified color shaders multiply `g_vTexelSize` by literal -1/+1 offsets:
+
+- RVAs `0x00D664A0/0x00D664A4`: -1 / +1
+- RVAs `0x00D666B0/0x00D666B4`: -1 / +1
+
+The adjacent 0.2 threshold is deliberately left untouched.
+
+New INI:
+`ExperimentalPostFX.DepthBlurColorTexelOffsetScale`
+
+- native = 1.0
+- 0.14 test = 0.6666667
+- reason: DepthBlurColorPyramidFactor changes 0.75 -> 0.5. The retail
+  divisors 1.5/3/6/12 become 1/2/4/8, making every level 1.5x larger per
+  dimension. The inverse ratio 2/3 preserves the retail screen-space texel
+  offset.
+
+Both patch groups verify every exact retail float before writing anything.
+
+### 0.14 quality profile
+
+Unlike 0.13A/B, 0.14 restores the complete original 0.13 render-target pass:
+
+- MotionBlurFullResolution=1
+- BloomResolutionMultiplier=2
+- ScaledTextureFullResolution=1
+- DepthBlurMaskResolutionScale=1.0
+- DepthBlurMaskTapOffsetScale=0.5
+- DepthBlurColorPyramidFactor=0.5
+- DepthBlurColorTexelOffsetScale=0.6666667
+- DamageBlurResolutionScale=1.0
+- LightVolumeResolutionMultiplier=2
+- Particles.RenderTargetResolutionMultiplier=2
+
+Canonical 0.12 graphics remain untouched beneath this experimental layer:
+PCF5x5, coherent full-resolution AO, ShadowMap 4096, retail ToneMap/CSM/bias
+cleanup, and validated distance/LOD fixes.
+
+Source commits:
+- `d4a676b9857998b64ec39250be08f1a4a54d4f29` — new shader compensation code
+- `e7ceba450c4354c53ae105c0dadd0bda5d32f0ec` — 0.14 INI profile
+- `afb895d707466bf50ba8d447c431b32d2617fd5b` — CI artifact label
+- `463af53fbfddbf002b366310439d37589494f154` — README/test plan
+
+0.12 remains canonical until the user validates a clean 0.14-family candidate.
