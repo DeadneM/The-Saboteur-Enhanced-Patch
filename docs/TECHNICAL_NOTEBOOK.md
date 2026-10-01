@@ -1032,3 +1032,42 @@ Corrected CI build after initialization audit:
 - CI artifact ZIP: `e5913b0b0d01e32d7830b8066c8dfd96882d589f7ef46ca7dd29bba746fde5c7`
 
 See `docs/ASI_0_6_WSDYNAMICPART_RADIUS.md`.
+
+
+## Retail EXE re-audit checkpoint — October 2026
+
+A clean second-pass audit is now being performed against the exact retail
+14,834,176-byte executable, SHA-256
+`e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`.
+
+This audit supersedes assumptions made solely from the old cumulative V200+
+lineage.
+
+Critical corrections already established:
+
+- the ASI key formerly named `CSMQuality` targets an embedded AO
+  `PsDepthConv` shader instruction and is not a CSM quality selector;
+- historical full-resolution AO is a coherent multi-site feature and the
+  current ASI grouping is incomplete;
+- the 24 historical shadow-PCF constants are texel/sample-offset compensation
+  for 1024 -> 4096 shadow maps, while the actual 3x3 -> 5x5 shader selection is
+  a separate pair of selector changes;
+- ToneMap 0.25 -> 0.15 directly reduces the recovered shader RGB contribution
+  and is no longer considered a quality improvement;
+- historical `PsBloomFinal` changes are artistic composition changes and must
+  not be mixed into AO;
+- the so-called RenderSlice High table participates in the
+  SliceQuality/ShadowSlice/CSM path and must not be treated as a generic object
+  draw-distance table;
+- retail streaming coalescing threshold is 512,000 bytes, while V200 set it
+  directly to 128 MiB;
+- old Async32 is a real multi-submit scheduler/hook, not a simple 16 -> 32
+  scalar patch;
+- retail Havok values are TOI queue 250 and broad-phase query size 1024.
+
+The current later ASI research line is therefore WIP. **Core 1 + ASI 0.1**
+remains the validated architecture baseline until a corrected candidate is
+built and tested.
+
+Full authoritative restart plan:
+`docs/RETAIL_EXE_REAUDIT_CHECKPOINT.md`.
