@@ -490,3 +490,37 @@ Nothing from 0.13, 0.14 or 0.15 is removed. The candidate keeps Bloom,
 ScaledTexture, MotionBlur, DepthBlur, DamageBlur, LightVolume and particles at
 their enhanced settings and adds only this missing particle-side coordinate
 correction.
+
+
+## 0.16 result -> 0.17 bloom-energy compensation candidate
+
+0.16 result: **visual geometry artifact fixed**.
+
+The user confirms that the bright fragmented/polygonal defect disappeared
+after enabling the coherent full-resolution particle RestoreDepthBuffer mapping.
+
+Therefore the following 0.16 correction is retained:
+- `Particles.RenderTargetResolutionMultiplier=2`
+- `Particles.FullResolutionDepthRestore=1`
+
+Remaining issue:
+- image is now stable, but bright lamps/mirrors/reflections show excessive
+  highlight energy;
+- ToneMap remains the validated retail-safe 0.25 and is deliberately not used
+  to solve a local bloom problem.
+
+0.17 exposes one exact PsBloomFinal scalar:
+
+`ExperimentalPostFX.BloomFinalContribution`
+
+- retail = 4.0;
+- 0.17 candidate = 2.0;
+- exact RVA = `0x00D69360`;
+- historical V200 also changed a sampler route, but 0.17 does **not** repeat
+  that artistic sampler change;
+- BloomResolutionMultiplier remains 2, so the higher-resolution bloom pyramid
+  is preserved;
+- ToneMap/exposure/adaptive luminance remain unchanged.
+
+The goal is to halve bloom energy while preserving all 0.13-0.16 quality and
+CorrectUV improvements.
