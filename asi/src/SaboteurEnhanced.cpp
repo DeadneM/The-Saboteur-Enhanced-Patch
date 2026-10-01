@@ -1329,6 +1329,37 @@ static bool ApplyBloomResolutionMultiplier(HMODULE exe, int multiplier)
 }
 
 
+static bool ApplyBloomPrefilterGain(HMODULE exe, float value)
+{
+    if (!std::isfinite(value) || value < 0.25f || value > 4.0f)
+    {
+        Log("[FAIL] BloomPrefilterGain=%.3f outside 0.25..4.0.", value);
+        return false;
+    }
+
+    // WSBloomFilterHDR.hlsl / PsBloom:
+    // retail DEF c1 = { 1.0, 4.0, 0.0, -1/3 }.
+    //
+    // The shader performs:
+    //   sampledColor.rgb *= c1.y;
+    //   pixelLum = dot(lumaWeights, sampledColor.rgb);
+    //   bloomMask = max(pixelLum - runtimeThreshold, 0);
+    //
+    // Therefore c1.y is the prefilter/extraction gain, upstream from the blur
+    // and final composite. This is the correct place to normalize energy after
+    // increasing the Bloom/GodRays RT pyramid resolution without changing the
+    // final sampler, ToneMap or blur composition.
+    //
+    // Raw retail file offset 0x00D68568, PE runtime RVA +0x1600:
+    // RVA 0x00D69B68, float 4.0.
+    const uintptr_t rvas[] = {0x00D69B68};
+    const float expected[] = {4.0f};
+    const float values[] = {value};
+
+    return ApplyFloatGroup(exe, "PsBloom prefilter gain", rvas, expected, 1, values);
+}
+
+
 static bool ApplyBloomFinalContribution(HMODULE exe, float value)
 {
     if (!std::isfinite(value) || value < 0.5f || value > 4.0f)
@@ -3450,7 +3481,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.20 TRUE V29 BLOOM PATH TEST");
+    Log("SaboteurEnhanced ASI 0.21 BLOOM PREFILTER ENERGY NORMALIZATION TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -3507,6 +3538,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 
     const bool motionBlurFullResolution = GetPrivateProfileIntW(L"ExperimentalPostFX", L"MotionBlurFullResolution", 0, iniPath.c_str()) != 0;
     const int bloomResolutionMultiplier = GetPrivateProfileIntW(L"ExperimentalPostFX", L"BloomResolutionMultiplier", 1, iniPath.c_str());
+    const float bloomPrefilterGain = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"BloomPrefilterGain", 4.0f);
     const float bloomFinalContribution = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"BloomFinalContribution", 4.0f);
     const bool bloomFinalBackBufferSampler = GetPrivateProfileIntW(L"ExperimentalPostFX", L"BloomFinalBackBufferSampler", 0, iniPath.c_str()) != 0;
     const bool bloomFinalDownsampledBackBufferSampler = GetPrivateProfileIntW(L"ExperimentalPostFX", L"BloomFinalDownsampledBackBufferSampler", 0, iniPath.c_str()) != 0;
@@ -3589,6 +3621,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         depthBlurAutoStart, depthBlurAutoRange);
     Log("[ExperimentalPostFX] MotionBlurFullResolution=%d BloomResolutionMultiplier=%d",
         motionBlurFullResolution ? 1 : 0, bloomResolutionMultiplier);
+    Log("[ExperimentalPostFX] BloomPrefilterGain=%.3f", bloomPrefilterGain);
     Log("[ExperimentalPostFX] BloomFinalContribution=%.3f SkyBloomBackBufferSampler=%d DownsampledBackBufferSampler=%d",
         bloomFinalContribution,
         bloomFinalBackBufferSampler ? 1 : 0,
@@ -3794,6 +3827,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplyBloomResolutionMultiplier(exe, bloomResolutionMultiplier);
     else
         Log("[OFF] Bloom/GodRays pyramid left at native resolution.");
+
+    if (std::fabs(bloomPrefilterGain - 4.0f) > 0.0001f)
+        ApplyBloomPrefilterGain(exe, bloomPrefilterGain);
+    else
+        Log("[OFF] PsBloom prefilter gain left native 4.0.");
 
     if (std::fabs(bloomFinalContribution - 4.0f) > 0.0001f)
         ApplyBloomFinalContribution(exe, bloomFinalContribution);
