@@ -1071,3 +1071,61 @@ built and tested.
 
 Full authoritative restart plan:
 `docs/RETAIL_EXE_REAUDIT_CHECKPOINT.md`.
+
+
+## ASI 0.11 clean visual baseline candidate
+
+Status: **test candidate, not yet validated**
+
+Final candidate source/docs head:
+`b61ddf1f8a05f14c1d2433dd945bbcc98f2b6040`
+
+CI:
+- workflow run: 104
+- run ID: `36879200872`
+- artifact ID: `11171260493`
+- artifact: `SaboteurEnhanced_ASI_0.11_CLEAN_VISUAL_BASE_x86`
+- artifact ZIP SHA-256:
+  `4543cb1970491aebfaec33fec191a056d451dd208f920184f17ea62adcb2cec0`
+- `SaboteurEnhanced.asi` SHA-256:
+  `7dc77a36797c97d18bfee01ba771d35930b880eeb7fb822199119d3d553c35cb`
+- `dinput8.dll` SHA-256:
+  `209a99922ef087525faf9ee13319469ae1107a94de81f188db7c6cb4295da189`
+- PE machine: x86 / 0x14C for both binaries
+
+Key cleanup commits:
+- `5850b4e`: remove invalid CSMQuality runtime path and restore safe fallbacks
+- `69f8f02`: rebuild full-resolution AO from exact retail owners
+- `5f116dc`: separate shadow-map texel scaling from true PCF 5x5 selection
+- `0e9c7d2`: reset audited visual fallbacks to retail-safe values
+- `f8d5ae1`: ship clean visual-baseline INI
+- `568dab3`: label CI artifact as 0.11
+- `b61ddf1`: document 0.11 test target
+
+0.11 test baseline intentionally keeps:
+- EnvironmentMapResolution 2048
+- AF16
+- ShadowMapResolution 4096 with derived PCF texel offsets
+- V310/V311
+- validated non-shadow distance/LOD work
+
+It returns the audited visual suspects to retail:
+- MIP bias 0
+- ToneMap 0.25
+- PCF selector 3x3
+- CSM lambda 0.5
+- CSM far ~100
+- shadow bias scales 1/1
+- SpotShadow scale 0.5
+- AO half-resolution and blur/erode 2/2
+- ShadowSlice High bounds 100/500
+- invalid CSMQuality path removed entirely
+
+Required user validation:
+1. compare the same scene used for the 0.8 screenshot;
+2. verify horizontal/cascade lines are gone;
+3. verify brightness/contrast no longer looks dull;
+4. inspect shadow edges/transitions with the 4096 map;
+5. report any AO halo or new pop-in regression.
+
+Do not promote 0.11 until this visual A/B is reported.
