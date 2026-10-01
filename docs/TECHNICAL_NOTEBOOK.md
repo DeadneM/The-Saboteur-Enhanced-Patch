@@ -1780,3 +1780,17 @@ Source/config:
 - `ede15d65dc0603a29c99604f9494e8e807c68056` — 0.19 INI profile
 - `0a5e6d381209f005fe941b66b88237e90913c947` — runtime banner
 - `e45cde127c8d83233c726c6f2ab68327457bf52e` — CI artifact label
+
+
+CI:
+- workflow run: 137
+- run ID: `36930583879`
+- artifact ID: `11195119295`
+- artifact: `SaboteurEnhanced_ASI_0.19_TONEMAP_015_ISOLATION_TEST_x86`
+- artifact ZIP SHA-256:
+  `83f22130eb1d1436118348c0465e8b493acf2acef72535091f7a46149a473f85`
+- `SaboteurEnhanced.asi` SHA-256:
+  `2e656b5e6a8688ef2aa0daf1b7c1d36d19d3a08880f9a8f6936bf21afc2b9a2a`
+- `dinput8.dll` SHA-256:
+  `b78abf345f7ee9b935b70329845e44092381535f1798d183b54100522cc2b645`
+- both binaries verified PE machine x86 / 0x14C.
