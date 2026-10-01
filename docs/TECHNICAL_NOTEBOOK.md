@@ -1520,3 +1520,16 @@ Source commits:
 - `31f9967848165d0a4fb7b889a89302fce2a7dbc3` — new LightVolume coordinate owner
 - `f1e2318883363113b736e3d0dd40d67c098f4f86` — 0.15 INI profile
 - `e40a84ddc68300dc75063a7b488745fc337c3e18` — CI artifact label
+
+CI:
+- workflow run: 121
+- run ID: `36902970888`
+- artifact ID: `11182312213`
+- artifact: `SaboteurEnhanced_ASI_0.15_LIGHTVOLUME_COHERENT_FULLRES_TEST_x86`
+- artifact ZIP SHA-256:
+  `21f863c30f13e7adf1bb5b2713ec008bb39ed1068b17dbc1629fe4a5e402f2c0`
+- `SaboteurEnhanced.asi` SHA-256:
+  `21e1cc81e2622bef001ad3bc50d607fc40906b6addea6636d3638bb8d8a2671d`
+- `dinput8.dll` SHA-256:
+  `be5716d82ccd4f8683aabf3e7e0e1179f1e7089147acc15a389d21530a2d5083`
+- both binaries verified PE machine x86 / 0x14C.
