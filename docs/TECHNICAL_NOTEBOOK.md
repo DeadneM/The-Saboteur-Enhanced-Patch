@@ -1463,3 +1463,60 @@ CI:
 - `dinput8.dll` SHA-256:
   `a85aa76fe9c6b61dc8831ebe710b58fcdc4ac5cea4b97a2c9a2ab2e49e790abc`
 - both binaries verified PE machine x86 / 0x14C.
+
+
+## ASI 0.14 result -> 0.15 coherent LightVolume audit
+
+0.14 result:
+- user tested the CorrectUV/texel-compensated DepthBlur candidate;
+- the same bright white fragmented/polygonal artifact remained visible above
+  and around the bright window;
+- no useful change to the defect was observed.
+
+Conclusion:
+- DepthBlur resolution/texel geometry is not the primary owner of this defect;
+- retain the coherent 0.14 compensations, but continue auditing the light
+  composition path without removing any 0.13 quality increase.
+
+### Exact retail WSLightVolumeManager finding
+
+Retail baseline:
+- Saboteur.exe size: 14,834,176 bytes
+- SHA-256:
+  `e917fe956d09d39267021c09753aea1fc0002629b317818b80179fe78b35d8a6`
+
+The WSLightVolumeManager vtable contains method VA `0x007FE560`. It first
+refreshes resource bindings and then tail-jumps to VA `0x007FE060`.
+
+The latter routine owns a second resolution profile independent from
+LightVolumeRT creation:
+
+- VA `0x007FE07F..0x007FE09D`: caches physical backbuffer width;
+- VA `0x007FE0A5`: `fld qword ptr [0x00F7AC88]`;
+- retail value at VA `0x00F7AC88`: double `0.5`;
+- VA `0x007FE0AD..0x007FE0CD`: width * 0.5;
+- VA `0x007FE0D7..0x007FE121`: height * 0.5, using the same loaded factor;
+- VA `0x007FE139+`: derives reciprocal/coordinate values from the full and
+  scaled dimensions.
+
+This is structurally the same class of mistake as the historical
+full-resolution AO issue: changing the render-target dimensions alone leaves a
+second coordinate owner at the old half-resolution assumption.
+
+0.15 adds:
+`Lighting.LightVolumeCoordinateResolutionScale`
+
+- native = 0.5;
+- candidate = 1.0;
+- exact patched instruction RVA = `0x003FE0A5`;
+- expected opcode = `DD 05`;
+- expected retail operand RVA = `0x00B7AC88`;
+- only this local operand is redirected to ASI-owned double storage.
+
+0.15 preserves the complete 0.13 profile and all coherent 0.14 settings.
+0.12 remains canonical until explicit user validation.
+
+Source commits:
+- `31f9967848165d0a4fb7b889a89302fce2a7dbc3` — new LightVolume coordinate owner
+- `f1e2318883363113b736e3d0dd40d67c098f4f86` — 0.15 INI profile
+- `e40a84ddc68300dc75063a7b488745fc337c3e18` — CI artifact label
