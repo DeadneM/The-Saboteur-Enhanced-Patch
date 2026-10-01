@@ -1691,3 +1691,65 @@ CI:
 - `dinput8.dll` SHA-256:
   `fff71781d69636232e60c82c6cb8311ab4f454e0e59197b86fc2b32b69fcc7c6`
 - both binaries verified PE machine x86 / 0x14C.
+
+
+## ASI 0.17 result -> 0.18 historical V28/V29 brightness + anti-blur reconstruction
+
+0.17 user result:
+- excessive brightness was **not materially reduced**;
+- image became visibly softer / blurrier;
+- therefore `BloomFinalContribution=2.0` on its own is rejected as a
+  brightness fix.
+
+This reproduces the old September V22/V23/V24 lesson.
+
+Recovered historical sequence from the project conversations:
+- V22: PsToneMap/HDR `0.25 -> 0.20` plus PsBloomFinal `4.0 -> 2.0`;
+  brightness reduced, but the user reported an ugly luminous blur;
+- V23: BloomFinal `2.0 -> 1.0` worsened the blur;
+- V24: BloomFinal pushed toward 0 made the image nearly black;
+- V28/V29 corrected the soft composite by pairing the reduced BloomFinal
+  contribution with the sharp BackBuffer sampler path; V29 later tested
+  ToneMap/HDR `0.20 -> 0.18`.
+
+The historical Original -> V200 byte manifest was decoded again in CI and
+confirms the relevant exact retail deltas:
+
+- PsToneMap raw `0x00D6327C` / runtime RVA `0x00D6487C`
+  - retail 0.25;
+  - later V200 target 0.15.
+- PsBloomFinal contribution raw `0x00D67D62` / runtime RVA
+  `0x00D69360`
+  - retail float 4.0;
+  - V200 float 2.0.
+- PsBloomFinal sampler selector raw `0x00D67EFC` / runtime RVA
+  `0x00D694FC`
+  - retail byte 0x04 = SkyBloomTextureSampler s4;
+  - V200 byte 0x00 = BackBufferSampler s0.
+
+The old conversation also described a PsBloom threshold of 1.0. Rechecking
+the cumulative V200/V224A shader evidence shows no Original->V200 byte delta
+for the PsBloom threshold family, while the retained shader constant is already
+1.0. No synthetic threshold patch is added to the current ASI.
+
+### 0.18 candidate
+
+0.18 preserves every validated 0.13-0.16 quality/CorrectUV improvement and
+reconstructs the old brightness path coherently:
+
+- `Graphics.ToneMap=0.20`
+- `ExperimentalPostFX.BloomFinalContribution=2.0`
+- new `ExperimentalPostFX.BloomFinalBackBufferSampler=1`
+  - exact byte RVA `0x00D694FC`: 0x04 -> 0x00
+- Bloom/GodRays pyramid stays at 2x resolution
+- particle RestoreDepthBuffer CorrectUV from 0.16 stays enabled
+- no reduction of render-target quality
+- no change to AO, shadows or the 0.16 geometry-artifact fix
+
+Source/config commits:
+- `856a8f689df1eff73173448e9f5754bf6ed6b2b8` — sampler control
+- `76b3c9a31941ee16894a04bf078bc9d8a11df7e6` — 0.18 profile
+- `f882ebcafc65e862c561f81cc6ba41d204097443` — clean 0.18 CI label
+
+0.17 is rejected. 0.16 remains the last visually clean candidate before this
+brightness experiment; 0.12 remains the formal canonical baseline.
