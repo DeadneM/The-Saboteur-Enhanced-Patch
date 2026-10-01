@@ -21,11 +21,6 @@ jobs:
         with:
           arch: x86
 
-      - name: Audit historical V200 bloom patch manifest
-        shell: pwsh
-        run: |
-          python -c "import base64,zlib,json,pathlib; p=pathlib.Path('patches/original_to_v200.json.zlib.b64').read_text().strip(); o=json.loads(zlib.decompress(base64.b64decode(p))); print('TYPE',type(o).__name__); print('KEYS', list(o.keys()) if isinstance(o,dict) else 'LIST'); print('HEAD', (list(o.items())[:2] if isinstance(o,dict) else o[:3]))"
-          python -c "import base64,zlib,json,pathlib; o=json.loads(zlib.decompress(base64.b64decode(pathlib.Path('patches/original_to_v200.json.zlib.b64').read_text().strip()))); seq=o['regions']; print('REGION_COUNT',len(seq)); print('REGION_HEAD',seq[:3]); [print('BLOOM_REGION',x) for x in seq if any((isinstance(v,int) and 0xD62000 <= v <= 0xD6B000) or (isinstance(v,str) and any(k in v.lower() for k in ['d62','d63','d64','d65','d66','d67','d68','d69','bloom'])) for v in (x.values() if isinstance(x,dict) else []))]"
       - name: Build x86 proxy and ASI
         shell: cmd
         run: |
@@ -51,7 +46,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SaboteurEnhanced_ASI_0.17_BLOOM_ENERGY_COMPENSATION_TEST_x86
+          name: SaboteurEnhanced_ASI_0.18_HISTORICAL_SHARP_BLOOM_TONEMAP_TEST_x86
           path: dist/*
           if-no-files-found: error
           compression-level: 0
