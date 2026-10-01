@@ -1761,6 +1761,63 @@ static bool ApplyParticleRenderTargetResolutionMultiplier(HMODULE exe, int multi
 }
 
 
+static bool VerifyParticleFullResolutionDepthRestore(HMODULE exe)
+{
+    // WildStar/Particles/ApplyPS.hlsl, RestoreDepthBuffer variant.
+    //
+    // Retail ParticleBB0 is half-resolution and this shader reconstructs the
+    // packed half-column layout with four fixed constants:
+    //   1/80, 2, -80, +80.
+    //
+    // When ParticleBB0 / AfterParticleLightVolume are promoted from /2 to
+    // full resolution, that packed-column reconstruction must no longer be
+    // applied. Verify all four embedded constants before changing the RT
+    // dimensions so the feature fails closed as one coherent invariant.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    const uintptr_t rvas[] = {
+        0x00D40DDC, // 1/80 half-column parity scale
+        0x00D40DE8, // 2x coordinate expansion
+        0x00D40DF8, // -80 packed-column offset
+        0x00D40DFC  // +80 packed-column offset
+    };
+    const float expected[] = {0.0125f, 2.0f, -80.0f, 80.0f};
+
+    for (size_t i = 0; i < _countof(rvas); ++i)
+    {
+        if (!VerifyScalarBytes(reinterpret_cast<void*>(base + rvas[i]),
+                               &expected[i], sizeof(float)))
+        {
+            Log("[SKIP] Particle RestoreDepthBuffer retail constant mismatch at RVA 0x%08X.",
+                static_cast<unsigned>(rvas[i]));
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool ApplyParticleFullResolutionDepthRestore(HMODULE exe)
+{
+    // Full-resolution identity mapping for RestoreDepthBuffer:
+    //   1/80 -> 0 removes half-column parity classification,
+    //   2    -> 1 removes the half-resolution x expansion,
+    //   -80/+80 -> 0 remove the packed-column offsets.
+    //
+    // The resulting coordinate reconstruction reduces to the ordinary
+    // full-resolution screen position multiplied by g_Resolution.
+    const uintptr_t rvas[] = {
+        0x00D40DDC, 0x00D40DE8, 0x00D40DF8, 0x00D40DFC
+    };
+    const float expected[] = {0.0125f, 2.0f, -80.0f, 80.0f};
+    const float values[]   = {0.0f,    1.0f,   0.0f,  0.0f};
+
+    return ApplyFloatGroup(
+        exe,
+        "WSParticleRender RestoreDepthBuffer full-resolution coordinates",
+        rvas, expected, _countof(rvas), values);
+}
+
+
 static bool ApplyLightVolumeCoordinateResolutionScale(HMODULE exe, double scale)
 {
     if (!std::isfinite(scale) || scale < 0.25 || scale > 2.0)
@@ -3313,7 +3370,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.15 LIGHTVOLUME COHERENT FULL-RES TEST");
+    Log("SaboteurEnhanced ASI 0.16 PARTICLE DEPTH-RESTORE CORRECTUV TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -3385,6 +3442,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const float damageBlurResolutionScale = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"DamageBlurResolutionScale", 0.5f);
     const int rainDensityPercentOverride = GetPrivateProfileIntW(L"Rain", L"DensityPercentOverride", 0, iniPath.c_str());
     const int particleRenderTargetResolutionMultiplier = GetPrivateProfileIntW(L"Particles", L"RenderTargetResolutionMultiplier", 1, iniPath.c_str());
+    const bool particleFullResolutionDepthRestore = GetPrivateProfileIntW(L"Particles", L"FullResolutionDepthRestore", 0, iniPath.c_str()) != 0;
     const int lightVolumeResolutionMultiplier = GetPrivateProfileIntW(L"Lighting", L"LightVolumeResolutionMultiplier", 1, iniPath.c_str());
     const float lightVolumeCoordinateResolutionScale = ReadIniFloat(iniPath, L"Lighting", L"LightVolumeCoordinateResolutionScale", 0.5f);
     const int wtfTransitionRingResolution = GetPrivateProfileIntW(L"WillToFight", L"TransitionRingResolution", 128, iniPath.c_str());
@@ -3459,7 +3517,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("[Sky] ResolutionMultiplier=%d", skyDomeResolutionMultiplier);
     Log("[ExperimentalPostFX] DamageBlurResolutionScale=%.3f", damageBlurResolutionScale);
     Log("[Rain] DensityPercentOverride=%d", rainDensityPercentOverride);
-    Log("[Particles] RenderTargetResolutionMultiplier=%d", particleRenderTargetResolutionMultiplier);
+    Log("[Particles] RenderTargetResolutionMultiplier=%d FullResolutionDepthRestore=%d",
+        particleRenderTargetResolutionMultiplier, particleFullResolutionDepthRestore ? 1 : 0);
     Log("[Lighting] LightVolumeResolutionMultiplier=%d CoordinateResolutionScale=%.3f",
         lightVolumeResolutionMultiplier, lightVolumeCoordinateResolutionScale);
     Log("[WillToFight] TransitionRingResolution=%d", wtfTransitionRingResolution);
@@ -3702,9 +3761,34 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         Log("[OFF] RainDensity override disabled; native hidden setting is used.");
 
     if (particleRenderTargetResolutionMultiplier != 1)
-        ApplyParticleRenderTargetResolutionMultiplier(exe, particleRenderTargetResolutionMultiplier);
+    {
+        if (particleFullResolutionDepthRestore &&
+            particleRenderTargetResolutionMultiplier == 2)
+        {
+            // Verify the shader-side invariant BEFORE resizing the particle
+            // targets. This avoids knowingly entering the old half-column
+            // reconstruction with full-resolution buffers.
+            if (VerifyParticleFullResolutionDepthRestore(exe))
+            {
+                if (ApplyParticleRenderTargetResolutionMultiplier(
+                        exe, particleRenderTargetResolutionMultiplier))
+                    ApplyParticleFullResolutionDepthRestore(exe);
+            }
+        }
+        else
+        {
+            if (particleFullResolutionDepthRestore)
+                Log("[SKIP] FullResolutionDepthRestore requires RenderTargetResolutionMultiplier=2.");
+            ApplyParticleRenderTargetResolutionMultiplier(
+                exe, particleRenderTargetResolutionMultiplier);
+        }
+    }
     else
+    {
+        if (particleFullResolutionDepthRestore)
+            Log("[SKIP] FullResolutionDepthRestore requested while particle RTs remain native.");
         Log("[OFF] WSParticleRender target hierarchy left native (/2 and /16).");
+    }
 
     if (std::fabs(lightVolumeCoordinateResolutionScale - 0.5f) > 0.0001f)
         ApplyLightVolumeCoordinateResolutionScale(
