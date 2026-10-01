@@ -312,11 +312,74 @@ static bool ApplyShadowMapResolution(HMODULE exe, int resolution)
         Log("[FAIL] ShadowMapResolution=%d outside 1024..8192.", resolution);
         return false;
     }
-    const uintptr_t rvas[] = {0x00DD61B4, 0x00DD61B8};
-    const float expected[] = {1024.0f, 1024.0f};
-    const float value = static_cast<float>(resolution);
-    const float values[] = {value, value};
-    return ApplyFloatGroup(exe, "Shadow map resolution", rvas, expected, 2, values);
+
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    const uintptr_t sizeRvas[] = {0x00DD61B4, 0x00DD61B8};
+    const float nativeSize[] = {1024.0f, 1024.0f};
+
+    // Embedded PCF sampling offsets are authored for a 1024 shadow map.
+    // Keep their screen-space sampling radius coherent with the selected
+    // resolution instead of treating them as a PCF-kernel selector.
+    const uintptr_t offsetRvas[] = {
+        0x00D7C278,0x00D7C280,
+        0x00D7CA0C,0x00D7CA14,
+        0x00D7D308,0x00D7D310,0x00D7D31C,0x00D7D320,
+        0x00D7D334,0x00D7D338,0x00D7D364,0x00D7D368,
+        0x00D7D37C,0x00D7D380,
+        0x00D7DF0C,0x00D7DF14,0x00D7DF20,0x00D7DF24,
+        0x00D7DF38,0x00D7DF3C,0x00D7DF68,0x00D7DF6C,
+        0x00D7DF80,0x00D7DF84
+    };
+    const float nativeOffsets[] = {
+        -0.00048828125f,  0.00048828125f,
+        -0.00048828125f,  0.00048828125f,
+        -0.00146484375f, -0.00048828125f,  0.00048828125f, -0.00146484375f,
+         0.00146484375f, -0.00146484375f,  0.00048828125f, -0.00048828125f,
+         0.00146484375f, -0.00048828125f,
+        -0.00146484375f, -0.00048828125f,  0.00048828125f, -0.00146484375f,
+         0.00146484375f, -0.00146484375f,  0.00048828125f, -0.00048828125f,
+         0.00146484375f, -0.00048828125f
+    };
+    static_assert(_countof(offsetRvas) == _countof(nativeOffsets), "shadow offset table mismatch");
+
+    // Atomic verification: do not touch the map size if any embedded shader
+    // constant is not the exact retail value.
+    for (size_t i = 0; i < _countof(sizeRvas); ++i)
+    {
+        if (!VerifyScalarBytes(reinterpret_cast<void*>(base + sizeRvas[i]),
+                               &nativeSize[i], sizeof(float)))
+        {
+            Log("[SKIP] Shadow-map size retail signature mismatch; nothing written.");
+            return false;
+        }
+    }
+    for (size_t i = 0; i < _countof(offsetRvas); ++i)
+    {
+        if (!VerifyScalarBytes(reinterpret_cast<void*>(base + offsetRvas[i]),
+                               &nativeOffsets[i], sizeof(float)))
+        {
+            Log("[SKIP] Shadow PCF texel-offset retail signature mismatch at RVA 0x%08X; nothing written.",
+                static_cast<unsigned>(offsetRvas[i]));
+            return false;
+        }
+    }
+
+    const float size = static_cast<float>(resolution);
+    const float texelScale = 1024.0f / size;
+
+    for (uintptr_t rva : sizeRvas)
+        if (!WriteBytes(reinterpret_cast<void*>(base + rva), &size, sizeof(size)))
+            return false;
+
+    for (size_t i = 0; i < _countof(offsetRvas); ++i)
+    {
+        const float value = nativeOffsets[i] * texelScale;
+        if (!WriteBytes(reinterpret_cast<void*>(base + offsetRvas[i]), &value, sizeof(value)))
+            return false;
+    }
+
+    Log("[OK] ShadowMapResolution=%d with PCF texel offsets scaled by %.6f.", resolution, texelScale);
+    return true;
 }
 
 static bool ApplyAnisotropicFiltering(HMODULE exe, int level)
@@ -504,21 +567,37 @@ static bool ApplyAoErodeScale(HMODULE exe, float value)
 
 static bool ApplyShadowPcf5x5(HMODULE exe)
 {
-    static const ExactBytePatch patches[] = {
-        {0x00D7C27B,0xBA,0xB9},{0x00D7C283,0x3A,0x39},
-        {0x00D7CA0F,0xBA,0xB9},{0x00D7CA17,0x3A,0x39},
-        {0x00D7D30B,0xBA,0xB9},{0x00D7D313,0xBA,0xB9},
-        {0x00D7D31F,0x3A,0x39},{0x00D7D323,0xBA,0xB9},
-        {0x00D7D337,0x3A,0x39},{0x00D7D33B,0xBA,0xB9},
-        {0x00D7D367,0x3A,0x39},{0x00D7D36B,0xBA,0xB9},
-        {0x00D7D37F,0x3A,0x39},{0x00D7D383,0xBA,0xB9},
-        {0x00D7DF0F,0xBA,0xB9},{0x00D7DF17,0xBA,0xB9},
-        {0x00D7DF23,0x3A,0x39},{0x00D7DF27,0xBA,0xB9},
-        {0x00D7DF3B,0x3A,0x39},{0x00D7DF3F,0xBA,0xB9},
-        {0x00D7DF6B,0x3A,0x39},{0x00D7DF6F,0xBA,0xB9},
-        {0x00D7DF83,0x3A,0x39},{0x00D7DF87,0xBA,0xB9}
-    };
-    return ApplyExactBytePatchSet(exe, "Shadow PCF 5x5 redirects", patches, _countof(patches));
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+
+    // Retail selector branch:
+    //   [esi+edi*4+0xF4] -> SampleShadowMapPCF3x3 family A
+    //   [esi+edi*4+0xE8] -> SampleShadowMapPCF3x3 family B
+    // V200 redirects those two consumers to the verified 5x5 families:
+    //   +0x10C and +0x100 respectively.
+    auto* selectorA = reinterpret_cast<uint8_t*>(base + 0x003C308D);
+    auto* selectorB = reinterpret_cast<uint8_t*>(base + 0x003C3096);
+
+    const uint8_t expectedA[7] = {0x8B,0x84,0xBE,0xF4,0x00,0x00,0x00};
+    const uint8_t expectedB[7] = {0x8B,0x84,0xBE,0xE8,0x00,0x00,0x00};
+    const uint8_t patchA[7]    = {0x8B,0x84,0xBE,0x0C,0x01,0x00,0x00};
+    const uint8_t patchB[7]    = {0x8B,0x84,0xBE,0x00,0x01,0x00,0x00};
+
+    if (std::memcmp(selectorA, expectedA, sizeof(expectedA)) != 0 ||
+        std::memcmp(selectorB, expectedB, sizeof(expectedB)) != 0)
+    {
+        Log("[SKIP] True PCF 3x3 selector signatures mismatch; nothing written.");
+        return false;
+    }
+
+    if (!WriteBytes(selectorA, patchA, sizeof(patchA)) ||
+        !WriteBytes(selectorB, patchB, sizeof(patchB)))
+    {
+        Log("[FAIL] PCF 5x5 selector write failed.");
+        return false;
+    }
+
+    Log("[OK] Shadow PCF selector redirected from verified 3x3 families to 5x5 families.");
+    return true;
 }
 
 static bool ApplyShadowBiasScales(HMODULE exe, float depthScale, float slopeScale)
