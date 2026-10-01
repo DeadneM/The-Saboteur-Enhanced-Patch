@@ -1338,3 +1338,16 @@ Source/config:
 
 0.12 remains canonical until a later 0.13-family candidate is clean and
 explicitly validated by the user.
+
+CI:
+- workflow run: 113
+- run ID: `36892487481`
+- artifact ID: `11176937976`
+- artifact: `SaboteurEnhanced_ASI_0.13B_SCALED_TEXTURE_ISOLATION_TEST_x86`
+- artifact ZIP SHA-256:
+  `ef59bdaaaf4f284121c89d59d7b1e1c1492d7a530d760338f01a1837f647f6c6`
+- `SaboteurEnhanced.asi` SHA-256:
+  `f48235cee105c98855295668f56a0c40f51790273013cd4b40f04ea9fd47fb9a`
+- `dinput8.dll` SHA-256:
+  `3c626c01b6b107a7c4fd33c879864659440f56077ea4f83b732d3c8c09668d90`
+- both binaries verified PE machine x86 / 0x14C.
