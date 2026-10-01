@@ -46,7 +46,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SaboteurEnhanced_ASI_0.12_TRUE_PCF5X5_FULLRES_AO_TEST_x86
+          name: SaboteurEnhanced_ASI_0.13_FULLRES_POSTFX_TEST_x86
           path: dist/*
           if-no-files-found: error
           compression-level: 0
