@@ -1629,3 +1629,51 @@ CI:
 - `dinput8.dll` SHA-256:
   `0aa1e3338f7cd340900bdfb8f10090b045fae453b61a5a0b399c00046785dd3e`
 - both binaries verified PE machine x86 / 0x14C.
+
+
+## ASI 0.16 validated fix -> 0.17 bloom-energy audit
+
+0.16 user result:
+- the bright white fragmented/polygonal defect is gone;
+- this validates the particle `RestoreDepthBuffer` full-resolution coordinate
+  correction as the missing dependency for the 0.13 particle RT upgrade;
+- preserve this correction in all later candidates.
+
+New remaining symptom:
+- excessive brightness is concentrated around lamps, mirrors and bright
+  reflections;
+- the scene is not merely globally overexposed, so `Graphics.ToneMap=0.25`
+  remains frozen.
+
+### Exact PsBloomFinal owner
+
+Retail shader:
+- `WSBloomFilterHDR.hlsl / PsBloomFinal`
+- exact contribution constant RVA: `0x00D69360`
+- retail float: `4.0`
+
+Historical V200 changed:
+- this scalar `4.0 -> 2.0`;
+- and separately rerouted `SkyBloomTextureSampler s4 -> BackBufferSampler s0`.
+
+The sampler change is an artistic composition change and remains rejected for
+the default path. 0.17 exposes only the scalar.
+
+New INI:
+`ExperimentalPostFX.BloomFinalContribution`
+
+- retail/native = 4.0
+- 0.17 test = 2.0
+- allowed range = 0.5 .. 4.0
+- exact retail float is verified before writing
+- Bloom/GodRays resolution stays at 2x
+- ToneMap, adaptive luminance and sampler routing remain untouched
+
+Source commits:
+- `d899e4da9775900f9badd3705fa34dcb7a56b60a` — PsBloomFinal scalar owner
+- `402f259017bf918f0c24ba2da302776240a0c924` — 0.17 INI value
+- `5d0f21b3a89c919a2fa34cb5cbc03f958d4b8760` — CI artifact label
+
+0.12 remains the formal canonical baseline until the full 0.13+ quality branch
+is explicitly promoted, but 0.16's particle CorrectUV fix is now a retained
+validated correction within that branch.
