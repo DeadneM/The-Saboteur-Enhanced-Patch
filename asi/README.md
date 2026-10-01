@@ -252,3 +252,37 @@ compare directly against the 0.8 screenshot area and check:
 2. whether the image has recovered normal brightness/contrast;
 3. whether 4096 shadows remain clean without oversized sampling;
 4. whether AO produces any halo or edge artifact.
+
+
+## 0.12 quality A/B candidate
+
+Status: **test candidate built strictly from the validated 0.11 architecture**.
+
+No new hook or binary owner is introduced in 0.12. The corrected 0.11 code is
+unchanged. This candidate only enables two independently configurable,
+retail-audited quality paths that were deliberately left OFF during the 0.11
+visual-baseline validation:
+
+- `Shadows.ShadowPCF5x5=1`
+  - selects the verified SampleShadowMapPCF5x5 shader families;
+  - does not modify shadow-map texel offsets;
+  - ShadowMapResolution remains 4096 and continues to derive its own 24
+    sampling offsets coherently.
+- `AmbientOcclusion.FullResolution=1`
+  - removes both CPU half-resolution shifts for AmbientOcclusionBB;
+  - applies the matched PsAmbientOcclusion 2.0 -> 1.0 scale;
+  - applies the complete linked PsDepthConv rewrite;
+  - does not touch PsBloomFinal.
+
+All other 0.11 visual-isolation values remain unchanged.
+
+A/B isolation without rebuilding:
+- to test PCF only: set `FullResolution=0`;
+- to test full-resolution AO only: set `ShadowPCF5x5=0`;
+- to return to the validated 0.11 visual profile: set both to 0.
+
+Validation target:
+1. shadow-edge quality and stability;
+2. absence of the old cascade/banding lines;
+3. AO contact detail and edge halos;
+4. brightness/contrast unchanged from validated 0.11.
