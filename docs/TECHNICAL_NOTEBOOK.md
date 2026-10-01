@@ -1282,3 +1282,16 @@ Source/config:
 - `ca0c2cb3067fee785e547d7882c23f16ceb3b1e1`
 - CI label commit:
   `27d7e66b592bd420c88bc72a27ba247b660a25da`
+
+CI:
+- workflow run: 111
+- run ID: `36891879140`
+- artifact ID: `11176449035`
+- artifact: `SaboteurEnhanced_ASI_0.13A_BLOOM_GODRAYS_ISOLATION_TEST_x86`
+- artifact ZIP SHA-256:
+  `4a8f2541807b1e5efbd5063acba9f9fc40c557d76f4ae71a967dd61e6839da41`
+- `SaboteurEnhanced.asi` SHA-256:
+  `464386533a9b7ca1df9c233f3bde7f6867d6b8fc245064f97dd29219904a0b9f`
+- `dinput8.dll` SHA-256:
+  `0d09e614a46e3ef649bf219702b5f1eb48e02caf2ecb874c8890b80bcdbf23bc`
+- both binaries verified PE machine x86 / 0x14C
