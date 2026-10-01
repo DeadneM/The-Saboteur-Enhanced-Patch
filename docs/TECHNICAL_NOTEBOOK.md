@@ -1794,3 +1794,68 @@ CI:
 - `dinput8.dll` SHA-256:
   `b78abf345f7ee9b935b70329845e44092381535f1798d183b54100522cc2b645`
 - both binaries verified PE machine x86 / 0x14C.
+
+
+## ASI 0.19 result -> 0.20 true V29 bloom path reconstruction
+
+0.19 result:
+- `Graphics.ToneMap=0.15`
+- `BloomFinalContribution=4.0`
+- retail bloom samplers
+- user result: excessive brightness still looks essentially unchanged.
+
+Conclusion:
+- ToneMap alone is not the owner of the observed local overbright lamps/mirrors;
+- do not keep pushing the ToneMap scalar in isolation.
+
+A recheck of the original September V28/V29 notes found an important mismatch
+in our 0.18 reconstruction.
+
+The actual V28/V29 anti-blur path was:
+- `PsBloom`: fixed luminance threshold at 1.0;
+- `PsBloomFinal`: replace **DownsampledBackBufferSampler s2** with
+  **BackBufferSampler s0**;
+- `BloomFinal=2.0`;
+- V29 then changed only the HDR/ToneMap scalar `0.20 -> 0.18`.
+
+Our 0.18 candidate instead changed the later V200
+`SkyBloomTextureSampler s4 -> BackBufferSampler s0` path. That is a distinct
+source and can alter image character/saturation, so 0.18 was not an exact V29
+reconstruction.
+
+The exact PsBloomFinal sampler operand has now been recovered from the embedded
+shader bytecode:
+
+- retail file raw offset: `0x00D67E3C`
+- PE runtime RVA: `0x00D6943C`
+- retail operand: sampler register 2 = DownsampledBackBufferSampler
+- V29 path: sampler register 0 = BackBufferSampler
+- exact byte: `0x02 -> 0x00`
+
+The separate V200 SkyBloom sampler byte at RVA `0x00D694FC` remains retail
+(`0x04`) in 0.20.
+
+PsBloom's embedded threshold constant is already 1.0 in the current retail
+shader, so no synthetic threshold patch is added.
+
+### 0.20 candidate
+
+Built on the retained 0.16 CorrectUV/particle fix path:
+
+- `Graphics.ToneMap=0.18`
+- `ExperimentalPostFX.BloomFinalContribution=2.0`
+- `ExperimentalPostFX.BloomFinalBackBufferSampler=0`
+  - keep SkyBloomTextureSampler s4 unchanged
+- new `ExperimentalPostFX.BloomFinalDownsampledBackBufferSampler=1`
+  - DownsampledBackBufferSampler s2 -> BackBufferSampler s0
+- all 0.13-0.16 quality/CorrectUV fixes retained
+- particle RestoreDepthBuffer fix retained
+- no render-target quality reduction
+
+Source/config:
+- `a2b1e88a30611390cfef65d56ffb59274cca7939` — exact V29 sampler owner
+- `c7a3b1db2e55954aea25f7dbef109ca4eb2e0b12` — 0.20 profile
+- `aad9710634ddff45d40af70480a08c402c13cb4e` — CI artifact label
+
+0.19 rejected. 0.16 remains the last visually clean reference before brightness
+experiments.
