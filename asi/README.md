@@ -1,6 +1,6 @@
 # SaboteurEnhanced ASI
 
-## Current test build: 0.10 — exact retail EXE audit
+## Current test build: 0.13 — full-resolution PostFX pass
 
 Validated baseline retained:
 - Core 1
@@ -291,3 +291,57 @@ Canonical 0.12 profile:
 
 0.11 is retained as the immediate rollback/reference profile by setting both
 `ShadowPCF5x5=0` and `FullResolution=0`.
+
+
+## 0.13 full-resolution PostFX pass
+
+Status: **TEST CANDIDATE — built strictly from canonical 0.12**.
+
+0.13 does not add or change any C++ hook. It uses only render-target owners
+already audited from the exact retail executable and enables one coherent
+screen-space quality pass:
+
+- `ExperimentalPostFX.MotionBlurFullResolution=1`
+  - MotionBlurDownsampledBackBuffer: /2 -> full resolution.
+- `ExperimentalPostFX.BloomResolutionMultiplier=2`
+  - Bloom/GodRays pyramid: /4,/8,/16,/32 -> /2,/4,/8,/16.
+- `ExperimentalPostFX.ScaledTextureFullResolution=1`
+  - generic ScaledTexture source: /2 -> full resolution.
+- `ExperimentalPostFX.DepthBlurMaskResolutionScale=1.0`
+  - DepthBlurMask2x2/Temp: 0.5 -> 1.0.
+- `ExperimentalPostFX.DepthBlurColorPyramidFactor=0.5`
+  - DepthBlurColor divisors: 1.5/3/6/12 -> 1/2/4/8.
+- `ExperimentalPostFX.DamageBlurResolutionScale=1.0`
+  - damage-blur target: 0.5 -> 1.0.
+- `Lighting.LightVolumeResolutionMultiplier=2`
+  - LightVolumeRT: /2 -> full resolution.
+- `Particles.RenderTargetResolutionMultiplier=2`
+  - main particle post-FX family: /2 -> full resolution;
+  - ParticleBB3 family: /16 -> /8.
+
+Everything validated in 0.12 remains unchanged:
+- PCF 5x5 stays enabled;
+- coherent full-resolution AO stays enabled;
+- ShadowMapResolution remains 4096 with derived texel offsets;
+- tone-map, shadow bias, CSM distances and other 0.11 cleanup decisions remain frozen.
+
+The water, sky and rain render-target families are deliberately left native in
+0.13 so this test isolates screen-space/post-FX resolution quality before the
+next world-render-target pass.
+
+Rollback to exact 0.12 profile without rebuilding:
+- MotionBlurFullResolution=0
+- BloomResolutionMultiplier=1
+- ScaledTextureFullResolution=0
+- DepthBlurMaskResolutionScale=0.5
+- DepthBlurColorPyramidFactor=0.75
+- DamageBlurResolutionScale=0.5
+- LightVolumeResolutionMultiplier=1
+- Particles.RenderTargetResolutionMultiplier=1
+
+Validation target:
+1. image stability and brightness identical to 0.12;
+2. cleaner motion/damage blur edges;
+3. cleaner bloom/god-rays and depth-blur masks;
+4. denser particle/light-volume edges without halos or broken compositing;
+5. note any meaningful GPU cost or scene-specific artifact.
