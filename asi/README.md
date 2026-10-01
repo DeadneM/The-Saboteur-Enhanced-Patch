@@ -190,3 +190,65 @@ Additional exact-retail owners are now exposed at native defaults:
   to /8, preserving the hierarchy coherently.
 
 These controls are native/default-neutral until explicitly changed.
+
+
+## 0.11 clean visual baseline
+
+0.11 is the first cleanup candidate produced from the exact-retail EXE
+re-audit. It is intentionally conservative and targets the two regressions
+seen in the 0.8 screenshot: visible shadow/cascade lines and an overly dull
+image.
+
+### Critical corrections
+
+- Removed the old `CSMQuality` runtime path completely. The audited target is
+  an embedded `WSAmbientOcclusionFilter / PsDepthConv` shader instruction,
+  not a CSM quality integer.
+- ToneMap fallback is now retail `0.25`. The old `0.15` value directly
+  reduced the recovered shader RGB contribution and is not treated as a
+  quality enhancement.
+- Full-resolution AO has been rebuilt as one coherent verified feature:
+  - removes the two CPU half-resolution shifts used to create
+    `AmbientOcclusionBB`;
+  - changes the matched `PsAmbientOcclusion` scale 2.0 -> 1.0;
+  - applies all three linked `PsDepthConv` instruction/operand changes.
+  All retail signatures are verified before the first write.
+- The two old addresses accidentally taken from `PsBloomFinal` are no longer
+  part of the AO feature.
+- Shadow-map resolution now owns its 24 embedded PCF texel offsets. The offsets
+  are derived as `nativeOffset * 1024 / ShadowMapResolution`, so 2048, 4096
+  and 8192 preserve the retail sampling radius.
+- `ShadowPCF5x5` is now the real shader selector. It redirects the two verified
+  retail PCF3x3 consumers to the recovered PCF5x5 families instead of modifying
+  texel-offset constants.
+
+### 0.11 shipped visual baseline
+
+Kept enabled:
+- EnvironmentMapResolution 2048
+- AnisotropicFiltering 16
+- ShadowMapResolution 4096, now with coherent texel offsets
+- validated non-shadow distance/LOD improvements
+- V310/V311 model render-mask fixes
+
+Returned to retail for isolation:
+- MipLODBias 0.0
+- ToneMap 0.25
+- PCF selector 3x3
+- CSM lambda 0.50
+- CSM far ~100
+- shadow depth/slope bias scales 1.0 / 1.0
+- SpotShadowResolutionScale 0.5
+- AO half-resolution
+- AO blur/erode 2.0 / 2.0
+- ShadowSlice/CSM High bounds 100 / 500
+
+The old `CSMQuality` INI key is removed.
+
+This is a **test candidate**, not yet a validated release. The first test should
+compare directly against the 0.8 screenshot area and check:
+
+1. whether the visible horizontal/cascade lines are gone;
+2. whether the image has recovered normal brightness/contrast;
+3. whether 4096 shadows remain clean without oversized sampling;
+4. whether AO produces any halo or edge artifact.
