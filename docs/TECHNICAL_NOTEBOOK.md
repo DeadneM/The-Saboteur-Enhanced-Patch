@@ -1753,3 +1753,30 @@ Source/config commits:
 
 0.17 is rejected. 0.16 remains the last visually clean candidate before this
 brightness experiment; 0.12 remains the formal canonical baseline.
+
+
+## ASI 0.18 rejected -> 0.19 ToneMap 0.15 isolation
+
+0.18 was not promoted. Its combined historical sampler/bloom reconstruction
+would alter more than brightness, including perceived saturation and image
+character.
+
+User direction: test the brightness owner alone at 0.15.
+
+0.19 therefore keeps the visually clean 0.16 rendering path and isolates only
+the ToneMap scalar:
+
+- `Graphics.ToneMap=0.15`
+- `ExperimentalPostFX.BloomFinalContribution=4.0` (retail)
+- `ExperimentalPostFX.BloomFinalBackBufferSampler=0` (retail sampler)
+- all 0.13-0.16 quality and CorrectUV fixes retained
+- particle RestoreDepthBuffer full-resolution correction retained
+
+This test is intended to answer one question only: whether ToneMap 0.15 removes
+the excessive highlight brightness without reintroducing blur or changing the
+bloom composition.
+
+Source/config:
+- `ede15d65dc0603a29c99604f9494e8e807c68056` — 0.19 INI profile
+- `0a5e6d381209f005fe941b66b88237e90913c947` — runtime banner
+- `e45cde127c8d83233c726c6f2ab68327457bf52e` — CI artifact label
