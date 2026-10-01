@@ -1,6 +1,6 @@
 # SaboteurEnhanced ASI
 
-## Current test build: 0.13 — full-resolution PostFX pass
+## Current test build: 0.14 — CorrectUV / texel compensation
 
 Validated baseline retained:
 - Core 1
@@ -345,3 +345,57 @@ Validation target:
 3. cleaner bloom/god-rays and depth-blur masks;
 4. denser particle/light-volume edges without halos or broken compositing;
 5. note any meaningful GPU cost or scene-specific artifact.
+
+
+## 0.14 CorrectUV / texel-compensation candidate
+
+Status: **TEST CANDIDATE — 0.12 remains canonical**.
+
+User requirement for this branch: do not remove any of the 0.13 quality
+increases. 0.14 therefore restores the complete original 0.13 profile:
+
+- MotionBlurFullResolution=1
+- BloomResolutionMultiplier=2
+- ScaledTextureFullResolution=1
+- DepthBlurMaskResolutionScale=1.0
+- DepthBlurColorPyramidFactor=0.5
+- DamageBlurResolutionScale=1.0
+- LightVolumeResolutionMultiplier=2
+- Particles.RenderTargetResolutionMultiplier=2
+
+The 0.13A and 0.13B tests showed that returning Bloom/GodRays and
+ScaledTexture individually to retail resolution did not remove the bright
+fragmented visual artifact. They are therefore no longer removed in this
+candidate.
+
+0.14 follows the same principle that fixed historical full-resolution AO:
+increasing a render-target resolution must be paired with the shader-side
+sampling geometry that still assumes the retail target scale.
+
+Two new independently configurable shader controls are added:
+
+- `DepthBlurMaskTapOffsetScale`
+  - native = 1.0;
+  - 0.14 test = 0.5;
+  - scales only the literal spatial tap distances in the two verified
+    DepthBlur mask shaders;
+  - normalization constants such as 1/9 remain untouched;
+  - because the mask target changes 0.5x -> 1.0x, 0.5 preserves its retail
+    screen-space sampling radius.
+
+- `DepthBlurColorTexelOffsetScale`
+  - native = 1.0;
+  - 0.14 test = 0.6666667;
+  - scales only the verified -1/+1 texel offsets in the two DepthBlur color
+    shaders;
+  - the unrelated 0.2 shader threshold remains untouched;
+  - the color pyramid changes from divisors 1.5/3/6/12 to 1/2/4/8, making
+    every level 1.5x larger per dimension, so 2/3 preserves the retail
+    screen-space texel radius.
+
+Every embedded float is verified against its exact retail value before the
+group is written. A mismatch fails closed.
+
+This candidate deliberately does not invent compensation controls for
+MotionBlur, DamageBlur, LightVolume or particle buffers until their shader-side
+owner is proven with the same level of confidence.
