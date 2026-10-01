@@ -438,3 +438,55 @@ constant is not modified.
 
 All 0.13 quality increases and the coherent 0.14 DepthBlur compensation remain
 enabled. Nothing is removed for this test.
+
+
+## 0.16 particle RestoreDepthBuffer CorrectUV candidate
+
+Status: **TEST CANDIDATE — 0.12 remains canonical**.
+
+0.15 result: the LightVolume manager coordinate profile was made coherent with
+the full-resolution LightVolumeRT, but the user still sees the same bright
+white fragmented/polygonal artifact around the window. LightVolume therefore
+is not sufficient to explain the defect.
+
+The next exact shader-side dependency was recovered from the embedded
+`WildStar/Particles/ApplyPS.hlsl` `RestoreDepthBuffer` variant.
+
+Retail particle topology:
+- ParticleBB0 / AfterParticleLightVolume family: backbuffer /2;
+- RestoreDepthBuffer reconstructs that half-resolution source through a packed
+  alternating-column mapping;
+- the mapping contains four fixed embedded constants:
+  - RVA `0x00D40DDC`: `0.0125` = 1/80;
+  - RVA `0x00D40DE8`: `2.0`;
+  - RVA `0x00D40DF8`: `-80.0`;
+  - RVA `0x00D40DFC`: `+80.0`.
+
+0.13 raises the ParticleBB0 family from /2 to full resolution, but until 0.16
+the RestoreDepthBuffer shader still performed the old half-column
+reconstruction.
+
+New INI control:
+
+`Particles.FullResolutionDepthRestore`
+
+- native/retail = 0;
+- 0.16 candidate = 1;
+- valid with `RenderTargetResolutionMultiplier=2`;
+- all four retail constants are verified before the particle RT resize is
+  allowed to proceed.
+
+Full-resolution mapping:
+- 1/80 -> 0;
+- 2.0 -> 1.0;
+- -80 -> 0;
+- +80 -> 0.
+
+This collapses the packed half-column reconstruction to the normal
+full-resolution screen-coordinate mapping while preserving the higher
+resolution particle targets.
+
+Nothing from 0.13, 0.14 or 0.15 is removed. The candidate keeps Bloom,
+ScaledTexture, MotionBlur, DepthBlur, DamageBlur, LightVolume and particles at
+their enhanced settings and adds only this missing particle-side coordinate
+correction.
