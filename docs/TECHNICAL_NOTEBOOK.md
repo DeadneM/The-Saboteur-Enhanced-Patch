@@ -1450,3 +1450,16 @@ Source commits:
 - `463af53fbfddbf002b366310439d37589494f154` — README/test plan
 
 0.12 remains canonical until the user validates a clean 0.14-family candidate.
+
+CI:
+- workflow run: 116
+- run ID: `36898159642`
+- artifact ID: `11181405260`
+- artifact: `SaboteurEnhanced_ASI_0.14_CORRECT_UV_TEXEL_COMPENSATION_TEST_x86`
+- artifact ZIP SHA-256:
+  `c4313cda68079cfcdf5341bfd0f721068870329978a76963948696c01041339e`
+- `SaboteurEnhanced.asi` SHA-256:
+  `d6e4e0d181a65eaf8ef78cc83f46593e9f635916f073bcc66b96aed2218d5381`
+- `dinput8.dll` SHA-256:
+  `a85aa76fe9c6b61dc8831ebe710b58fcdc4ac5cea4b97a2c9a2ab2e49e790abc`
+- both binaries verified PE machine x86 / 0x14C.
