@@ -5,14 +5,15 @@
 
 **Core 1 + ASI 0.1 remains the validated architecture baseline.**
 
-The later ASI 0.7–0.10 line is currently under a retail-EXE re-audit and must
-not be treated as a validated release. The re-audit found incorrect ownership
-in several experimental graphics controls, including the old `CSMQuality`
-interpretation and the current full-resolution AO grouping.
+The later ASI 0.7–0.10 line underwent a retail-EXE re-audit after visual
+regressions exposed incorrect ownership in several experimental graphics
+controls.
 
-Before the next test build, AO, shadow PCF selection, shadow-map texel offsets,
-ToneMap defaults and ShadowSlice/RenderSlice controls will be reconstructed
-from their exact retail owners.
+**ASI 0.11 CLEAN VISUAL BASE is now the current test candidate, not yet
+validated.** It removes the invalid `CSMQuality` path, reconstructs AO from
+its exact retail owners, separates true PCF 3x3/5x5 selection from
+resolution-dependent texel offsets, restores retail ToneMap 0.25, and resets
+the audited ShadowSlice/CSM suspects for visual A/B testing.
 
 Authoritative recovery checkpoint:
 `docs/RETAIL_EXE_REAUDIT_CHECKPOINT.md`.
