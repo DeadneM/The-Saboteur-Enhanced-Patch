@@ -1379,6 +1379,68 @@ static bool ApplyDepthBlurMaskResolutionScale(HMODULE exe, double scale)
     return ok;
 }
 
+static bool ApplyDepthBlurMaskTapOffsetScale(HMODULE exe, float scale)
+{
+    if (!std::isfinite(scale) || scale < 0.25f || scale > 2.0f)
+    {
+        Log("[FAIL] DepthBlurMaskTapOffsetScale=%.6f outside 0.25..2.0.", scale);
+        return false;
+    }
+
+    // Embedded DepthBlur mask shaders use literal spatial tap distances in
+    // conjunction with g_uvScale. Retail constants are:
+    //   shader A: 7.5 and 2/4/6/8
+    //   shader B: 6/7.5 and 2/4/5/8
+    // Keep the normalization constants (1/9) untouched. When the mask RT is
+    // raised from 0.5x to 1.0x, 0.5 preserves the original screen-space tap
+    // radius, mirroring the coherent resolution/UV correction used by AO.
+    const uintptr_t rvas[] = {
+        0x00D66AE0,
+        0x00D66AF8,0x00D66AFC,0x00D66B00,0x00D66B04,
+        0x00D66DB8,0x00D66DBC,
+        0x00D66DD0,0x00D66DD4,0x00D66DD8,0x00D66DDC
+    };
+    const float expected[] = {
+        7.5f,
+        2.0f,4.0f,6.0f,8.0f,
+        6.0f,7.5f,
+        2.0f,4.0f,5.0f,8.0f
+    };
+    float values[_countof(rvas)] = {};
+    for (size_t i = 0; i < _countof(rvas); ++i)
+        values[i] = expected[i] * scale;
+
+    return ApplyFloatGroup(exe, "DepthBlur mask shader tap offsets",
+                           rvas, expected, _countof(rvas), values);
+}
+
+static bool ApplyDepthBlurColorTexelOffsetScale(HMODULE exe, float scale)
+{
+    if (!std::isfinite(scale) || scale < 0.25f || scale > 2.0f)
+    {
+        Log("[FAIL] DepthBlurColorTexelOffsetScale=%.6f outside 0.25..2.0.", scale);
+        return false;
+    }
+
+    // Two embedded DepthBlur color shaders multiply g_vTexelSize by literal
+    // -1/+1 offsets. Scale ONLY those spatial offsets; the separate 0.2
+    // threshold remains untouched. 0.13 changes the color pyramid from
+    // divisors 1.5/3/6/12 to 1/2/4/8, i.e. 1.5x more pixels per dimension.
+    // A 2/3 offset scale therefore preserves the retail screen-space radius.
+    const uintptr_t rvas[] = {
+        0x00D664A0,0x00D664A4,
+        0x00D666B0,0x00D666B4
+    };
+    const float expected[] = {-1.0f,1.0f,-1.0f,1.0f};
+    float values[_countof(rvas)] = {};
+    for (size_t i = 0; i < _countof(rvas); ++i)
+        values[i] = expected[i] * scale;
+
+    return ApplyFloatGroup(exe, "DepthBlur color shader texel offsets",
+                           rvas, expected, _countof(rvas), values);
+}
+
+
 static bool ApplyWillToFightGridResolution(HMODULE exe, int resolution)
 {
     if (resolution < 64 || resolution > 2048)
@@ -3213,7 +3275,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.10 RETAIL EXE PARAMETER AUDIT");
+    Log("SaboteurEnhanced ASI 0.14 CORRECT UV / TEXEL COMPENSATION TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -3273,6 +3335,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 
     const bool scaledTextureFullResolution = GetPrivateProfileIntW(L"ExperimentalPostFX", L"ScaledTextureFullResolution", 0, iniPath.c_str()) != 0;
     const float depthBlurMaskResolutionScale = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"DepthBlurMaskResolutionScale", 0.5f);
+    const float depthBlurMaskTapOffsetScale = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"DepthBlurMaskTapOffsetScale", 1.0f);
+    const float depthBlurColorTexelOffsetScale = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"DepthBlurColorTexelOffsetScale", 1.0f);
     const int willToFightGridResolution = GetPrivateProfileIntW(L"WillToFight", L"GridResolution", 256, iniPath.c_str());
     const float veryFarSceneProfile0Threshold = ReadIniFloat(iniPath, L"ExperimentalDistances", L"VeryFarSceneProfile0Threshold", 22.0f);
     const float veryFarSceneProfile1Threshold = ReadIniFloat(iniPath, L"ExperimentalDistances", L"VeryFarSceneProfile1Threshold", 49.0f);
@@ -3347,6 +3411,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         motionBlurFullResolution ? 1 : 0, bloomResolutionMultiplier);
     Log("[ExperimentalPostFX] ScaledTextureFullResolution=%d DepthBlurMaskResolutionScale=%.3f",
         scaledTextureFullResolution ? 1 : 0, depthBlurMaskResolutionScale);
+    Log("[ExperimentalPostFX] DepthBlurMaskTapOffsetScale=%.6f DepthBlurColorTexelOffsetScale=%.6f",
+        depthBlurMaskTapOffsetScale, depthBlurColorTexelOffsetScale);
     Log("[WillToFight] GridResolution=%d", willToFightGridResolution);
     Log("[ExperimentalDistances] VeryFarSceneProfileThresholds=%.3f/%.3f",
         veryFarSceneProfile0Threshold, veryFarSceneProfile1Threshold);
@@ -3553,6 +3619,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     else
         Log("[OFF] DepthBlur mask resolution scale left native 0.5.");
 
+    if (std::fabs(depthBlurMaskTapOffsetScale - 1.0f) > 0.0001f)
+        ApplyDepthBlurMaskTapOffsetScale(exe, depthBlurMaskTapOffsetScale);
+    else
+        Log("[OFF] DepthBlur mask shader tap offsets left native 1.0x.");
+
     if (willToFightGridResolution != 256)
         ApplyWillToFightGridResolution(exe, willToFightGridResolution);
     else
@@ -3569,6 +3640,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplyDepthBlurColorPyramidFactor(exe, static_cast<double>(depthBlurColorPyramidFactor));
     else
         Log("[OFF] DepthBlur color pyramid left at native factor 0.75.");
+
+    if (std::fabs(depthBlurColorTexelOffsetScale - 1.0f) > 0.0001f)
+        ApplyDepthBlurColorTexelOffsetScale(exe, depthBlurColorTexelOffsetScale);
+    else
+        Log("[OFF] DepthBlur color shader texel offsets left native 1.0x.");
 
     if (skyDomeResolutionMultiplier != 1)
         ApplySkyDomeResolutionMultiplier(exe, skyDomeResolutionMultiplier);
