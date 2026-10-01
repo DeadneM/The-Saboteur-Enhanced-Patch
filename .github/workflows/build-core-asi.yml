@@ -46,7 +46,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SaboteurEnhanced_ASI_0.20_TRUE_V29_BLOOM_PATH_TEST_x86
+          name: SaboteurEnhanced_ASI_0.21_BLOOM_PREFILTER_ENERGY_NORMALIZATION_TEST_x86
           path: dist/*
           if-no-files-found: error
           compression-level: 0
