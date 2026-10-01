@@ -1130,3 +1130,37 @@ reference build.
 Future graphics/engine improvements must start from this 0.11 architecture and
 be reintroduced by proven owner/family. Do not restore the invalid 0.8
 CSMQuality/AO/PCF assumptions.
+
+
+## ASI 0.12 true PCF5x5 + full-resolution AO candidate
+
+Status: **test candidate; 0.11 remains canonical until user validation**
+
+Source/config commit:
+`afc0f62ae1d35c14d436d99cd23d070138b83fc1`
+
+No C++ owner/hook change from validated 0.11. 0.12 only enables:
+
+- `Shadows.ShadowPCF5x5=1`
+- `AmbientOcclusion.FullResolution=1`
+
+CI:
+- workflow run: 105
+- run ID: `36885624563`
+- artifact ID: `11174301634`
+- artifact:
+  `SaboteurEnhanced_ASI_0.12_TRUE_PCF5X5_FULLRES_AO_TEST_x86`
+- artifact ZIP SHA-256:
+  `f0dc4a5ece02905b74b859e9ba9d5a58590f88447c357f483ac2ad490b98205f`
+- `SaboteurEnhanced.asi` SHA-256:
+  `d046158ec6c2bff1bdad7659bf2f2dc30902e5091bb8076f954ae9e3e5da873f`
+- `dinput8.dll` SHA-256:
+  `2f8b4fdb73476ce4eafdfd301c8bf12af41cd60293ccb01cfe62e739b165e0e3`
+- both PE machine: x86 / 0x14C
+
+A/B fallback using the shipped INI:
+- PCF only: `FullResolution=0`
+- AO only: `ShadowPCF5x5=0`
+- exact validated 0.11 visual profile: both = 0
+
+Do not promote 0.12 until the user confirms visual stability.
