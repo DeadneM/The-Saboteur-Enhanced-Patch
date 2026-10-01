@@ -1232,4 +1232,17 @@ Validation target:
 4. no particle/light-volume regression;
 5. evaluate GPU cost separately from correctness.
 
+CI:
+- workflow run: 109
+- run ID: `36889918093`
+- artifact ID: `11176261686`
+- artifact: `SaboteurEnhanced_ASI_0.13_FULLRES_POSTFX_TEST_x86`
+- artifact ZIP SHA-256:
+  `5405b9906498e35f0148ddfeaeb8c3c31442c639f1bd2e388e551599c5c8af1c`
+- `SaboteurEnhanced.asi` SHA-256:
+  `fd1ccf7e8ecfb4679948025e76e51ca44375d816936cba841243fff412fc6e39`
+- `dinput8.dll` SHA-256:
+  `b18fa91a73736a86000b95ac43d1f6a1f42872dc432b60c2e819bcbd4c2ab018`
+- both binaries verified PE machine x86 / 0x14C
+
 Do not promote 0.13 until user validation.
