@@ -1246,3 +1246,39 @@ CI:
 - both binaries verified PE machine x86 / 0x14C
 
 Do not promote 0.13 until user validation.
+
+
+## ASI 0.13A Bloom/GodRays isolation candidate
+
+Status: **TEST CANDIDATE; 0.12 remains canonical**
+
+User result for 0.13:
+- overall build is stable and visually good;
+- one visible artifact remains around very bright areas during camera movement;
+- artifact appears as white/blue fragmented highlights around the bright-window/GodRays region in the supplied video.
+
+Video review points away from shadows/AO and toward the bright-pass family.
+The first surgical isolation is therefore:
+
+- `ExperimentalPostFX.BloomResolutionMultiplier 2 -> 1`
+
+Everything else from 0.13 remains enabled:
+- MotionBlurFullResolution=1
+- ScaledTextureFullResolution=1
+- DepthBlurMaskResolutionScale=1.0
+- DepthBlurColorPyramidFactor=0.5
+- DamageBlurResolutionScale=1.0
+- LightVolumeResolutionMultiplier=2
+- Particles.RenderTargetResolutionMultiplier=2
+
+0.13A goal:
+- if the artifact disappears, Bloom/GodRays 2x is rejected while the other
+  0.13 render-target improvements can continue toward validation;
+- if the artifact remains, restore Bloom 2x and isolate the next highest-risk
+  bright-pass owner, starting with ScaledTexture/MotionBlur rather than touching
+  validated 0.12 shadows or AO.
+
+Source/config:
+- `ca0c2cb3067fee785e547d7882c23f16ceb3b1e1`
+- CI label commit:
+  `27d7e66b592bd420c88bc72a27ba247b660a25da`
