@@ -403,28 +403,6 @@ static bool ApplyCsmLambda(HMODULE exe, float value)
     return ApplyFloatGroup(exe, "CSM lambda", rvas, expected, 1, values);
 }
 
-static bool ApplyCsmQuality(HMODULE exe, int value)
-{
-    if (value < 2 || value > 8)
-    {
-        Log("[FAIL] CSMQuality=%d outside 2..8.", value);
-        return false;
-    }
-    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
-    auto* address = reinterpret_cast<uint8_t*>(base + 0x00D60F6C);
-    const uint8_t expected = 0x02;
-    if (*address != expected)
-    {
-        Log("[SKIP] CSM quality native byte mismatch at RVA 0x00D60F6C.");
-        return false;
-    }
-    const uint8_t patch = static_cast<uint8_t>(value);
-    if (!WriteBytes(address, &patch, 1))
-        return false;
-    Log("[OK] CSM internal quality selector 2 -> %d applied.", value);
-    return true;
-}
-
 static bool ApplyCsmFarDistance(HMODULE exe, float farDistance)
 {
     if (farDistance < 10.0f || farDistance > 1000.0f)
@@ -3143,18 +3121,17 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const int environmentMapResolution = GetPrivateProfileIntW(L"Graphics", L"EnvironmentMapResolution", 2048, iniPath.c_str());
     const int anisotropicFiltering = GetPrivateProfileIntW(L"Graphics", L"AnisotropicFiltering", 16, iniPath.c_str());
     const float mipLodBias = ReadIniFloat(iniPath, L"Graphics", L"MipLODBias", -0.25f);
-    const float toneMap = ReadIniFloat(iniPath, L"Graphics", L"ToneMap", 0.15f);
+    const float toneMap = ReadIniFloat(iniPath, L"Graphics", L"ToneMap", 0.25f);
 
     const int shadowMapResolution = GetPrivateProfileIntW(L"Shadows", L"ShadowMapResolution", 4096, iniPath.c_str());
-    const bool shadowPcf5x5 = GetPrivateProfileIntW(L"Shadows", L"ShadowPCF5x5", 1, iniPath.c_str()) != 0;
-    const int csmQuality = GetPrivateProfileIntW(L"Shadows", L"CSMQuality", 5, iniPath.c_str());
+    const bool shadowPcf5x5 = GetPrivateProfileIntW(L"Shadows", L"ShadowPCF5x5", 0, iniPath.c_str()) != 0;
     const float csmLambda = ReadIniFloat(iniPath, L"Shadows", L"CSMLambda", 0.60f);
     const float csmFarDistance = ReadIniFloat(iniPath, L"Shadows", L"CSMFarDistance", 150.0f);
     const float shadowDepthBiasScale = ReadIniFloat(iniPath, L"Shadows", L"DepthBiasScale", 0.75f);
     const float shadowSlopeBiasScale = ReadIniFloat(iniPath, L"Shadows", L"SlopeBiasScale", 0.90f);
     const float spotShadowResolutionScale = ReadIniFloat(iniPath, L"Shadows", L"SpotShadowResolutionScale", 1.0f);
 
-    const bool fullResolutionAo = GetPrivateProfileIntW(L"AmbientOcclusion", L"FullResolution", 1, iniPath.c_str()) != 0;
+    const bool fullResolutionAo = GetPrivateProfileIntW(L"AmbientOcclusion", L"FullResolution", 0, iniPath.c_str()) != 0;
     const float aoBlurScale = ReadIniFloat(iniPath, L"AmbientOcclusion", L"BlurScale", 1.25f);
     const float aoErodeScale = ReadIniFloat(iniPath, L"AmbientOcclusion", L"ErodeScale", 1.25f);
 
@@ -3244,8 +3221,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("WSDynamicPartPriorityRadius=%d", wsDynamicPartPriorityRadius);
     Log("[Graphics] EnvironmentMapResolution=%d AF=%d MipLODBias=%.3f ToneMap=%.3f",
         environmentMapResolution, anisotropicFiltering, mipLodBias, toneMap);
-    Log("[Shadows] ShadowMapResolution=%d PCF5x5=%d CSMQuality=%d Lambda=%.3f Far=%.3f Bias=%.3f/%.3f SpotScale=%.3f",
-        shadowMapResolution, shadowPcf5x5 ? 1 : 0, csmQuality, csmLambda, csmFarDistance,
+    Log("[Shadows] ShadowMapResolution=%d PCF5x5=%d Lambda=%.3f Far=%.3f Bias=%.3f/%.3f SpotScale=%.3f",
+        shadowMapResolution, shadowPcf5x5 ? 1 : 0, csmLambda, csmFarDistance,
         shadowDepthBiasScale, shadowSlopeBiasScale, spotShadowResolutionScale);
     Log("[AO] FullResolution=%d Blur=%.3f Erode=%.3f", fullResolutionAo ? 1 : 0, aoBlurScale, aoErodeScale);
     Log("[Streaming] Coverage=%.1f/%.1f/%.1f", streamCoverageLow, streamCoverageMedium, streamCoverageHigh);
@@ -3325,8 +3302,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     if (shadowPcf5x5) ApplyShadowPcf5x5(exe);
     else Log("[OFF] Shadow PCF 5x5 disabled.");
 
-    if (csmQuality != 2) ApplyCsmQuality(exe, csmQuality);
-    else Log("[OFF] CSM internal quality selector left at native 2.");
+    Log("[OFF] Deprecated CSMQuality patch path disabled after retail shader re-audit.");
 
     if (std::fabs(csmLambda - 0.5f) > 0.0001f) ApplyCsmLambda(exe, csmLambda);
     else Log("[OFF] CSM lambda left at native 0.5.");
