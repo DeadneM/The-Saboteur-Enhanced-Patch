@@ -3225,20 +3225,20 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const int wsDynamicPartPriorityRadius = GetPrivateProfileIntW(L"Fixes", L"WSDynamicPartPriorityRadius", 25, iniPath.c_str());
     const int environmentMapResolution = GetPrivateProfileIntW(L"Graphics", L"EnvironmentMapResolution", 2048, iniPath.c_str());
     const int anisotropicFiltering = GetPrivateProfileIntW(L"Graphics", L"AnisotropicFiltering", 16, iniPath.c_str());
-    const float mipLodBias = ReadIniFloat(iniPath, L"Graphics", L"MipLODBias", -0.25f);
+    const float mipLodBias = ReadIniFloat(iniPath, L"Graphics", L"MipLODBias", 0.0f);
     const float toneMap = ReadIniFloat(iniPath, L"Graphics", L"ToneMap", 0.25f);
 
     const int shadowMapResolution = GetPrivateProfileIntW(L"Shadows", L"ShadowMapResolution", 4096, iniPath.c_str());
     const bool shadowPcf5x5 = GetPrivateProfileIntW(L"Shadows", L"ShadowPCF5x5", 0, iniPath.c_str()) != 0;
-    const float csmLambda = ReadIniFloat(iniPath, L"Shadows", L"CSMLambda", 0.60f);
-    const float csmFarDistance = ReadIniFloat(iniPath, L"Shadows", L"CSMFarDistance", 150.0f);
-    const float shadowDepthBiasScale = ReadIniFloat(iniPath, L"Shadows", L"DepthBiasScale", 0.75f);
-    const float shadowSlopeBiasScale = ReadIniFloat(iniPath, L"Shadows", L"SlopeBiasScale", 0.90f);
-    const float spotShadowResolutionScale = ReadIniFloat(iniPath, L"Shadows", L"SpotShadowResolutionScale", 1.0f);
+    const float csmLambda = ReadIniFloat(iniPath, L"Shadows", L"CSMLambda", 0.50f);
+    const float csmFarDistance = ReadIniFloat(iniPath, L"Shadows", L"CSMFarDistance", 100.0f);
+    const float shadowDepthBiasScale = ReadIniFloat(iniPath, L"Shadows", L"DepthBiasScale", 1.0f);
+    const float shadowSlopeBiasScale = ReadIniFloat(iniPath, L"Shadows", L"SlopeBiasScale", 1.0f);
+    const float spotShadowResolutionScale = ReadIniFloat(iniPath, L"Shadows", L"SpotShadowResolutionScale", 0.5f);
 
     const bool fullResolutionAo = GetPrivateProfileIntW(L"AmbientOcclusion", L"FullResolution", 0, iniPath.c_str()) != 0;
-    const float aoBlurScale = ReadIniFloat(iniPath, L"AmbientOcclusion", L"BlurScale", 1.25f);
-    const float aoErodeScale = ReadIniFloat(iniPath, L"AmbientOcclusion", L"ErodeScale", 1.25f);
+    const float aoBlurScale = ReadIniFloat(iniPath, L"AmbientOcclusion", L"BlurScale", 2.0f);
+    const float aoErodeScale = ReadIniFloat(iniPath, L"AmbientOcclusion", L"ErodeScale", 2.0f);
 
     const float streamCoverageLow = ReadIniFloat(iniPath, L"Streaming", L"CoverageLow", 16000.0f);
     const float streamCoverageMedium = ReadIniFloat(iniPath, L"Streaming", L"CoverageMedium", 3200.0f);
@@ -3247,8 +3247,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const float farSceneDistance = ReadIniFloat(iniPath, L"Distances", L"FarScene", 320.0f);
     const float decalVisibilityDistance = ReadIniFloat(iniPath, L"Distances", L"DecalVisibility", 160.0f);
 
-    const float renderSlice3HighFar = ReadIniFloat(iniPath, L"Distances", L"RenderSlice3HighFar", 300.0f);
-    const float renderSliceHighOuter = ReadIniFloat(iniPath, L"Distances", L"RenderSliceHighOuter", 1500.0f);
+    const float renderSlice3HighFar = ReadIniFloat(iniPath, L"Distances", L"RenderSlice3HighFar", 100.0f);
+    const float renderSliceHighOuter = ReadIniFloat(iniPath, L"Distances", L"RenderSliceHighOuter", 500.0f);
     const float modelInfoDefaultLodDistance = ReadIniFloat(iniPath, L"Distances", L"ModelInfoDefaultLODDistance", 1500.0f);
     const float veryFarSceneTerrainDistance = ReadIniFloat(iniPath, L"Distances", L"VeryFarSceneTerrain", 10000.0f);
     const float clipRangeHigh = ReadIniFloat(iniPath, L"Distances", L"ClipRangeHigh", 1000.0f);
