@@ -538,3 +538,82 @@ Supported 2x quality keeps the relative hierarchy coherent:
 
 No individual particle target is exposed separately because doing so would
 break the renderer's shared dimension assumptions.
+
+
+## Scaleform / high-resolution UI cache owners — exact retail confirmation
+
+These owners were re-audited read-only against the exact retail executable and
+the byte-perfect reconstructed V200 image. They are now sufficiently proven to
+be future independent `[UI]` controls. They are **not enabled by ASI 0.12**.
+
+### Mesh cache
+
+The constructor is directly associated with the adjacent retail
+`_Mesh_Cache` name at VA `0x01062064`.
+
+Retail constructor instruction:
+
+- instruction VA: `0x00BB4667`
+- instruction RVA: `0x007B4667`
+- instruction RAW: `0x007B3867`
+- immediate VA/RVA/RAW: `0x00BB466A / 0x007B466A / 0x007B386A`
+- retail: `mov dword ptr [esi+14h], 00800000h` = **8 MiB**
+- V200: `01000000h` = **16 MiB**
+
+The decoded V200 manifest records the changed high bytes at RAW
+`0x007B386C`.
+
+Future INI owner: `[UI] MeshCacheMiB`.
+
+### Vector glyph cache capacity
+
+The constructor is in the retail `_Font_Cache` family. Nearby retail data
+contains the explicit warning:
+
+`Warning: Increase vector glyph cache capacity - SetMaxVectorCacheSize().`
+
+Owner:
+
+- instruction VA: `0x00BE6AD7`
+- instruction RVA: `0x007E6AD7`
+- immediate VA/RVA/RAW: `0x00BE6ADD / 0x007E6ADD / 0x007E5CDD`
+- field: `[esi+0x9C0]`
+- retail: **512**
+- V200: **1024**
+- manifest changed byte: RAW `0x007E5CDE`, `02 -> 04`
+
+Future INI owner: `[UI] VectorGlyphCache`.
+
+### Font cache texture count
+
+Two separate `_Font_Cache` constructors initialize the same configuration
+field `[esi+0x1C]`. V200 raises both coherently.
+
+Constructor A:
+
+- instruction VA/RVA/RAW:
+  `0x00BE7D3E / 0x007E7D3E / 0x007E6F3E`
+- immediate VA/RVA/RAW:
+  `0x00BE7D41 / 0x007E7D41 / 0x007E6F41`
+- retail **1** -> V200 **2**
+
+Constructor B:
+
+- instruction VA/RVA/RAW:
+  `0x00BE7E19 / 0x007E7E19 / 0x007E7019`
+- immediate VA/RVA/RAW:
+  `0x00BE7E1C / 0x007E7E1C / 0x007E701C`
+- retail **1** -> V200 **2**
+
+The two sites must be treated as one coherent owner. A future
+`[UI] FontCacheTextures` setting must verify both retail instructions before
+writing either one.
+
+### Safety decision
+
+These UI cache controls are structurally much cleaner than the old broad
+graphics experiments because they are constructor-owned capacities with exact
+retail/V200 values and nearby Scaleform cache identifiers.
+
+They remain deferred until the 0.12 graphics A/B is validated so UI resource
+changes cannot contaminate that visual test.
