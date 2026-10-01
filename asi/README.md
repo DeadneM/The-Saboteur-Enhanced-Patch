@@ -524,3 +524,36 @@ Remaining issue:
 
 The goal is to halve bloom energy while preserving all 0.13-0.16 quality and
 CorrectUV improvements.
+
+
+## 0.21 validated canonical quality baseline
+
+Status: **VALIDATED — current canonical ASI baseline**.
+
+User validation confirms that the 0.21 PsBloom prefilter normalization resolves
+the excessive highlight brightness while preserving the image quality and all
+previous CorrectUV/full-resolution improvements.
+
+Canonical 0.21 profile retains:
+- PCF 5x5
+- full-resolution AO
+- ShadowMapResolution 4096 with coherent offsets
+- full-resolution MotionBlur
+- 2x Bloom/GodRays pyramid
+- full-resolution ScaledTexture
+- coherent high-resolution DepthBlur
+- full-resolution DamageBlur
+- full-resolution LightVolume with corrected coordinate scale
+- 2x particle RT hierarchy
+- particle RestoreDepthBuffer full-resolution coordinate fix
+- retail ToneMap/BloomFinal/final samplers
+- PsBloom prefilter gain normalized to 1.0
+
+Validated brightness path:
+- `Graphics.ToneMap=0.25`
+- `ExperimentalPostFX.BloomFinalContribution=4.0`
+- `ExperimentalPostFX.BloomFinalBackBufferSampler=0`
+- `ExperimentalPostFX.BloomFinalDownsampledBackBufferSampler=0`
+- `ExperimentalPostFX.BloomPrefilterGain=1.0`
+
+0.21 supersedes 0.12 as the canonical ASI baseline.
