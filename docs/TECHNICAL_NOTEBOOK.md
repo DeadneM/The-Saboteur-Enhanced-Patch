@@ -1915,3 +1915,37 @@ Source/config:
 - `45061cdbdb0361c6b1829a610eb9cef0565319c2` — CI artifact label
 
 0.16 remains the last visually clean reference before brightness experiments.
+
+
+## ASI 0.21 user validation — PROMOTED TO CANONICAL
+
+User result: **validated**.
+
+0.21 successfully resolves the excessive local highlight brightness that
+remained after 0.16 while preserving the 0.16 fix for the white fragmented
+geometry artifact.
+
+Canonical consequences:
+- retain the 0.16 particle RestoreDepthBuffer full-resolution coordinate fix;
+- retain every validated 0.13-0.16 quality/CorrectUV improvement;
+- reject 0.17, 0.18, 0.19 and 0.20 as brightness solutions;
+- keep ToneMap at retail 0.25;
+- keep BloomFinal contribution at retail 4.0;
+- keep both final bloom samplers on their retail paths;
+- keep `BloomResolutionMultiplier=2`;
+- promote `BloomPrefilterGain=1.0` as the validated energy normalization for
+  the 2x Bloom/GodRays pyramid.
+
+Validated 0.21 artifact:
+- workflow run: 143
+- run ID: `36934389357`
+- artifact ID: `11196979670`
+- artifact: `SaboteurEnhanced_ASI_0.21_BLOOM_PREFILTER_ENERGY_NORMALIZATION_TEST_x86`
+- artifact ZIP SHA-256:
+  `984ac9d8fc221466118738f6e40b490378612b80cac13011e304ef0934a351bf`
+- `SaboteurEnhanced.asi` SHA-256:
+  `c97d8f8d29d98b5f54024a61a6bb588a8840b4d6d19fa63c90cac619148bacdb`
+- `dinput8.dll` SHA-256:
+  `6a11d71d7142b2ac4d61fe99d3b089078d97abebdccce6aa102463001f73ec31`
+
+0.21 is now the canonical ASI baseline for future work.
