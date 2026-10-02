@@ -671,3 +671,29 @@ All 0.22A/0.21 validated post-processing, brightness, AO, shadows, CorrectUV,
 particle and LightVolume fixes remain unchanged.
 
 0.23 supersedes 0.22A as the canonical ASI baseline.
+
+
+## 0.24 maximum world render-target candidate
+
+Status: **TEST CANDIDATE — built strictly from canonical 0.23**.
+
+0.24 takes the already-validated world render-target families to the current
+audited ASI limits:
+
+- WaterReflection: 4096x1024 -> 8192x2048
+  - 4:1 aspect ratio preserved;
+  - still uses the shared coherent width/height owners.
+- WaterNormals / WaterNormalsTemp: 1024x1024 -> 2048x2048
+  - reaches the current ASI limit for this matched family.
+- RainCubeRT: 1024 -> 2048
+  - reaches the current ASI limit for this isolated cubemap owner.
+- SkyDome remains x2
+  - x2 is the highest coherent implementation currently audited.
+- Rain density remains native.
+
+Everything else remains frozen from canonical 0.23, including the validated
+0.21 brightness normalization and all PostFX/CorrectUV/shadow/AO fixes.
+
+This candidate is intended as the endpoint for simple world-RT scaling. If it is
+validated, future work should move to a different engine/render owner instead
+of increasing these dimensions further.
