@@ -2318,3 +2318,28 @@ ASI 0.25 CI:
 0.25 remains diagnostic-only and must not replace canonical 0.23 until its
 telemetry is interpreted and a separate functional change is explicitly
 validated.
+
+
+## ASI 0.25 streaming telemetry runtime result
+
+User runtime log (2026-10-02) confirms the telemetry path worked correctly:
+- WSReadJob descriptor online at capacity 1200;
+- WSUncompressJob descriptor online at capacity 1200;
+- WSReadJob observed peak: 94 / 1200 (~7.8%);
+- WSUncompressJob observed peak: 492 / 1200 (41.0%);
+- sampled capacity-hit transitions: 0 / 0;
+- exact Core1 FIFO full-queue events: 0;
+- final summary: ReadPeak=94, UncompressPeak=492, FIFOFullEvents=0.
+
+Decision:
+- do not restore historical V272 1200 -> 2400 on current evidence;
+- do not enlarge the 64-slot FIFO;
+- the next streaming investigation moves downstream/upstream to the real retail
+  single-submit async scheduler, completion accounting, and I/O service latency;
+- aggressive coalescing remains unmodified until scheduler pressure is measured.
+
+Important limitation:
+- pool occupancy is sampled every 50 ms, so very short transient spikes are not
+  mathematically impossible to miss. The large observed headroom plus zero exact
+  FIFO-full events nevertheless argues strongly against either 1200-entry pool
+  or the 64-slot FIFO being the current sustained bottleneck.
