@@ -2299,3 +2299,22 @@ Source/config:
 - `e32511b7d6b615b8894d1afd62efd624d5c9d7d6` — telemetry implementation;
 - `43ae89ec8f644c29f6ad8292c31ec1fd92fa16a6` — diagnostic INI defaults;
 - `18cfabfbb3f0201eb3b1682d34f8df7663413274` — CI artifact label.
+
+
+ASI 0.25 CI:
+- workflow run: 167
+- run ID: `36995007567`
+- artifact ID: `11220798391`
+- artifact: `SaboteurEnhanced_ASI_0.25_STREAMING_TELEMETRY_DIAGNOSTIC_x86`
+- artifact ZIP SHA-256:
+  `7e2be4cdcc39e60019dd38c8583038b286d0d441a6c7848420193d9c3d3ce270`
+- `SaboteurEnhanced.asi` SHA-256:
+  `5e7312edda4e6ca55292a26c1d8e9b4008cf8e836685d31856743d2306ef6199`
+- `dinput8.dll` SHA-256:
+  `254d6fc9d277a070d9a9de8eaec77b709186528726880e77aee312ea7714564f`
+- both binaries verified PE machine x86 / 0x14C.
+- packaged documentation remains `README.txt`.
+
+0.25 remains diagnostic-only and must not replace canonical 0.23 until its
+telemetry is interpreted and a separate functional change is explicitly
+validated.
