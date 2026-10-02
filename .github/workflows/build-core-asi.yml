@@ -16,6 +16,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: TEMP audit V200 streaming regions
+        shell: pwsh
+        run: |
+          @'
+          import base64, zlib, json
+          p = r"patches/original_to_v200.json.zlib.b64"
+          raw = base64.b64decode(open(p,"rb").read())
+          data = json.loads(zlib.decompress(raw))
+          print("keys", data.keys())
+          regs = data["regions"]
+          print("region_count", len(regs))
+          for i in [1, 72, 128, 141, 142, 143, 144, 145, 146]:
+              if i < len(regs):
+                  r=regs[i]
+                  print("REGION", i, "offset", r.get("offset"), "length", r.get("length"))
+                  print(" before", r.get("before"))
+                  print(" after ", r.get("after"))
+          print("STREAM-LIKE")
+          for i,r in enumerate(regs):
+              off=int(r["offset"],16)
+              if 0x009B0000 <= off <= 0x009C0000 or off < 0x00003000:
+                  print("REGION",i,"offset",r["offset"],"len",r["length"])
+                  print(" before",r["before"])
+                  print(" after ",r["after"])
+          '@ | Set-Content temp_audit.py
+          python temp_audit.py
+
       - name: Enable MSVC x86 environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
