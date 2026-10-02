@@ -2532,3 +2532,20 @@ Source/config:
 - `6e3af6e9cdf362e6e840bfb161b57496977ef1ce` — pool provenance implementation;
 - `c6ef474845e15afdf7e90beccfc9b3349777914c` — diagnostic INI switch;
 - `0c907ebed13486dd1bdddfc25e2fac4ac1120322` — 0.27 CI artifact label.
+
+
+ASI 0.27 final CI:
+- workflow run: 177
+- run ID: `37004322673`
+- artifact ID: `11224723464`
+- artifact: `SaboteurEnhanced_ASI_0.27_STREAMING_POOL_PROVENANCE_DIAGNOSTIC_x86`
+- artifact ZIP SHA-256:
+  `80a672c08d51383d9005dc737cd5a06b94a7626d3694b7dadbd6a96cab256c2e`
+- `SaboteurEnhanced.asi` SHA-256:
+  `346dd9dab4835719730b963e2eb4019a158a3a10be9fdf402b2e979b9ffd4a75`
+- `dinput8.dll` SHA-256:
+  `3a1872ffc21d8b61018b857eb6cd0875acd84a737c61f6d7d8f17a183fa56cc2`
+- both binaries verified PE machine x86 / 0x14C;
+- packaged documentation remains `README.txt`.
+
+0.27 remains diagnostic-only. Canonical gameplay/render baseline remains 0.23.
