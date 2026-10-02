@@ -16,6 +16,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: TEMP audit V200 DepthBlur shader regions
+        shell: pwsh
+        run: |
+          @'
+          import base64, zlib, json
+          raw = base64.b64decode(open(r"patches/original_to_v200.json.zlib.b64","rb").read())
+          data = json.loads(zlib.decompress(raw))
+          regs = data["regions"]
+          print("region_count", len(regs))
+          ranges = [
+              (0x00D64000, 0x00D66000, "raw-shader-window"),
+              (0x00D64E00, 0x00D65600, "depthblur-expected-window"),
+              (0x00D3F000, 0x00D41000, "particle-window"),
+          ]
+          for lo,hi,label in ranges:
+              print("WINDOW",label,hex(lo),hex(hi))
+              for i,r in enumerate(regs):
+                  off=int(r["offset"],16)
+                  ln=int(r["length"])
+                  if off < hi and off+ln > lo:
+                      print("REGION",i,"offset",r["offset"],"length",r["length"])
+                      print(" before",r["before"])
+                      print(" after ",r["after"])
+          '@ | Set-Content temp_depthblur_audit.py
+          python temp_depthblur_audit.py
+
       - name: Enable MSVC x86 environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
