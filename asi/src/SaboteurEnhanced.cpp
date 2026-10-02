@@ -2805,6 +2805,264 @@ static bool ApplyWSDynamicPartPriorityRadius(HMODULE exe, float radius)
 }
 
 // -----------------------------------------------------------------------------
+// ASI 0.25 streaming-pressure telemetry
+// -----------------------------------------------------------------------------
+//
+// Diagnostic only. No capacity, scheduling, coverage or coalescing value is
+// changed here.
+//
+// Exact generic pool-manager audit:
+//   descriptor +0x2C = object size
+//   descriptor +0x34 = current allocated capacity
+//   descriptor +0x38 = active/in-use count
+//   descriptor +0x3C = backing allocation
+//   descriptor +0x44 = free-list head
+//
+// The engine's allocator increments +0x38 on successful allocation and the
+// release path decrements it. The invariant checker explicitly verifies that
+// free-list nodes == (+0x34 - +0x38).
+//
+// Streaming descriptors:
+//   WSReadJob       VA 0x0132B9D8 / RVA 0x00F2B9D8, object size 0x2C
+//   WSUncompressJob VA 0x0132BA40 / RVA 0x00F2BA40, object size 0x28
+//
+// Core 1 also retains the validated V200 full-queue correction for the native
+// 64-slot streaming FIFO. When the queue is full, RVA 0x009B5A77 jumps to the
+// retained cave at RVA 0x00281084. 0.25 redirects only that already-existing
+// cave through a pass-through counter and reproduces the exact drop-oldest
+// behavior before returning to RVA 0x009B5A83.
+
+static uintptr_t g_streamTelemetryBase = 0;
+static uintptr_t g_streamFifoReturn = 0;
+static volatile LONG g_streamTelemetryRun = 0;
+static volatile LONG g_streamFifoFullEvents = 0;
+static volatile LONG g_streamReadPeak = 0;
+static volatile LONG g_streamUncompressPeak = 0;
+static volatile LONG g_streamReadCapacityHits = 0;
+static volatile LONG g_streamUncompressCapacityHits = 0;
+static LONG g_streamTelemetryIntervalMs = 50;
+static LONG g_streamTelemetryReportMs = 5000;
+
+static void UpdateLongPeak(volatile LONG* target, LONG value)
+{
+    LONG observed = InterlockedCompareExchange(target, 0, 0);
+    while (value > observed)
+    {
+        const LONG previous = InterlockedCompareExchange(target, value, observed);
+        if (previous == observed)
+            break;
+        observed = previous;
+    }
+}
+
+__declspec(naked) static void StreamingFifoFullTelemetryHook()
+{
+    __asm
+    {
+        lock inc dword ptr [g_streamFifoFullEvents]
+
+        // Exact Core 1 / V200 full-queue drop-oldest cave.
+        mov esi, dword ptr [ecx+110h]
+        inc esi
+        and esi, 3Fh
+        mov dword ptr [ecx+110h], esi
+
+        jmp dword ptr [g_streamFifoReturn]
+    }
+}
+
+static bool VerifyStreamingPoolDescriptor(uintptr_t descriptorRva,
+                                          const char* expectedName,
+                                          size_t expectedNameBytes,
+                                          uint32_t expectedObjectSize,
+                                          uint32_t& capacity,
+                                          uint32_t& active)
+{
+    if (!g_streamTelemetryBase)
+        return false;
+
+    const auto* descriptor =
+        reinterpret_cast<const uint8_t*>(g_streamTelemetryBase + descriptorRva);
+
+    if (std::memcmp(descriptor + 0x0C, expectedName, expectedNameBytes) != 0)
+        return false;
+
+    uint32_t objectSize = 0;
+    uint32_t backing = 0;
+    std::memcpy(&objectSize, descriptor + 0x2C, sizeof(objectSize));
+    std::memcpy(&capacity, descriptor + 0x34, sizeof(capacity));
+    std::memcpy(&active, descriptor + 0x38, sizeof(active));
+    std::memcpy(&backing, descriptor + 0x3C, sizeof(backing));
+
+    if (objectSize != expectedObjectSize || backing == 0 ||
+        capacity == 0 || capacity > 16384 || active > capacity)
+        return false;
+
+    return true;
+}
+
+static bool InstallStreamingFifoTelemetry(HMODULE exe)
+{
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    constexpr uintptr_t kHookRva = 0x009B5A77;
+    constexpr uintptr_t kCaveRva = 0x00281084;
+    constexpr uintptr_t kReturnRva = 0x009B5A83;
+
+    static const uint8_t expectedHook[12] = {
+        0xE9,0x08,0xB6,0x8C,0xFF,
+        0x90,0x90,0x90,0x90,0x90,0x90,0x90
+    };
+    static const uint8_t expectedCave[21] = {
+        0x8B,0xB1,0x10,0x01,0x00,0x00,
+        0x46,
+        0x83,0xE6,0x3F,
+        0x89,0xB1,0x10,0x01,0x00,0x00,
+        0xE9,0xEA,0x49,0x73,0x00
+    };
+
+    const auto* hook = reinterpret_cast<const uint8_t*>(base + kHookRva);
+    auto* cave = reinterpret_cast<uint8_t*>(base + kCaveRva);
+
+    if (std::memcmp(hook, expectedHook, sizeof(expectedHook)) != 0)
+    {
+        Log("[FAIL] Streaming FIFO Core1 hook bytes do not match at RVA 0x%08X.",
+            static_cast<unsigned>(kHookRva));
+        return false;
+    }
+    if (std::memcmp(cave, expectedCave, sizeof(expectedCave)) != 0)
+    {
+        Log("[FAIL] Streaming FIFO Core1 cave bytes do not match at RVA 0x%08X.",
+            static_cast<unsigned>(kCaveRva));
+        return false;
+    }
+
+    const intptr_t delta =
+        reinterpret_cast<intptr_t>(&StreamingFifoFullTelemetryHook) -
+        (reinterpret_cast<intptr_t>(cave) + 5);
+    if (delta < INT32_MIN || delta > INT32_MAX)
+    {
+        Log("[FAIL] Streaming FIFO telemetry hook outside rel32 range.");
+        return false;
+    }
+
+    uint8_t patch[5] = {0xE9,0,0,0,0};
+    const int32_t rel = static_cast<int32_t>(delta);
+    std::memcpy(patch + 1, &rel, sizeof(rel));
+
+    g_streamTelemetryBase = base;
+    g_streamFifoReturn = base + kReturnRva;
+
+    if (!WriteBytes(cave, patch, sizeof(patch)))
+    {
+        Log("[FAIL] Streaming FIFO telemetry cave redirect failed.");
+        g_streamTelemetryBase = 0;
+        g_streamFifoReturn = 0;
+        return false;
+    }
+
+    Log("[OK] Streaming FIFO full-event telemetry installed; native 64-slot drop-oldest behavior preserved.");
+    return true;
+}
+
+static DWORD WINAPI StreamingTelemetryThread(LPVOID)
+{
+    constexpr uintptr_t kReadJobDescriptorRva = 0x00F2B9D8;
+    constexpr uintptr_t kUncompressDescriptorRva = 0x00F2BA40;
+    static const char kReadJobName[] = "WSReadJob";
+    static const char kUncompressName[] = "WSUncompressJob";
+
+    bool descriptorsOnline = false;
+    bool readWasAtCapacity = false;
+    bool uncompressWasAtCapacity = false;
+    ULONGLONG lastReport = GetTickCount64();
+
+    while (InterlockedCompareExchange(&g_streamTelemetryRun, 0, 0) != 0)
+    {
+        uint32_t readCapacity = 0, readActive = 0;
+        uint32_t uncompressCapacity = 0, uncompressActive = 0;
+
+        const bool readOk = VerifyStreamingPoolDescriptor(
+            kReadJobDescriptorRva,
+            kReadJobName, sizeof(kReadJobName),
+            0x2C, readCapacity, readActive);
+        const bool uncompressOk = VerifyStreamingPoolDescriptor(
+            kUncompressDescriptorRva,
+            kUncompressName, sizeof(kUncompressName),
+            0x28, uncompressCapacity, uncompressActive);
+
+        if (readOk && uncompressOk)
+        {
+            if (!descriptorsOnline)
+            {
+                descriptorsOnline = true;
+                Log("[STREAM] Pool descriptors online: WSReadJob cap=%u, WSUncompressJob cap=%u.",
+                    readCapacity, uncompressCapacity);
+            }
+
+            UpdateLongPeak(&g_streamReadPeak, static_cast<LONG>(readActive));
+            UpdateLongPeak(&g_streamUncompressPeak, static_cast<LONG>(uncompressActive));
+
+            const bool readAtCapacity = readActive >= readCapacity;
+            if (readAtCapacity && !readWasAtCapacity)
+                InterlockedIncrement(&g_streamReadCapacityHits);
+            readWasAtCapacity = readAtCapacity;
+
+            const bool uncompressAtCapacity = uncompressActive >= uncompressCapacity;
+            if (uncompressAtCapacity && !uncompressWasAtCapacity)
+                InterlockedIncrement(&g_streamUncompressCapacityHits);
+            uncompressWasAtCapacity = uncompressAtCapacity;
+
+            const ULONGLONG now = GetTickCount64();
+            if (now - lastReport >= static_cast<ULONGLONG>(g_streamTelemetryReportMs))
+            {
+                lastReport = now;
+                Log("[STREAM] Read=%u/%u peak=%ld capHits=%ld | Uncompress=%u/%u peak=%ld capHits=%ld | FIFO-full=%ld",
+                    readActive, readCapacity,
+                    InterlockedCompareExchange(&g_streamReadPeak, 0, 0),
+                    InterlockedCompareExchange(&g_streamReadCapacityHits, 0, 0),
+                    uncompressActive, uncompressCapacity,
+                    InterlockedCompareExchange(&g_streamUncompressPeak, 0, 0),
+                    InterlockedCompareExchange(&g_streamUncompressCapacityHits, 0, 0),
+                    InterlockedCompareExchange(&g_streamFifoFullEvents, 0, 0));
+            }
+        }
+
+        Sleep(static_cast<DWORD>(g_streamTelemetryIntervalMs));
+    }
+
+    return 0;
+}
+
+static bool StartStreamingTelemetry(HMODULE exe, LONG intervalMs, LONG reportMs)
+{
+    if (intervalMs < 10) intervalMs = 10;
+    if (intervalMs > 1000) intervalMs = 1000;
+    if (reportMs < 1000) reportMs = 1000;
+    if (reportMs > 60000) reportMs = 60000;
+
+    g_streamTelemetryIntervalMs = intervalMs;
+    g_streamTelemetryReportMs = reportMs;
+
+    if (!InstallStreamingFifoTelemetry(exe))
+        return false;
+
+    InterlockedExchange(&g_streamTelemetryRun, 1);
+    HANDLE thread = CreateThread(nullptr, 0, StreamingTelemetryThread, nullptr, 0, nullptr);
+    if (!thread)
+    {
+        InterlockedExchange(&g_streamTelemetryRun, 0);
+        Log("[FAIL] Could not start streaming telemetry thread.");
+        return false;
+    }
+
+    CloseHandle(thread);
+    Log("[OK] Streaming telemetry active: sample=%ldms report=%ldms; no streaming tuning changed.",
+        g_streamTelemetryIntervalMs, g_streamTelemetryReportMs);
+    return true;
+}
+
+
+// -----------------------------------------------------------------------------
 // ASI 0.2 OdinMeshInstance diagnostic
 // -----------------------------------------------------------------------------
 //
@@ -3481,11 +3739,14 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.23 CANONICAL");
+    Log("SaboteurEnhanced ASI 0.25 STREAMING TELEMETRY DIAGNOSTIC");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
     const std::wstring iniPath = dir + L"\\SaboteurEnhanced.ini";
+    const bool enableStreamingTelemetry = GetPrivateProfileIntW(L"Diagnostics", L"StreamingTelemetry", 1, iniPath.c_str()) != 0;
+    const LONG streamingTelemetryIntervalMs = GetPrivateProfileIntW(L"Diagnostics", L"StreamingTelemetryIntervalMs", 50, iniPath.c_str());
+    const LONG streamingTelemetryReportMs = GetPrivateProfileIntW(L"Diagnostics", L"StreamingTelemetryReportMs", 5000, iniPath.c_str());
     const bool enableV310 = GetPrivateProfileIntW(L"Fixes", L"WSModelFullRenderMask", 1, iniPath.c_str()) != 0;
     const bool enableV311 = GetPrivateProfileIntW(L"Fixes", L"ModelInfoFullRenderSlice", 1, iniPath.c_str()) != 0;
     const bool enableOdinChildVisibility = GetPrivateProfileIntW(L"Fixes", L"OdinChildVisibilityGate", 0, iniPath.c_str()) != 0;
@@ -4023,6 +4284,16 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     else
         Log("[OFF] WSDynamicPart priority radius left at native 25.");
 
+    if (enableStreamingTelemetry)
+    {
+        if (!StartStreamingTelemetry(exe, streamingTelemetryIntervalMs, streamingTelemetryReportMs))
+            Log("[FAIL] Streaming telemetry could not be started.");
+    }
+    else
+    {
+        Log("[OFF] Streaming telemetry disabled by INI.");
+    }
+
     if (enableOdin)
     {
         if (InstallOdinDiagnostics(exe))
@@ -4059,6 +4330,13 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID)
         if (g_log)
         {
             InterlockedExchange(&g_markerThreadRun, 0);
+            InterlockedExchange(&g_streamTelemetryRun, 0);
+            Log("Streaming summary: ReadPeak=%ld ReadCapHits=%ld UncompressPeak=%ld UncompressCapHits=%ld FIFOFullEvents=%ld",
+                InterlockedCompareExchange(&g_streamReadPeak, 0, 0),
+                InterlockedCompareExchange(&g_streamReadCapacityHits, 0, 0),
+                InterlockedCompareExchange(&g_streamUncompressPeak, 0, 0),
+                InterlockedCompareExchange(&g_streamUncompressCapacityHits, 0, 0),
+                InterlockedCompareExchange(&g_streamFifoFullEvents, 0, 0));
             Log("Odin summary: SyncCalls=%ld Mismatches=%ld F9Markers=%ld LoggedEvents=%ld",
                 g_odinSyncCalls, g_odinSyncMismatches, g_markerCount, g_odinLoggedEvents);
             Log("ASI unload.");
