@@ -2093,3 +2093,17 @@ Source/config:
 - `f3f0436c4e8dbe1af10ef0fceb66ac3e0edb2a14` — CI artifact label
 
 Do not promote 0.23 until explicit user validation.
+
+
+CI:
+- workflow run: 154
+- run ID: `36991037292`
+- artifact ID: `11219553092`
+- artifact: `SaboteurEnhanced_ASI_0.23_EXTREME_WORLD_RENDER_TARGET_TEST_x86`
+- artifact ZIP SHA-256:
+  `8a457ce9379160de0d12b5f57c5217d72f423428b8b4658fab59665130227cb8`
+- `SaboteurEnhanced.asi` SHA-256:
+  `75c6343db5056c8a29704ec52a0862d7f97008ef57f7861004fa2b5dfd454b51`
+- `dinput8.dll` SHA-256:
+  `8a76f2da2fc3c99a3922f4f597ef486e959e0a187b1aa4a06a9b6c1fe46adec0`
+- both binaries verified PE machine x86 / 0x14C.
