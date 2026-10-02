@@ -2571,3 +2571,76 @@ Development decision:
 
 Repository source/config/workflow restored to the exact post-0.24 0.23
 canonical state.
+
+
+## ASI 0.28 static correction — DepthBlur RAW/RVA ownership
+
+Status: **FUNCTIONAL TEST CANDIDATE. 0.23 remains canonical.**
+
+### Trigger
+
+Recent canonical runtime logs repeatedly showed:
+- `[SKIP] DepthBlur mask shader tap offsets native value mismatch at RVA 0x00D66AE0`
+- `[SKIP] DepthBlur color shader texel offsets native value mismatch at RVA 0x00D664A0`
+
+All other canonical 0.23 render owners applied normally.
+
+### Static root cause
+
+ASI 0.14 recovered the DepthBlur literal constants while inspecting an
+executable file. The recorded addresses were subsequently described and coded
+as runtime RVAs.
+
+A second-pass PE mapping audit proves these values belong to the same embedded
+shader section whose RAW-to-RVA displacement is +0x1600.
+
+Independent already-correct examples in current source:
+- PsBloomFinal DownsampledBackBuffer sampler:
+  RAW 0x00D67E3C -> RVA 0x00D6943C;
+- PsBloom prefilter gain:
+  RAW 0x00D68568 -> RVA 0x00D69B68.
+
+The old DepthBlur code omitted that +0x1600 displacement.
+
+Corrected mask RVA family:
+- 0x00D66AE0 -> 0x00D680E0
+- 0x00D66AF8 -> 0x00D680F8
+- 0x00D66AFC -> 0x00D680FC
+- 0x00D66B00 -> 0x00D68100
+- 0x00D66B04 -> 0x00D68104
+- 0x00D66DB8 -> 0x00D683B8
+- 0x00D66DBC -> 0x00D683BC
+- 0x00D66DD0 -> 0x00D683D0
+- 0x00D66DD4 -> 0x00D683D4
+- 0x00D66DD8 -> 0x00D683D8
+- 0x00D66DDC -> 0x00D683DC
+
+Corrected color RVA family:
+- 0x00D664A0 -> 0x00D67AA0
+- 0x00D664A4 -> 0x00D67AA4
+- 0x00D666B0 -> 0x00D67CB0
+- 0x00D666B4 -> 0x00D67CB4
+
+No expected float or scale changes:
+- mask expected literals remain 7.5, 2, 4, 6, 8 and 6, 7.5, 2, 4, 5, 8;
+- color expected literals remain -1/+1;
+- canonical compensation remains 0.5 for the doubled mask RT;
+- canonical compensation remains 2/3 for the 1.5x color-pyramid pixel density.
+
+### Scope
+
+Only the two address tables and runtime banner change.
+0.23 quality/profile values are otherwise frozen.
+
+This is not a telemetry build and adds no runtime hook.
+
+Source/config:
+- `60e9206ccaca88c204760612eab6f524f8d64fdf` — corrected shader RVAs;
+- `9db17aff281ccce5570a3ef1f129433a4fa830b7` — candidate-labelled INI;
+- `a2ab85ee8ed7cc4c98775590dfa1d6deabf77ed0` — 0.28 CI label.
+
+Decision gate:
+- both DepthBlur groups must pass exact float verification and log `[OK]`;
+- image must remain clean, without the old fragmented artifact;
+- no blur/halo regression;
+- only then can 0.28 supersede canonical 0.23.
