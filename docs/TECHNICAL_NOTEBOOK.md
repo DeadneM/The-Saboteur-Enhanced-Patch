@@ -2008,3 +2008,42 @@ CI:
 - `dinput8.dll` SHA-256:
   `7631ad8af83e40c77d46b1a0f786207a31198273e55bb13a5f2298d0f4727165`
 - both binaries verified PE machine x86 / 0x14C.
+
+
+## ASI 0.22A user validation — PROMOTED TO CANONICAL
+
+User result: **validated**.
+
+0.22A is functionally identical to 0.22. The only additional change is
+packaging correction:
+- `README_ASI.md` -> `README.txt` inside the distributed artifact.
+
+Validated rendering deltas:
+- Water.ReflectionWidth 512 -> 2048
+- Water.ReflectionHeight 128 -> 512
+- Water.NormalMapResolution 128 -> 512
+- Sky.ResolutionMultiplier 1 -> 2
+- Rain.CubeResolution 128 -> 512
+
+Frozen from 0.21:
+- ShadowMap 4096 + PCF5x5
+- full-resolution AO
+- 0.13-0.16 high-resolution PostFX + CorrectUV fixes
+- particle RestoreDepthBuffer full-resolution correction
+- ToneMap 0.25
+- BloomPrefilterGain 1.0
+- retail BloomFinal and sampler paths
+
+Validated 0.22A artifact:
+- workflow run: 149
+- run ID: `36989287352`
+- artifact ID: `11218681459`
+- artifact: `SaboteurEnhanced_ASI_0.22A_WORLD_RENDER_TARGET_QUALITY_REPACK_x86`
+- artifact ZIP SHA-256:
+  `8c6cf32c6b1758f950cae5af2e9e233e9ec85d0fe3e4ccde498db9031cb55d42`
+- `SaboteurEnhanced.asi` SHA-256:
+  `5fc84ad5c0aaadb45c0320dc5eb66d6f64cb492a98b9f9f59d9443f76d377ddb`
+- `dinput8.dll` SHA-256:
+  `e18038a936fbad3c6d095b5dac5a602f3d3b7f7ddb040863884dfa73f80987bd`
+
+0.22A is now the canonical ASI baseline for future work.
