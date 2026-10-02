@@ -2188,3 +2188,26 @@ CI:
 - `dinput8.dll` SHA-256:
   `41fc890644aad0c305f0e855062be40b1891f5db9689dad3e7ad44c478354130`
 - both binaries verified PE machine x86 / 0x14C.
+
+
+## 0.24 rejected / abandoned by direction
+
+User direction: stop this class of test entirely.
+
+0.24 maximum world-RT escalation is **not validated** and must not become a
+future base.
+
+Repository restored to canonical 0.23 values:
+- Water.ReflectionWidth = 4096
+- Water.ReflectionHeight = 1024
+- Water.NormalMapResolution = 1024
+- Sky.ResolutionMultiplier = 2
+- Rain.CubeResolution = 1024
+
+New project rule:
+- no more blind render-target size escalation;
+- audit a real engine owner first;
+- build only when the change addresses a concrete issue or verified bottleneck.
+
+Next investigation priority:
+- streaming / micro-freezes / pop-in ownership and scheduling.
