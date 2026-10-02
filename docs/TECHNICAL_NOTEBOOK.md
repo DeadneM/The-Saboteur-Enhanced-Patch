@@ -2644,3 +2644,20 @@ Decision gate:
 - image must remain clean, without the old fragmented artifact;
 - no blur/halo regression;
 - only then can 0.28 supersede canonical 0.23.
+
+
+ASI 0.28 CI:
+- workflow run: 187
+- run ID: `37015359254`
+- artifact ID: `11229427250`
+- artifact: `SaboteurEnhanced_ASI_0.28_DEPTHBLUR_RAW_RVA_CORRECTUV_FIX_TEST_x86`
+- artifact ZIP SHA-256:
+  `00bf03d6ed7f2c3094a062f349fc7efa6d9af33e1fb37ebfedea9bb206ce0376`
+- `SaboteurEnhanced.asi` SHA-256:
+  `100e9f98cbb94561e1ce5fb1c4f2ad350348959c159bba5b3cf43d7870d8c6ff`
+- `dinput8.dll` SHA-256:
+  `9a909fa33ec19a2d264633ddf848cb4764ee7fb6d7945bc4091b4a2263a079f9`
+- both binaries verified PE machine x86 / 0x14C;
+- packaged documentation remains `README.txt`.
+
+0.28 is functional test only. 0.23 remains canonical until explicit validation.
