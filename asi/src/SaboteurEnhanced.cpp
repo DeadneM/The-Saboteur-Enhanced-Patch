@@ -3062,6 +3062,533 @@ static bool StartStreamingTelemetry(HMODULE exe, LONG intervalMs, LONG reportMs)
 }
 
 
+
+// -----------------------------------------------------------------------------
+// ASI 0.26 retail single-submit scheduler telemetry
+// -----------------------------------------------------------------------------
+//
+// Diagnostic only. This does NOT restore historical Async32 and does not change
+// coalescing, queue capacity, pool capacity or submit policy.
+//
+// Exact retail/Core1 scheduler path recovered from the V200 before-bytes:
+//   scheduler tick RVA 0x009B6750
+//   current single I/O pointer: scheduler + 0x218
+//   queue object: scheduler + 0x10C
+//   submit routine RVA 0x009B5540
+//   completion callback RVA 0x009B56C0
+//
+// The retail tick submits only when +0x218 == nullptr. The completion callback
+// clears +0x218 and, if the queue is non-empty, immediately submits one next
+// request. 0.26 instruments only the two retail calls to the submit routine and
+// the completion callback entry.
+
+static uintptr_t g_streamSchedulerBase = 0;
+static uintptr_t g_streamSubmitOriginal = 0;
+static uintptr_t g_streamCompletionReturn = 0;
+static volatile LONG g_streamSchedulerRun = 0;
+static LONG g_streamSchedulerSampleMs = 5;
+static LONG g_streamSchedulerReportMs = 5000;
+static LARGE_INTEGER g_streamQpcFrequency{};
+static SRWLOCK g_streamSchedulerLock = SRWLOCK_INIT;
+
+struct StreamSchedulerMetrics
+{
+    unsigned long long submitCount{};
+    unsigned long long submitFlag0{};
+    unsigned long long submitFlag1{};
+    unsigned long long completionCount{};
+    unsigned long long completionOk{};
+    unsigned long long completionError{};
+    unsigned long long unmatchedCompletions{};
+    unsigned long long overlappingSubmits{};
+    unsigned long long jobPointerMismatches{};
+
+    unsigned long long totalServiceTicks{};
+    unsigned long long maxServiceTicks{};
+    unsigned long long serviceOver2ms{};
+    unsigned long long serviceOver5ms{};
+    unsigned long long serviceOver10ms{};
+    unsigned long long serviceOver20ms{};
+    unsigned long long serviceOver50ms{};
+
+    unsigned long long totalReadBytes{};
+    unsigned long long maxReadBytes{};
+    unsigned long long readLE64K{};
+    unsigned long long readLE256K{};
+    unsigned long long readLE512K{};
+    unsigned long long readLE1M{};
+    unsigned long long readGT1M{};
+
+    unsigned long long submitWithBacklog{};
+    unsigned long long completionWithBacklog{};
+    unsigned long long schedulerSamples{};
+    unsigned long long busySamples{};
+    unsigned long long queuedSamples{};
+    unsigned long long busyQueuedSamples{};
+    unsigned long long idleQueuedSamples{};
+    unsigned long long maxIdleQueuedMs{};
+    uint32_t queueDepthPeak{};
+
+    long long lastSubmitQpc{};
+    uintptr_t lastSubmitJob{};
+};
+
+static StreamSchedulerMetrics g_streamSchedulerMetrics{};
+
+static bool ReadRetailSchedulerState(uint32_t& depth, bool& busy, uintptr_t& currentJob)
+{
+    depth = 0;
+    busy = false;
+    currentJob = 0;
+
+    if (!g_streamSchedulerBase)
+        return false;
+
+    constexpr uintptr_t kSchedulerGlobalRva = 0x010E1C08;
+    const uintptr_t scheduler =
+        *reinterpret_cast<volatile uintptr_t*>(g_streamSchedulerBase + kSchedulerGlobalRva);
+
+    if (scheduler < 0x10000)
+        return false;
+
+    const uint8_t full = *reinterpret_cast<volatile uint8_t*>(scheduler + 0x10C);
+    const uint32_t head =
+        *reinterpret_cast<volatile uint32_t*>(scheduler + 0x110) & 0x3F;
+    const uint32_t tail =
+        *reinterpret_cast<volatile uint32_t*>(scheduler + 0x114) & 0x3F;
+
+    currentJob =
+        *reinterpret_cast<volatile uintptr_t*>(scheduler + 0x218);
+    busy = currentJob != 0;
+    depth = full ? 64u : ((tail - head) & 0x3Fu);
+    return true;
+}
+
+static unsigned long long QpcTicksForMs(double ms)
+{
+    if (g_streamQpcFrequency.QuadPart <= 0)
+        return 0;
+    return static_cast<unsigned long long>(
+        (ms * static_cast<double>(g_streamQpcFrequency.QuadPart)) / 1000.0);
+}
+
+static unsigned long long ReadJobByteCount(void* job)
+{
+    if (!job)
+        return 0;
+
+    const auto* p = reinterpret_cast<const uint8_t*>(job);
+    const uint32_t byteLimit = *reinterpret_cast<const uint32_t*>(p + 0x14);
+    const uint32_t firstSector = *reinterpret_cast<const uint32_t*>(p + 0x20);
+    const uint32_t lastSector = *reinterpret_cast<const uint32_t*>(p + 0x24);
+
+    if (lastSector < firstSector)
+        return 0;
+
+    unsigned long long bytes =
+        (static_cast<unsigned long long>(lastSector - firstSector) + 1ull) * 2048ull;
+    if (bytes > byteLimit)
+        bytes = byteLimit;
+    return bytes;
+}
+
+static void __cdecl RecordStreamingSubmit(void* job, int submitFlag)
+{
+    LARGE_INTEGER now{};
+    QueryPerformanceCounter(&now);
+
+    uint32_t depth = 0;
+    bool busy = false;
+    uintptr_t currentJob = 0;
+    ReadRetailSchedulerState(depth, busy, currentJob);
+
+    const unsigned long long bytes = ReadJobByteCount(job);
+
+    AcquireSRWLockExclusive(&g_streamSchedulerLock);
+    StreamSchedulerMetrics& m = g_streamSchedulerMetrics;
+
+    ++m.submitCount;
+    if (submitFlag)
+        ++m.submitFlag1;
+    else
+        ++m.submitFlag0;
+
+    if (m.lastSubmitQpc != 0)
+        ++m.overlappingSubmits;
+
+    m.lastSubmitQpc = now.QuadPart;
+    m.lastSubmitJob = reinterpret_cast<uintptr_t>(job);
+
+    if (depth > m.queueDepthPeak)
+        m.queueDepthPeak = depth;
+    if (depth != 0)
+        ++m.submitWithBacklog;
+
+    m.totalReadBytes += bytes;
+    if (bytes > m.maxReadBytes)
+        m.maxReadBytes = bytes;
+
+    if (bytes <= 64ull * 1024ull)
+        ++m.readLE64K;
+    else if (bytes <= 256ull * 1024ull)
+        ++m.readLE256K;
+    else if (bytes <= 512ull * 1024ull)
+        ++m.readLE512K;
+    else if (bytes <= 1024ull * 1024ull)
+        ++m.readLE1M;
+    else
+        ++m.readGT1M;
+
+    ReleaseSRWLockExclusive(&g_streamSchedulerLock);
+}
+
+static void __cdecl RecordStreamingCompletion(unsigned status)
+{
+    LARGE_INTEGER now{};
+    QueryPerformanceCounter(&now);
+
+    uint32_t depth = 0;
+    bool busy = false;
+    uintptr_t currentJob = 0;
+    ReadRetailSchedulerState(depth, busy, currentJob);
+
+    AcquireSRWLockExclusive(&g_streamSchedulerLock);
+    StreamSchedulerMetrics& m = g_streamSchedulerMetrics;
+
+    ++m.completionCount;
+    if (status == 0)
+        ++m.completionOk;
+    else
+        ++m.completionError;
+
+    if (depth > m.queueDepthPeak)
+        m.queueDepthPeak = depth;
+    if (depth != 0)
+        ++m.completionWithBacklog;
+
+    if (m.lastSubmitQpc == 0)
+    {
+        ++m.unmatchedCompletions;
+    }
+    else
+    {
+        if (currentJob != 0 && m.lastSubmitJob != 0 &&
+            currentJob != m.lastSubmitJob)
+            ++m.jobPointerMismatches;
+
+        const unsigned long long ticks =
+            now.QuadPart >= m.lastSubmitQpc
+                ? static_cast<unsigned long long>(now.QuadPart - m.lastSubmitQpc)
+                : 0ull;
+
+        m.totalServiceTicks += ticks;
+        if (ticks > m.maxServiceTicks)
+            m.maxServiceTicks = ticks;
+
+        if (ticks >= QpcTicksForMs(2.0)) ++m.serviceOver2ms;
+        if (ticks >= QpcTicksForMs(5.0)) ++m.serviceOver5ms;
+        if (ticks >= QpcTicksForMs(10.0)) ++m.serviceOver10ms;
+        if (ticks >= QpcTicksForMs(20.0)) ++m.serviceOver20ms;
+        if (ticks >= QpcTicksForMs(50.0)) ++m.serviceOver50ms;
+    }
+
+    m.lastSubmitQpc = 0;
+    m.lastSubmitJob = 0;
+    ReleaseSRWLockExclusive(&g_streamSchedulerLock);
+}
+
+__declspec(naked) static void StreamingSubmitTelemetryHook()
+{
+    __asm
+    {
+        pushfd
+        pushad
+
+        mov eax, dword ptr [esp+24]  // saved ECX = job
+        mov edx, dword ptr [esp+40]  // original stack argument
+        push edx
+        push eax
+        call RecordStreamingSubmit
+        add esp, 8
+
+        popad
+        popfd
+        jmp dword ptr [g_streamSubmitOriginal]
+    }
+}
+
+__declspec(naked) static void StreamingCompletionTelemetryHook()
+{
+    __asm
+    {
+        pushfd
+        pushad
+
+        mov eax, dword ptr [esp+40]  // callback status at original [esp+4]
+        push eax
+        call RecordStreamingCompletion
+        add esp, 4
+
+        popad
+        popfd
+
+        // Reproduce the exact six bytes replaced at callback entry.
+        mov eax, dword ptr [esp+4]
+        test eax, eax
+        jmp dword ptr [g_streamCompletionReturn]
+    }
+}
+
+static bool BuildRel32Patch(uint8_t opcode, void* atAddress, void* destination,
+                            uint8_t out[5], const char* label)
+{
+    const intptr_t delta =
+        reinterpret_cast<intptr_t>(destination) -
+        (reinterpret_cast<intptr_t>(atAddress) + 5);
+
+    if (delta < INT32_MIN || delta > INT32_MAX)
+    {
+        Log("[FAIL] %s target is outside rel32 range.", label);
+        return false;
+    }
+
+    out[0] = opcode;
+    const int32_t rel = static_cast<int32_t>(delta);
+    std::memcpy(out + 1, &rel, sizeof(rel));
+    return true;
+}
+
+static bool InstallStreamingSchedulerTelemetry(HMODULE exe)
+{
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+
+    constexpr uintptr_t kSubmitFromTickRva = 0x009B679E;
+    constexpr uintptr_t kSubmitFromCompletionRva = 0x009B572A;
+    constexpr uintptr_t kSubmitRoutineRva = 0x009B5540;
+    constexpr uintptr_t kCompletionRva = 0x009B56C0;
+    constexpr uintptr_t kCompletionReturnRva = 0x009B56C6;
+
+    static const uint8_t expectedTickCall[5] =
+        {0xE8,0x9D,0xED,0xFF,0xFF};
+    static const uint8_t expectedCompletionCall[5] =
+        {0xE8,0x11,0xFE,0xFF,0xFF};
+    static const uint8_t expectedCompletionEntry[6] =
+        {0x8B,0x44,0x24,0x04,0x85,0xC0};
+
+    auto* tickCall = reinterpret_cast<uint8_t*>(base + kSubmitFromTickRva);
+    auto* chainedCall = reinterpret_cast<uint8_t*>(base + kSubmitFromCompletionRva);
+    auto* completion = reinterpret_cast<uint8_t*>(base + kCompletionRva);
+
+    // Verify every site before writing any site.
+    if (std::memcmp(tickCall, expectedTickCall, sizeof(expectedTickCall)) != 0)
+    {
+        Log("[FAIL] Retail scheduler tick submit CALL mismatch at RVA 0x%08X.",
+            static_cast<unsigned>(kSubmitFromTickRva));
+        return false;
+    }
+    if (std::memcmp(chainedCall, expectedCompletionCall, sizeof(expectedCompletionCall)) != 0)
+    {
+        Log("[FAIL] Retail completion-chain submit CALL mismatch at RVA 0x%08X.",
+            static_cast<unsigned>(kSubmitFromCompletionRva));
+        return false;
+    }
+    if (std::memcmp(completion, expectedCompletionEntry, sizeof(expectedCompletionEntry)) != 0)
+    {
+        Log("[FAIL] Retail completion callback prologue mismatch at RVA 0x%08X.",
+            static_cast<unsigned>(kCompletionRva));
+        return false;
+    }
+
+    uint8_t tickPatch[5]{};
+    uint8_t chainPatch[5]{};
+    uint8_t completionPatch[6] = {0xE9,0,0,0,0,0x90};
+
+    if (!BuildRel32Patch(0xE8, tickCall,
+                         reinterpret_cast<void*>(&StreamingSubmitTelemetryHook),
+                         tickPatch, "scheduler tick submit telemetry"))
+        return false;
+    if (!BuildRel32Patch(0xE8, chainedCall,
+                         reinterpret_cast<void*>(&StreamingSubmitTelemetryHook),
+                         chainPatch, "completion-chain submit telemetry"))
+        return false;
+
+    const intptr_t completionDelta =
+        reinterpret_cast<intptr_t>(&StreamingCompletionTelemetryHook) -
+        (reinterpret_cast<intptr_t>(completion) + 5);
+    if (completionDelta < INT32_MIN || completionDelta > INT32_MAX)
+    {
+        Log("[FAIL] Completion telemetry target is outside rel32 range.");
+        return false;
+    }
+    const int32_t completionRel = static_cast<int32_t>(completionDelta);
+    std::memcpy(completionPatch + 1, &completionRel, sizeof(completionRel));
+
+    g_streamSchedulerBase = base;
+    g_streamSubmitOriginal = base + kSubmitRoutineRva;
+    g_streamCompletionReturn = base + kCompletionReturnRva;
+
+    if (!WriteBytes(tickCall, tickPatch, sizeof(tickPatch)) ||
+        !WriteBytes(chainedCall, chainPatch, sizeof(chainPatch)) ||
+        !WriteBytes(completion, completionPatch, sizeof(completionPatch)))
+    {
+        Log("[FAIL] Streaming scheduler telemetry patch write failed.");
+        return false;
+    }
+
+    Log("[OK] Retail single-submit scheduler telemetry installed at submit/completion sites.");
+    return true;
+}
+
+static void LogStreamingSchedulerSnapshot(const char* prefix)
+{
+    StreamSchedulerMetrics m{};
+    AcquireSRWLockShared(&g_streamSchedulerLock);
+    m = g_streamSchedulerMetrics;
+    ReleaseSRWLockShared(&g_streamSchedulerLock);
+
+    const double tickMs =
+        g_streamQpcFrequency.QuadPart > 0
+            ? 1000.0 / static_cast<double>(g_streamQpcFrequency.QuadPart)
+            : 0.0;
+
+    const double avgServiceMs =
+        m.completionCount != 0
+            ? static_cast<double>(m.totalServiceTicks) * tickMs /
+              static_cast<double>(m.completionCount)
+            : 0.0;
+    const double maxServiceMs =
+        static_cast<double>(m.maxServiceTicks) * tickMs;
+
+    const double avgReadKiB =
+        m.submitCount != 0
+            ? static_cast<double>(m.totalReadBytes) / 1024.0 /
+              static_cast<double>(m.submitCount)
+            : 0.0;
+    const double maxReadKiB =
+        static_cast<double>(m.maxReadBytes) / 1024.0;
+
+    const double busyPct =
+        m.schedulerSamples != 0
+            ? 100.0 * static_cast<double>(m.busySamples) /
+              static_cast<double>(m.schedulerSamples)
+            : 0.0;
+    const double busyQueuedPct =
+        m.schedulerSamples != 0
+            ? 100.0 * static_cast<double>(m.busyQueuedSamples) /
+              static_cast<double>(m.schedulerSamples)
+            : 0.0;
+
+    Log("[SCHED] %s Submit=%llu(flag1=%llu flag0=%llu) Complete=%llu(ok=%llu err=%llu) QueuePeak=%u BacklogSubmit=%llu BacklogComplete=%llu",
+        prefix,
+        m.submitCount, m.submitFlag1, m.submitFlag0,
+        m.completionCount, m.completionOk, m.completionError,
+        m.queueDepthPeak, m.submitWithBacklog, m.completionWithBacklog);
+
+    Log("[SCHED] %s Service avg=%.3fms max=%.3fms >=2/5/10/20/50ms=%llu/%llu/%llu/%llu/%llu Busy=%.1f%% Busy+Queued=%.1f%% IdleQueuedSamples=%llu MaxIdleQueued=%llums",
+        prefix,
+        avgServiceMs, maxServiceMs,
+        m.serviceOver2ms, m.serviceOver5ms, m.serviceOver10ms,
+        m.serviceOver20ms, m.serviceOver50ms,
+        busyPct, busyQueuedPct,
+        m.idleQueuedSamples, m.maxIdleQueuedMs);
+
+    Log("[SCHED] %s ReadSize avg=%.1fKiB max=%.1fKiB buckets<=64/256/512/1024/>1024KiB=%llu/%llu/%llu/%llu/%llu OverlapSubmit=%llu UnmatchedComplete=%llu JobMismatch=%llu",
+        prefix,
+        avgReadKiB, maxReadKiB,
+        m.readLE64K, m.readLE256K, m.readLE512K, m.readLE1M, m.readGT1M,
+        m.overlappingSubmits, m.unmatchedCompletions, m.jobPointerMismatches);
+}
+
+static DWORD WINAPI StreamingSchedulerSamplerThread(LPVOID)
+{
+    unsigned long long idleQueuedStreakMs = 0;
+    ULONGLONG lastReport = GetTickCount64();
+
+    while (InterlockedCompareExchange(&g_streamSchedulerRun, 0, 0) != 0)
+    {
+        uint32_t depth = 0;
+        bool busy = false;
+        uintptr_t currentJob = 0;
+
+        if (ReadRetailSchedulerState(depth, busy, currentJob))
+        {
+            AcquireSRWLockExclusive(&g_streamSchedulerLock);
+            StreamSchedulerMetrics& m = g_streamSchedulerMetrics;
+
+            ++m.schedulerSamples;
+            if (busy) ++m.busySamples;
+            if (depth != 0) ++m.queuedSamples;
+            if (busy && depth != 0) ++m.busyQueuedSamples;
+
+            if (!busy && depth != 0)
+            {
+                ++m.idleQueuedSamples;
+                idleQueuedStreakMs +=
+                    static_cast<unsigned long long>(g_streamSchedulerSampleMs);
+                if (idleQueuedStreakMs > m.maxIdleQueuedMs)
+                    m.maxIdleQueuedMs = idleQueuedStreakMs;
+            }
+            else
+            {
+                idleQueuedStreakMs = 0;
+            }
+
+            if (depth > m.queueDepthPeak)
+                m.queueDepthPeak = depth;
+
+            ReleaseSRWLockExclusive(&g_streamSchedulerLock);
+        }
+
+        const ULONGLONG now = GetTickCount64();
+        if (now - lastReport >= static_cast<ULONGLONG>(g_streamSchedulerReportMs))
+        {
+            lastReport = now;
+            LogStreamingSchedulerSnapshot("live");
+        }
+
+        Sleep(static_cast<DWORD>(g_streamSchedulerSampleMs));
+    }
+
+    return 0;
+}
+
+static bool StartStreamingSchedulerTelemetry(HMODULE exe, LONG sampleMs, LONG reportMs)
+{
+    if (sampleMs < 1) sampleMs = 1;
+    if (sampleMs > 100) sampleMs = 100;
+    if (reportMs < 1000) reportMs = 1000;
+    if (reportMs > 60000) reportMs = 60000;
+
+    g_streamSchedulerSampleMs = sampleMs;
+    g_streamSchedulerReportMs = reportMs;
+
+    if (!QueryPerformanceFrequency(&g_streamQpcFrequency) ||
+        g_streamQpcFrequency.QuadPart <= 0)
+    {
+        Log("[FAIL] QueryPerformanceFrequency unavailable for scheduler telemetry.");
+        return false;
+    }
+
+    if (!InstallStreamingSchedulerTelemetry(exe))
+        return false;
+
+    InterlockedExchange(&g_streamSchedulerRun, 1);
+    HANDLE thread =
+        CreateThread(nullptr, 0, StreamingSchedulerSamplerThread, nullptr, 0, nullptr);
+    if (!thread)
+    {
+        InterlockedExchange(&g_streamSchedulerRun, 0);
+        Log("[FAIL] Could not start scheduler telemetry sampler thread.");
+        return false;
+    }
+
+    CloseHandle(thread);
+    Log("[OK] Scheduler telemetry active: sample=%ldms report=%ldms; retail single-submit policy unchanged.",
+        g_streamSchedulerSampleMs, g_streamSchedulerReportMs);
+    return true;
+}
+
+
 // -----------------------------------------------------------------------------
 // ASI 0.2 OdinMeshInstance diagnostic
 // -----------------------------------------------------------------------------
@@ -3739,7 +4266,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.25 STREAMING TELEMETRY DIAGNOSTIC");
+    Log("SaboteurEnhanced ASI 0.26 RETAIL SCHEDULER TELEMETRY DIAGNOSTIC");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -3747,6 +4274,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const bool enableStreamingTelemetry = GetPrivateProfileIntW(L"Diagnostics", L"StreamingTelemetry", 1, iniPath.c_str()) != 0;
     const LONG streamingTelemetryIntervalMs = GetPrivateProfileIntW(L"Diagnostics", L"StreamingTelemetryIntervalMs", 50, iniPath.c_str());
     const LONG streamingTelemetryReportMs = GetPrivateProfileIntW(L"Diagnostics", L"StreamingTelemetryReportMs", 5000, iniPath.c_str());
+    const bool enableStreamingSchedulerTelemetry = GetPrivateProfileIntW(L"Diagnostics", L"StreamingSchedulerTelemetry", 1, iniPath.c_str()) != 0;
+    const LONG streamingSchedulerSampleMs = GetPrivateProfileIntW(L"Diagnostics", L"StreamingSchedulerSampleMs", 5, iniPath.c_str());
     const bool enableV310 = GetPrivateProfileIntW(L"Fixes", L"WSModelFullRenderMask", 1, iniPath.c_str()) != 0;
     const bool enableV311 = GetPrivateProfileIntW(L"Fixes", L"ModelInfoFullRenderSlice", 1, iniPath.c_str()) != 0;
     const bool enableOdinChildVisibility = GetPrivateProfileIntW(L"Fixes", L"OdinChildVisibilityGate", 0, iniPath.c_str()) != 0;
@@ -4294,6 +4823,17 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         Log("[OFF] Streaming telemetry disabled by INI.");
     }
 
+    if (enableStreamingSchedulerTelemetry)
+    {
+        if (!StartStreamingSchedulerTelemetry(
+                exe, streamingSchedulerSampleMs, streamingTelemetryReportMs))
+            Log("[FAIL] Retail scheduler telemetry could not be started.");
+    }
+    else
+    {
+        Log("[OFF] Retail scheduler telemetry disabled by INI.");
+    }
+
     if (enableOdin)
     {
         if (InstallOdinDiagnostics(exe))
@@ -4331,12 +4871,14 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID)
         {
             InterlockedExchange(&g_markerThreadRun, 0);
             InterlockedExchange(&g_streamTelemetryRun, 0);
+            InterlockedExchange(&g_streamSchedulerRun, 0);
             Log("Streaming summary: ReadPeak=%ld ReadCapHits=%ld UncompressPeak=%ld UncompressCapHits=%ld FIFOFullEvents=%ld",
                 InterlockedCompareExchange(&g_streamReadPeak, 0, 0),
                 InterlockedCompareExchange(&g_streamReadCapacityHits, 0, 0),
                 InterlockedCompareExchange(&g_streamUncompressPeak, 0, 0),
                 InterlockedCompareExchange(&g_streamUncompressCapacityHits, 0, 0),
                 InterlockedCompareExchange(&g_streamFifoFullEvents, 0, 0));
+            LogStreamingSchedulerSnapshot("final");
             Log("Odin summary: SyncCalls=%ld Mismatches=%ld F9Markers=%ld LoggedEvents=%ld",
                 g_odinSyncCalls, g_odinSyncMismatches, g_markerCount, g_odinLoggedEvents);
             Log("ASI unload.");
