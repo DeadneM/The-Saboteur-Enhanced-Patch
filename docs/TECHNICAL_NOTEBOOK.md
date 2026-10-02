@@ -2047,3 +2047,49 @@ Validated 0.22A artifact:
   `e18038a936fbad3c6d095b5dac5a602f3d3b7f7ddb040863884dfa73f80987bd`
 
 0.22A is now the canonical ASI baseline for future work.
+
+
+## ASI 0.23 extreme world render-target candidate
+
+Status: **TEST CANDIDATE; 0.22A remains canonical until explicit validation**.
+
+Base:
+- canonical ASI 0.22A;
+- no changes to any post-processing, brightness, shadow, AO, particle,
+  LightVolume, distance or engine-limit owner.
+
+Exact 0.23 deltas:
+- `Water.ReflectionWidth 2048 -> 4096`
+- `Water.ReflectionHeight 512 -> 1024`
+- `Water.NormalMapResolution 512 -> 1024`
+- `Rain.CubeResolution 512 -> 1024`
+- `Sky.ResolutionMultiplier` remains validated `2`
+
+Rationale:
+- these exact owner families were already validated at the 0.22A values;
+- this candidate follows the project rule to push clearly first, then reduce
+  only if a visible or stability regression appears;
+- WaterReflection keeps the 4:1 aspect ratio;
+- WaterNormals/Temp remain dimensionally matched;
+- RainCubeRT remains isolated from HardwareRainDepthTexture;
+- SkyDome is intentionally not pushed beyond x2 because x2 is the highest
+  already-audited coherent implementation.
+
+Frozen 0.22A:
+- ShadowMap 4096 + PCF5x5;
+- full-resolution AO;
+- full-resolution MotionBlur/ScaledTexture/DamageBlur;
+- coherent DepthBlur;
+- full-resolution LightVolume + coordinate correction;
+- particle RT x2 + RestoreDepthBuffer identity mapping;
+- ToneMap 0.25;
+- BloomPrefilterGain 1.0;
+- retail BloomFinal and sampler paths;
+- packaged documentation name `README.txt`.
+
+Source/config:
+- `a82ef56b64633bcb915c7ba36880be9fcbf97d91` — 0.23 INI profile
+- `1252a803cd8aa45891cc0479efd2aa51a54c0dee` — runtime banner
+- `f3f0436c4e8dbe1af10ef0fceb66ac3e0edb2a14` — CI artifact label
+
+Do not promote 0.23 until explicit user validation.
