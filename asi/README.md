@@ -716,3 +716,54 @@ The repository is restored to the 0.23 canonical values:
 - RainCubeRT 1024
 
 Future candidates must not continue simple RT-size inflation.
+
+
+## 0.25 streaming-pressure telemetry diagnostic
+
+Status: **DIAGNOSTIC ONLY — canonical gameplay/render baseline remains 0.23**.
+
+0.25 does not increase a streaming capacity and does not change scheduling,
+coverage, merged-read size or coalescing thresholds.
+
+The generic pool manager was re-audited before building this diagnostic. The
+field semantics are now proven from the allocator/free paths:
+
+- descriptor +0x2C = object size;
+- descriptor +0x34 = current allocated capacity;
+- descriptor +0x38 = active/in-use count;
+- descriptor +0x3C = backing allocation;
+- descriptor +0x44 = free-list head.
+
+The allocator increments +0x38 after a successful allocation; the release path
+decrements it. The invariant checker explicitly verifies:
+
+`free-list node count == capacity(+0x34) - active(+0x38)`.
+
+Streaming pool descriptors:
+- WSReadJob: VA 0x0132B9D8 / RVA 0x00F2B9D8, object size 0x2C;
+- WSUncompressJob: VA 0x0132BA40 / RVA 0x00F2BA40, object size 0x28.
+
+0.25 samples both active counts every 50 ms and reports every 5 seconds.
+
+It also instruments the already-validated Core 1 streaming FIFO full-queue
+correction. Core 1 keeps the native 64-slot ring and, when full, drops the
+oldest entry before enqueueing the new request. 0.25 counts those exact
+full-queue events while reproducing the existing Core 1 code path unchanged.
+
+New diagnostic INI controls:
+- `Diagnostics.StreamingTelemetry=1`
+- `Diagnostics.StreamingTelemetryIntervalMs=50`
+- `Diagnostics.StreamingTelemetryReportMs=5000`
+
+The resulting `SaboteurEnhanced.log` reports:
+- current/peak WSReadJob occupancy;
+- current/peak WSUncompressJob occupancy;
+- capacity-hit transitions;
+- native FIFO full-queue event count.
+
+Decision rule:
+- if either 1200-entry pool approaches/exhausts capacity, the historical
+  validated 1200 -> 2400 V272 change earns a focused functional candidate;
+- if pool pressure stays low but FIFO-full events accumulate, investigate
+  producer/consumer scheduling and async throughput instead;
+- if neither is pressured, do not increase either capacity.
