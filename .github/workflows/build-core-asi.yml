@@ -30,7 +30,7 @@ jobs:
           cl /nologo /std:c++17 /O2 /MT /W4 /LD asi\src\dinput8_proxy.cpp /link /DEF:asi\src\dinput8.def /OUT:dist\dinput8.dll
           if errorlevel 1 exit /b 1
           copy /Y asi\SaboteurEnhanced.ini dist\SaboteurEnhanced.ini
-          copy /Y asi\README.md dist\README_ASI.md
+          copy /Y asi\README.md dist\README.txt
 
       - name: Verify PE machine is x86
         shell: cmd
@@ -46,7 +46,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SaboteurEnhanced_ASI_0.22_WORLD_RENDER_TARGET_QUALITY_TEST_x86
+          name: SaboteurEnhanced_ASI_0.22A_WORLD_RENDER_TARGET_QUALITY_REPACK_x86
           path: dist/*
           if-no-files-found: error
           compression-level: 0
