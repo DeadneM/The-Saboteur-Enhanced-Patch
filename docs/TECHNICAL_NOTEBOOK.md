@@ -2343,3 +2343,103 @@ Important limitation:
   mathematically impossible to miss. The large observed headroom plus zero exact
   FIFO-full events nevertheless argues strongly against either 1200-entry pool
   or the 64-slot FIFO being the current sustained bottleneck.
+
+
+## ASI 0.26 retail scheduler audit and telemetry candidate
+
+Status: **DIAGNOSTIC ONLY. 0.23 remains canonical.**
+
+### Historical Async32 reconstructed exactly enough for instrumentation
+
+The Original -> V200 manifest was decoded again and the relevant streaming
+regions were audited directly.
+
+Retail/Core1 scheduler:
+- entry RVA 0x009B6750;
+- retail prologue bytes: `55 56 57 8B F9`;
+- scheduler object in EDI;
+- single current I/O request pointer: scheduler +0x218;
+- queue object begins at scheduler +0x10C;
+- submit routine: RVA 0x009B5540;
+- completion callback: RVA 0x009B56C0.
+
+The untouched retail body after the prologue:
+1. tests `[scheduler+0x218] == 0`;
+2. peeks the 64-slot queue;
+3. validates the request;
+4. pops one request;
+5. stores it in `[scheduler+0x218]`;
+6. submits exactly that one request via RVA 0x009B5540.
+
+Retail completion:
+- callback status is the first stack argument;
+- on success it marks the current request state 3;
+- clears `[scheduler+0x218]`;
+- peeks/pops one next queue request;
+- stores that request at +0x218;
+- calls the same submit routine once.
+
+### What V200 Async32 actually changed
+
+V200 region 146 redirects the scheduler entry to cave RVA 0x0000368D.
+
+The recovered V200 loop at RVA 0x0000369C:
+- `cmp dword ptr [edi+0x224], 32`;
+- while below 32, peek/pop another queued request;
+- `lock inc dword ptr [edi+0x224]`;
+- submit request;
+- loop again.
+
+V200 region 140 redirects completion through cave RVA 0x000036DC, where the
+successful completion path executes:
+- `lock dec dword ptr [scheduler+0x224]`;
+- then re-enters the same multi-submit loop.
+
+Therefore old Async32 is a genuine multi-I/O scheduler with matched
+submit/completion accounting, not a one-byte or one-immediate tweak.
+
+### 0.26 instrumentation design
+
+No multi-submit behavior is enabled.
+
+Verified hook sites:
+- tick submit CALL RVA 0x009B679E, expected `E8 9D ED FF FF`;
+- completion-chain submit CALL RVA 0x009B572A,
+  expected `E8 11 FE FF FF`;
+- callback entry RVA 0x009B56C0,
+  expected `8B 44 24 04 85 C0`.
+
+The two submit CALLs are redirected through a pass-through wrapper which records
+metrics and tail-jumps to the original submit routine. The callback entry is
+redirected through a pass-through wrapper, then reproduces the exact replaced
+`mov eax,[esp+4] ; test eax,eax` sequence and returns to RVA 0x009B56C6.
+
+Telemetry:
+- exact submit/completion counts;
+- QPC service latency;
+- service >=2/5/10/20/50 ms buckets;
+- queue-depth peak;
+- backlog present at submit/completion;
+- 5 ms samples of busy / queued / busy+queued / idle+queued;
+- maximum consecutive idle+queued time;
+- read byte counts reconstructed from native fields +0x14/+0x20/+0x24;
+- read-size distribution;
+- consistency checks for overlapping submits, unmatched completions and current
+  job pointer mismatch.
+
+0.25 telemetry remains active:
+- WSReadJob/WSUncompressJob pool occupancy;
+- exact Core1 FIFO-full events.
+
+Source/config:
+- `3c80cd349efc43550b90b42aeb255c08e7964de8` — scheduler telemetry implementation;
+- `59cbc0d1dd2b8f0ed76623391f7dd73634cc0c5c` — scheduler diagnostic INI;
+- `6f9760209534c649f471780a2c28c3d383d02a58` — clean 0.26 CI label and removal of temporary manifest audit.
+
+Decision gate after runtime log:
+- long service latency + frequent busy-with-queued backlog => multi-submit is a
+  credible next functional A/B;
+- low service latency / little backlog => do not revive Async32;
+- idle-with-queued periods => investigate scheduler wake/dispatch timing;
+- large read sizes / latency correlation => investigate coalescing separately,
+  without bundling it into Async scheduling.
