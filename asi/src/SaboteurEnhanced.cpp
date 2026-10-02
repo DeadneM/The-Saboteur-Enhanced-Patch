@@ -1505,11 +1505,14 @@ static bool ApplyDepthBlurMaskTapOffsetScale(HMODULE exe, float scale)
     // Keep the normalization constants (1/9) untouched. When the mask RT is
     // raised from 0.5x to 1.0x, 0.5 preserves the original screen-space tap
     // radius, mirroring the coherent resolution/UV correction used by AO.
+    // 0.14 audit originally recorded these as RVAs, but they were RAW file
+    // offsets. This embedded-shader PE section maps RAW -> RVA with +0x1600,
+    // the same mapping independently verified for PsBloom/PsBloomFinal.
     const uintptr_t rvas[] = {
-        0x00D66AE0,
-        0x00D66AF8,0x00D66AFC,0x00D66B00,0x00D66B04,
-        0x00D66DB8,0x00D66DBC,
-        0x00D66DD0,0x00D66DD4,0x00D66DD8,0x00D66DDC
+        0x00D680E0,
+        0x00D680F8,0x00D680FC,0x00D68100,0x00D68104,
+        0x00D683B8,0x00D683BC,
+        0x00D683D0,0x00D683D4,0x00D683D8,0x00D683DC
     };
     const float expected[] = {
         7.5f,
@@ -1538,9 +1541,10 @@ static bool ApplyDepthBlurColorTexelOffsetScale(HMODULE exe, float scale)
     // threshold remains untouched. 0.13 changes the color pyramid from
     // divisors 1.5/3/6/12 to 1/2/4/8, i.e. 1.5x more pixels per dimension.
     // A 2/3 offset scale therefore preserves the retail screen-space radius.
+    // Same corrected RAW -> RVA +0x1600 mapping as the mask shaders.
     const uintptr_t rvas[] = {
-        0x00D664A0,0x00D664A4,
-        0x00D666B0,0x00D666B4
+        0x00D67AA0,0x00D67AA4,
+        0x00D67CB0,0x00D67CB4
     };
     const float expected[] = {-1.0f,1.0f,-1.0f,1.0f};
     float values[_countof(rvas)] = {};
@@ -3481,7 +3485,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.23 CANONICAL");
+    Log("SaboteurEnhanced ASI 0.28 DEPTHBLUR RAW-RVA CORRECTUV FIX TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
