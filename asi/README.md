@@ -595,3 +595,23 @@ Validation target:
 2. sky gradients/distortion clarity;
 3. rain cubemap sharpness;
 4. no seams, UV shifts, brightness changes or crashes.
+
+
+## 0.22A validated canonical world-render baseline
+
+Status: **VALIDATED — current canonical ASI baseline**.
+
+0.22A is functionally identical to 0.22 and differs only in packaging:
+- packaged documentation restored to `README.txt`.
+
+Validated world-render upgrades:
+- WaterReflection 512x128 -> 2048x512;
+- WaterNormals / WaterNormalsTemp 128x128 -> 512x512;
+- SkyDome family multiplier 1 -> 2;
+- RainCubeRT 128 -> 512;
+- rain density remains native.
+
+All 0.21 canonical post-processing, brightness, AO, shadows, CorrectUV and
+particle fixes remain unchanged.
+
+0.22A supersedes 0.21 as the canonical ASI baseline.
