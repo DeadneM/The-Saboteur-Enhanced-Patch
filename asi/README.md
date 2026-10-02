@@ -917,3 +917,50 @@ Decision:
   over invasive runtime instrumentation.
 
 0.23 remains the canonical gameplay/render baseline.
+
+
+## 0.28 DepthBlur RAW-to-RVA CorrectUV fix
+
+Status: **FUNCTIONAL TEST CANDIDATE — canonical baseline remains 0.23**.
+
+A static audit of the two persistent DepthBlur `[SKIP]` messages found a
+concrete address-mapping error introduced in ASI 0.14.
+
+The 0.14 shader audit recovered literal constants from the executable file and
+documented their file offsets as if they were already runtime RVAs.
+
+This embedded shader PE section has a verified mapping:
+
+`runtime RVA = raw file offset + 0x1600`
+
+The same mapping is already used correctly by the independently verified
+PsBloom/PsBloomFinal owners, for example:
+- RAW 0x00D67E3C -> RVA 0x00D6943C;
+- RAW 0x00D68568 -> RVA 0x00D69B68.
+
+Therefore the DepthBlur owners are corrected as follows.
+
+Mask spatial taps:
+- RAW 0x00D66AE0 -> RVA 0x00D680E0;
+- RAW 0x00D66AF8/FC/B00/B04 -> RVA 0x00D680F8/FC/100/104;
+- RAW 0x00D66DB8/DBC -> RVA 0x00D683B8/BC;
+- RAW 0x00D66DD0/D4/D8/DC -> RVA 0x00D683D0/D4/D8/DC.
+
+Color texel offsets:
+- RAW 0x00D664A0/A4 -> RVA 0x00D67AA0/A4;
+- RAW 0x00D666B0/B4 -> RVA 0x00D67CB0/B4.
+
+The values themselves are unchanged from the original 0.14 design:
+- `DepthBlurMaskTapOffsetScale=0.5`;
+- `DepthBlurColorTexelOffsetScale=0.6666667`.
+
+No render-target dimension, bloom, ToneMap, AO, shadow, streaming, LOD or
+engine-capacity setting changes in 0.28.
+
+Expected runtime result:
+- the two previous DepthBlur `[SKIP]` lines disappear;
+- both groups report `[OK]`;
+- full-resolution DepthBlur keeps the intended retail screen-space sampling
+  radius rather than silently running without its compensation.
+
+0.23 remains canonical until explicit visual validation.
