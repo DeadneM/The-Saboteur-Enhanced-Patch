@@ -2107,3 +2107,30 @@ CI:
 - `dinput8.dll` SHA-256:
   `8a76f2da2fc3c99a3922f4f597ef486e959e0a187b1aa4a06a9b6c1fe46adec0`
 - both binaries verified PE machine x86 / 0x14C.
+
+
+## ASI 0.23 user validation — PROMOTED TO CANONICAL
+
+User result: **validated**.
+
+Canonical world-render values:
+- Water.ReflectionWidth = 4096
+- Water.ReflectionHeight = 1024
+- Water.NormalMapResolution = 1024
+- Sky.ResolutionMultiplier = 2
+- Rain.CubeResolution = 1024
+
+No regressions were reported. 0.23 therefore supersedes 0.22A as the current
+canonical ASI baseline.
+
+Validated 0.23 artifact:
+- workflow run: 154
+- run ID: `36991037292`
+- artifact ID: `11219553092`
+- artifact: `SaboteurEnhanced_ASI_0.23_EXTREME_WORLD_RENDER_TARGET_TEST_x86`
+- artifact ZIP SHA-256:
+  `8a457ce9379160de0d12b5f57c5217d72f423428b8b4658fab59665130227cb8`
+- `SaboteurEnhanced.asi` SHA-256:
+  `75c6343db5056c8a29704ec52a0862d7f97008ef57f7861004fa2b5dfd454b51`
+- `dinput8.dll` SHA-256:
+  `8a76f2da2fc3c99a3922f4f597ef486e959e0a187b1aa4a06a9b6c1fe46adec0`
