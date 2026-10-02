@@ -767,3 +767,79 @@ Decision rule:
 - if pool pressure stays low but FIFO-full events accumulate, investigate
   producer/consumer scheduling and async throughput instead;
 - if neither is pressured, do not increase either capacity.
+
+
+## 0.25 runtime result
+
+0.25 completed its diagnostic purpose.
+
+Observed in the user runtime log:
+- WSReadJob peak: 94 / 1200 (~7.8%);
+- WSUncompressJob peak: 492 / 1200 (41.0%);
+- capacity-hit transitions: 0 / 0;
+- exact Core1 64-slot FIFO full events: 0.
+
+Decision:
+- do not restore historical V272 1200 -> 2400;
+- do not enlarge the 64-slot FIFO;
+- move the investigation to the retail I/O scheduler itself.
+
+## 0.26 retail single-submit scheduler telemetry diagnostic
+
+Status: **DIAGNOSTIC ONLY — canonical gameplay/render baseline remains 0.23**.
+
+A second-pass audit reconstructed the retail scheduler precisely rather than
+treating historical Async32 as a scalar.
+
+Retail/Core1 path:
+- scheduler tick RVA 0x009B6750;
+- one current I/O pointer at scheduler +0x218;
+- queue object at scheduler +0x10C;
+- submit routine RVA 0x009B5540;
+- completion callback RVA 0x009B56C0.
+
+The retail tick submits only when +0x218 is null. It removes one queued request,
+stores it as the single current request, and calls the submit routine. On
+completion, the callback clears +0x218 and immediately submits at most one next
+queued request.
+
+Historical V200 Async32 is now confirmed as a real multi-submit scheduler:
+- the V200 scheduler hook enters a loop while its in-flight counter is below 32;
+- it repeatedly peeks/pops queued requests;
+- it increments an in-flight counter before each submit;
+- its completion hook decrements the counter;
+- this is why Async32 must never be represented as a fake 16 -> 32 constant.
+
+0.26 does **not** enable that historical scheduler. It instruments the untouched
+retail policy only.
+
+Exact diagnostic hooks:
+- retail tick submit CALL: RVA 0x009B679E;
+- completion-chain submit CALL: RVA 0x009B572A;
+- completion callback entry: RVA 0x009B56C0.
+
+All three sites are verified against exact retail/Core1 bytes before any write.
+
+0.26 measures:
+- submit and completion counts;
+- submit->completion service latency, average/max and >=2/5/10/20/50 ms buckets;
+- queue-depth peak;
+- submits/completions that occur with additional backlog;
+- 5 ms scheduler-state sampling:
+  - current-I/O busy percentage;
+  - queued percentage;
+  - busy+queued percentage;
+  - idle-while-queued samples and longest streak;
+- actual per-read byte size reconstructed from the same job fields consumed by
+  the native submit routine;
+- read-size buckets <=64/256/512/1024/>1024 KiB;
+- overlap/unmatched/job-pointer consistency checks.
+
+0.25 pool/FIFO telemetry remains enabled alongside 0.26 so scheduler data can
+be correlated with the already-proven pool headroom.
+
+New INI controls:
+- `Diagnostics.StreamingSchedulerTelemetry=1`
+- `Diagnostics.StreamingSchedulerSampleMs=5`
+
+No scheduling, pool, FIFO, coverage, coalescing or read-size limit is changed.
