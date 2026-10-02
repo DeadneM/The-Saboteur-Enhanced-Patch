@@ -2211,3 +2211,91 @@ New project rule:
 
 Next investigation priority:
 - streaming / micro-freezes / pop-in ownership and scheduling.
+
+
+## ASI 0.25 streaming-pressure telemetry audit
+
+Status: **DIAGNOSTIC ONLY. 0.23 remains canonical.**
+
+This branch follows the post-0.24 audit-first rule. No scalar is increased.
+
+### Why WSReadJob / WSUncompressJob are being measured
+
+The current ASI retains validated enlarged streaming coverage:
+- Low 16000;
+- Medium 3200;
+- High 2500.
+
+The clean Core/ASI reset intentionally restored WSReadJob and WSUncompressJob
+from historical V272 2400/2400 back to retail 1200/1200 because stability alone
+was not evidence that the larger pools were necessary.
+
+Historical V272 owner remains exact:
+- shared initializer VA 0x0162F336;
+- RVA 0x0122F336;
+- retail `BF B0 04 00 00` = 1200;
+- historical validated `BF 60 09 00 00` = 2400.
+
+0.25 measures real runtime pressure before considering that change again.
+
+### Generic pool descriptor semantics proven
+
+Static re-audit of the exact pool manager:
+- initializer at VA 0x00DC1700 sets +0x34 and +0x30 to capacity;
+- it allocates `objectSize(+0x2C) * capacity(+0x34)`;
+- allocation path at VA 0x00DC1940 removes one object from +0x44 and increments
+  +0x38 after successful allocation;
+- release path at VA 0x00DC1A20 decrements +0x38 and pushes the object back to
+  +0x44;
+- invariant check at VA 0x00DC17C0 traverses +0x44 and verifies
+  freeNodes == (+0x34 - +0x38).
+
+Therefore +0x34/+0x38 are suitable direct capacity/occupancy telemetry fields.
+
+Streaming descriptor locations:
+- WSReadJob VA 0x0132B9D8 / RVA 0x00F2B9D8, object size 44;
+- WSUncompressJob VA 0x0132BA40 / RVA 0x00F2BA40, object size 40.
+
+### FIFO telemetry
+
+Core 1 retains only the V200 64-slot full-queue correctness fix:
+- hook RVA 0x009B5A77;
+- retained cave RVA 0x00281084;
+- continuation RVA 0x009B5A83.
+
+The native queue object uses:
+- +0x10C full flag;
+- +0x110 read/head index;
+- +0x114 write/tail index;
+- +0x118 ring storage.
+
+The retained cave performs:
+- load +0x110;
+- increment;
+- AND 0x3F;
+- store +0x110;
+- continue enqueue.
+
+0.25 verifies both the Core1 hook bytes and complete retained cave bytes before
+redirecting that cave through a pass-through counter. The hook increments only
+a diagnostic counter, reproduces the exact drop-oldest instructions, and jumps
+to the same continuation. Queue capacity and behavior are unchanged.
+
+### Diagnostic cadence and decision gate
+
+Default:
+- sample pool occupancy every 50 ms;
+- aggregate report every 5000 ms;
+- no per-event disk logging in the FIFO hook.
+
+The diagnostic summary records:
+- WSReadJob peak / capacity-hit transitions;
+- WSUncompressJob peak / capacity-hit transitions;
+- FIFO-full event count.
+
+Only measured pressure can justify the next functional streaming change.
+
+Source/config:
+- `e32511b7d6b615b8894d1afd62efd624d5c9d7d6` — telemetry implementation;
+- `43ae89ec8f644c29f6ad8292c31ec1fd92fa16a6` — diagnostic INI defaults;
+- `18cfabfbb3f0201eb3b1682d34f8df7663413274` — CI artifact label.
