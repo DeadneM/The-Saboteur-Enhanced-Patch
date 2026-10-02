@@ -2443,3 +2443,24 @@ Decision gate after runtime log:
 - idle-with-queued periods => investigate scheduler wake/dispatch timing;
 - large read sizes / latency correlation => investigate coalescing separately,
   without bundling it into Async scheduling.
+
+
+ASI 0.26 final CI:
+- workflow run: 173
+- run ID: `37002033029`
+- artifact ID: `11223834444`
+- artifact: `SaboteurEnhanced_ASI_0.26_RETAIL_SCHEDULER_TELEMETRY_DIAGNOSTIC_x86`
+- artifact ZIP SHA-256:
+  `25d1fa7a40cbb7d99702d1bb2e5ce3ed47f09ff6f082ac72f0dd3bdd2ac25af0`
+- `SaboteurEnhanced.asi` SHA-256:
+  `d7c962fef6cdb7f429f9d1a42f3392197dc3a2274b664b9561da5607323f58c7`
+- `dinput8.dll` SHA-256:
+  `af456363e35c154260947909adce1428618b3fec827b043b7fd074d00b564d95`
+- both binaries verified PE machine x86 / 0x14C;
+- packaged documentation remains `README.txt`;
+- artifact commit `e3b92221fdf8996cfb336e3543a25468755e7b0e` includes the
+  0.26 README and diagnostic-labeled INI.
+
+0.26 remains diagnostic-only. Canonical gameplay/render baseline remains 0.23
+until telemetry justifies and a separate functional scheduler candidate is
+explicitly validated.
