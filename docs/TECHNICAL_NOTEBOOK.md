@@ -2549,3 +2549,25 @@ ASI 0.27 final CI:
 - packaged documentation remains `README.txt`.
 
 0.27 remains diagnostic-only. Canonical gameplay/render baseline remains 0.23.
+
+
+## 0.27 runtime result — REJECTED
+
+User result: runtime crash.
+
+The generic pool allocation/release provenance hooks introduced by 0.27 are
+therefore rejected and must not be used as a future base.
+
+Development decision:
+- stop this class of invasive allocator/scheduler telemetry;
+- preserve the useful conclusions from 0.25:
+  WSReadJob and WSUncompressJob had substantial headroom and FIFO-full was 0;
+- preserve the useful conclusion from 0.26:
+  the historical V200 Async32 path was dormant during the observed workload;
+- do not spend further builds instrumenting deeper runtime internals merely to
+  chase streaming provenance;
+- return to static reverse-engineering and only create a candidate when a
+  concrete owner and expected user-facing improvement are established.
+
+Repository source/config/workflow restored to the exact post-0.24 0.23
+canonical state.
