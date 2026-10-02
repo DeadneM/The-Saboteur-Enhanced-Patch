@@ -1949,3 +1949,48 @@ Validated 0.21 artifact:
   `6a11d71d7142b2ac4d61fe99d3b089078d97abebdccce6aa102463001f73ec31`
 
 0.21 is now the canonical ASI baseline for future work.
+
+
+## ASI 0.22 world render-target quality candidate
+
+Status: **TEST CANDIDATE; 0.21 remains canonical until user validation**.
+
+Base:
+- canonical ASI 0.21;
+- all 0.21 brightness and CorrectUV fixes frozen.
+
+Exact 0.22 INI deltas:
+- `Water.ReflectionWidth 512 -> 2048`
+- `Water.ReflectionHeight 128 -> 512`
+- `Water.NormalMapResolution 128 -> 512`
+- `Sky.ResolutionMultiplier 1 -> 2`
+- `Rain.CubeResolution 128 -> 512`
+
+Rationale:
+- user preference is to push clearly enough to make the effect observable,
+  then reduce only if a regression appears;
+- WaterReflection keeps its native 4:1 aspect ratio;
+- Water reflection dimensions are shared coherent owner globals;
+- WaterNormals/Temp use one matched fixed-size family;
+- SkyDome already has a coherent 2x implementation across all three internal
+  RT families;
+- RainCubeRT is an isolated cubemap face dimension and does not touch the
+  separately owned HardwareRainDepthTexture;
+- rain density remains native to keep the test focused on render-target
+  quality rather than scene density/art direction.
+
+Frozen canonical 0.21:
+- ShadowMap 4096 + PCF5x5;
+- full-resolution AO;
+- all 0.13-0.16 high-resolution PostFX + CorrectUV fixes;
+- particle RestoreDepthBuffer fix;
+- ToneMap 0.25;
+- BloomPrefilterGain 1.0;
+- retail BloomFinal and sampler paths.
+
+Source/config:
+- `5a33932af214628a03ba04da8a553b7369757a3c` — 0.22 INI profile
+- `663edac116246260f24143c872eb4da2fdbc082e` — runtime banner
+- `b0bc24dd118c5a4f78805b79624834c6b25fe9ba` — CI artifact label
+
+Do not promote 0.22 until explicit user validation.
