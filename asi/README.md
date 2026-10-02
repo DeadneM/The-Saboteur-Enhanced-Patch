@@ -843,3 +843,62 @@ New INI controls:
 - `Diagnostics.StreamingSchedulerSampleMs=5`
 
 No scheduling, pool, FIFO, coverage, coalescing or read-size limit is changed.
+
+
+## 0.26 runtime result
+
+The user runtime log proves the 0.26 hooks installed successfully, but the
+historical V200 Async32 scheduler path remained completely dormant during the
+observed workload:
+
+- scheduler submit count: 0;
+- completion count: 0;
+- queue peak: 0;
+- busy percentage: 0%;
+- all latency/read-size buckets: 0.
+
+At the same time, the active streaming pools were busy:
+- WSReadJob peak: 121 / 1200;
+- WSUncompressJob peak: 542 / 1200;
+- no capacity hits;
+- no Core1 FIFO-full events.
+
+Conclusion:
+- 0.26 does **not** justify restoring Async32;
+- the historical Async32 path is not the active path for this observed streaming
+  workload;
+- follow the actual WSReadJob/WSUncompressJob producer/consumer call sites next.
+
+## 0.27 streaming-pool provenance diagnostic
+
+Status: **DIAGNOSTIC ONLY — canonical gameplay/render baseline remains 0.23**.
+
+0.27 disables the dormant 0.26 scheduler probe by default and keeps 0.25 pool
+pressure telemetry.
+
+It hooks the exact generic pool manager functions:
+- allocate RVA 0x009C1940;
+- release RVA 0x009C1A20.
+
+The first 9 bytes of both routines are verified before either hook is installed.
+
+Hooks immediately filter on:
+- WSReadJob descriptor RVA 0x00F2B9D8;
+- WSUncompressJob descriptor RVA 0x00F2BA40.
+
+No other pool is logged.
+
+0.27 records:
+- total allocation/free counts for both streaming pools;
+- distinct caller return RVAs;
+- approximate direct CALL RVA (= return RVA - 5);
+- per-caller invocation counts and first/last observation times.
+
+No pool capacity, queue policy, scheduler behavior, coalescing threshold or
+distance setting is changed.
+
+Decision gate:
+- use the real caller RVAs to identify the active read/decompress pipeline;
+- only instrument that proven path in the next diagnostic;
+- keep historical Async32 disabled unless the active path itself later proves
+  serialized and backlogged.
