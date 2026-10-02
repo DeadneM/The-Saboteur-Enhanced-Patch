@@ -2134,3 +2134,43 @@ Validated 0.23 artifact:
   `75c6343db5056c8a29704ec52a0862d7f97008ef57f7861004fa2b5dfd454b51`
 - `dinput8.dll` SHA-256:
   `8a76f2da2fc3c99a3922f4f597ef486e959e0a187b1aa4a06a9b6c1fe46adec0`
+
+
+## ASI 0.24 maximum world render-target candidate
+
+Status: **TEST CANDIDATE; 0.23 remains canonical until explicit validation**.
+
+Base:
+- canonical ASI 0.23.
+
+Exact deltas:
+- `Water.ReflectionWidth 4096 -> 8192`
+- `Water.ReflectionHeight 1024 -> 2048`
+- `Water.NormalMapResolution 1024 -> 2048`
+- `Rain.CubeResolution 1024 -> 2048`
+- `Sky.ResolutionMultiplier` remains 2
+
+These values are the current audited ASI limits:
+- WaterReflection safe range allows width up to 8192;
+- WaterNormals limit is 2048;
+- RainCubeRT limit is 2048.
+
+No other rendering or engine setting changes in 0.24.
+
+Frozen canonical 0.23:
+- ShadowMap 4096 + PCF5x5
+- full-resolution AO
+- all validated full-resolution PostFX/CorrectUV fixes
+- LightVolume coherent full-resolution path
+- particle RT x2 + RestoreDepthBuffer correction
+- ToneMap 0.25
+- BloomPrefilterGain 1.0
+- retail BloomFinal/sampler paths
+- README packaged as `README.txt`
+
+Source/config:
+- `7e1c0cf8f381bd0c00ed399d5db7163126cf6383` — 0.24 INI profile
+- `602063b8cc19d648e8bfd32f5486c84759d8b627` — runtime banner
+- `3b13049d041328db0f7b0167bef2e9cec739c345` — CI artifact label
+
+Do not promote 0.24 until explicit user validation.
