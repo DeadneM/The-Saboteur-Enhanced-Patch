@@ -615,3 +615,40 @@ All 0.21 canonical post-processing, brightness, AO, shadows, CorrectUV and
 particle fixes remain unchanged.
 
 0.22A supersedes 0.21 as the canonical ASI baseline.
+
+
+## 0.23 extreme world render-target candidate
+
+Status: **TEST CANDIDATE — built strictly from canonical 0.22A**.
+
+0.23 pushes only the three already-validated world render-target families
+further, leaving SkyDome at its validated coherent x2 profile:
+
+- WaterReflection: 2048x512 -> 4096x1024
+  - native 4:1 aspect ratio preserved;
+  - same shared width/height owners as validated 0.22A.
+- WaterNormals / WaterNormalsTemp: 512x512 -> 1024x1024
+  - same matched four-immediate family as validated 0.22A.
+- RainCubeRT: 512 -> 1024
+  - cubemap face resolution only.
+- SkyDome remains x2:
+  - main blend /2;
+  - 3x3 family /6;
+  - distortion /4.
+- Rain density remains native.
+
+Everything else is frozen from 0.22A, including:
+- ShadowMap 4096 + PCF5x5;
+- full-resolution AO;
+- all validated 0.13-0.16 PostFX/CorrectUV fixes;
+- particle RestoreDepthBuffer fix;
+- LightVolume full-resolution coherent path;
+- ToneMap 0.25;
+- BloomPrefilterGain 1.0;
+- retail BloomFinal/samplers;
+- README packaged as `README.txt`.
+
+Validation target:
+1. visible gain in water reflection/normal sharpness and rain cubemap;
+2. no seams, UV shifts, shimmer, brightness change or crash;
+3. no meaningful regression in GPU cost severe enough to justify backing off.
