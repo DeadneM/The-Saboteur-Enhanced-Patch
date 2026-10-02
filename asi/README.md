@@ -652,3 +652,22 @@ Validation target:
 1. visible gain in water reflection/normal sharpness and rain cubemap;
 2. no seams, UV shifts, shimmer, brightness change or crash;
 3. no meaningful regression in GPU cost severe enough to justify backing off.
+
+
+## 0.23 validated canonical extreme world-render baseline
+
+Status: **VALIDATED — current canonical ASI baseline**.
+
+User validation confirms that the 0.23 world render-target increases are stable.
+
+Validated 0.23 world-render values:
+- WaterReflection 4096x1024;
+- WaterNormals / WaterNormalsTemp 1024x1024;
+- SkyDome family x2;
+- RainCubeRT 1024;
+- rain density native.
+
+All 0.22A/0.21 validated post-processing, brightness, AO, shadows, CorrectUV,
+particle and LightVolume fixes remain unchanged.
+
+0.23 supersedes 0.22A as the canonical ASI baseline.
