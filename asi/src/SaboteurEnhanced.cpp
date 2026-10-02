@@ -3590,6 +3590,276 @@ static bool StartStreamingSchedulerTelemetry(HMODULE exe, LONG sampleMs, LONG re
 
 
 // -----------------------------------------------------------------------------
+// ASI 0.27 active streaming-pool provenance telemetry
+// -----------------------------------------------------------------------------
+//
+// Diagnostic only. 0.26 proved that the historical V200 Async32 scheduler path
+// is dormant during the observed modern streaming workload: its exact submit
+// and completion sites remained at zero while WSReadJob/WSUncompressJob were
+// active. 0.27 therefore traces the *actual* producers/consumers of those two
+// pools by instrumenting the generic pool allocator/release pair.
+//
+// Generic pool manager (retail/Core1):
+//   Allocate VA 0x00DC1940 / RVA 0x009C1940
+//   Release  VA 0x00DC1A20 / RVA 0x009C1A20
+//
+// Exact first 9 bytes are verified before detouring. Hooks filter immediately
+// on the two streaming descriptors, so unrelated pools pay only two pointer
+// comparisons and are not logged.
+
+using PoolAllocMethod = void* (__thiscall*)(void*, uintptr_t);
+using PoolReleaseMethod = void (__thiscall*)(void*, void*);
+
+static PoolAllocMethod g_streamPoolAllocOriginal = nullptr;
+static PoolReleaseMethod g_streamPoolReleaseOriginal = nullptr;
+static uintptr_t g_streamPoolProvenanceBase = 0;
+
+struct PoolCallerRecord
+{
+    unsigned returnRva{};
+    unsigned long long count{};
+    ULONGLONG firstTick{};
+    ULONGLONG lastTick{};
+};
+
+static constexpr size_t kPoolCallerSlots = 64;
+static PoolCallerRecord g_streamPoolAllocCallers[2][kPoolCallerSlots]{};
+static PoolCallerRecord g_streamPoolReleaseCallers[2][kPoolCallerSlots]{};
+static SRWLOCK g_streamPoolCallerLock = SRWLOCK_INIT;
+static volatile LONG g_streamPoolReadAllocEvents = 0;
+static volatile LONG g_streamPoolUncompressAllocEvents = 0;
+static volatile LONG g_streamPoolReadReleaseEvents = 0;
+static volatile LONG g_streamPoolUncompressReleaseEvents = 0;
+
+static int StreamingPoolKind(void* self)
+{
+    if (!g_streamPoolProvenanceBase || !self)
+        return -1;
+
+    const uintptr_t value = reinterpret_cast<uintptr_t>(self);
+    if (value == g_streamPoolProvenanceBase + 0x00F2B9D8)
+        return 0; // WSReadJob
+    if (value == g_streamPoolProvenanceBase + 0x00F2BA40)
+        return 1; // WSUncompressJob
+    return -1;
+}
+
+static unsigned StreamingPoolReturnRva(void* returnAddress)
+{
+    const uintptr_t value = reinterpret_cast<uintptr_t>(returnAddress);
+    if (value >= g_streamPoolProvenanceBase)
+        return static_cast<unsigned>(value - g_streamPoolProvenanceBase);
+    return 0;
+}
+
+static void RecordStreamingPoolCaller(
+    PoolCallerRecord table[2][kPoolCallerSlots],
+    int kind,
+    unsigned returnRva)
+{
+    if (kind < 0 || kind > 1 || returnRva == 0)
+        return;
+
+    const ULONGLONG now = GetTickCount64();
+
+    AcquireSRWLockExclusive(&g_streamPoolCallerLock);
+    PoolCallerRecord* freeSlot = nullptr;
+
+    for (size_t i = 0; i < kPoolCallerSlots; ++i)
+    {
+        PoolCallerRecord& slot = table[kind][i];
+        if (slot.returnRva == returnRva)
+        {
+            ++slot.count;
+            slot.lastTick = now;
+            ReleaseSRWLockExclusive(&g_streamPoolCallerLock);
+            return;
+        }
+        if (!freeSlot && slot.returnRva == 0)
+            freeSlot = &slot;
+    }
+
+    if (freeSlot)
+    {
+        freeSlot->returnRva = returnRva;
+        freeSlot->count = 1;
+        freeSlot->firstTick = now;
+        freeSlot->lastTick = now;
+    }
+
+    ReleaseSRWLockExclusive(&g_streamPoolCallerLock);
+}
+
+static void* __fastcall HookStreamingPoolAlloc(void* self, void*, uintptr_t arg)
+{
+    const int kind = StreamingPoolKind(self);
+    if (kind >= 0)
+    {
+        const unsigned caller = StreamingPoolReturnRva(_ReturnAddress());
+        RecordStreamingPoolCaller(g_streamPoolAllocCallers, kind, caller);
+
+        if (kind == 0)
+            InterlockedIncrement(&g_streamPoolReadAllocEvents);
+        else
+            InterlockedIncrement(&g_streamPoolUncompressAllocEvents);
+    }
+
+    return g_streamPoolAllocOriginal(self, arg);
+}
+
+static void __fastcall HookStreamingPoolRelease(void* self, void*, void* object)
+{
+    const int kind = StreamingPoolKind(self);
+    if (kind >= 0)
+    {
+        const unsigned caller = StreamingPoolReturnRva(_ReturnAddress());
+        RecordStreamingPoolCaller(g_streamPoolReleaseCallers, kind, caller);
+
+        if (kind == 0)
+            InterlockedIncrement(&g_streamPoolReadReleaseEvents);
+        else
+            InterlockedIncrement(&g_streamPoolUncompressReleaseEvents);
+    }
+
+    g_streamPoolReleaseOriginal(self, object);
+}
+
+static bool InstallExactDetour9(
+    void* target,
+    const uint8_t expected[9],
+    void* hook,
+    void** original,
+    const char* label)
+{
+    auto* at = reinterpret_cast<uint8_t*>(target);
+    if (std::memcmp(at, expected, 9) != 0)
+    {
+        Log("[FAIL] %s prologue mismatch.", label);
+        return false;
+    }
+
+    auto* tramp = reinterpret_cast<uint8_t*>(
+        VirtualAlloc(nullptr, 32, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
+    if (!tramp)
+    {
+        Log("[FAIL] %s trampoline allocation failed.", label);
+        return false;
+    }
+
+    std::memcpy(tramp, at, 9);
+    tramp[9] = 0x68;
+    *reinterpret_cast<uint32_t*>(tramp + 10) =
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(at + 9));
+    tramp[14] = 0xC3;
+    FlushInstructionCache(GetCurrentProcess(), tramp, 15);
+
+    uint8_t patch[9] = {0x68,0,0,0,0,0xC3,0x90,0x90,0x90};
+    *reinterpret_cast<uint32_t*>(patch + 1) =
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(hook));
+
+    if (!WriteBytes(at, patch, sizeof(patch)))
+    {
+        VirtualFree(tramp, 0, MEM_RELEASE);
+        Log("[FAIL] %s detour write failed.", label);
+        return false;
+    }
+
+    *original = tramp;
+    Log("[OK] %s detour installed.", label);
+    return true;
+}
+
+static bool InstallStreamingPoolProvenance(HMODULE exe)
+{
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    constexpr uintptr_t kPoolAllocRva = 0x009C1940;
+    constexpr uintptr_t kPoolReleaseRva = 0x009C1A20;
+
+    static const uint8_t expectedAlloc[9] =
+        {0x56,0x8B,0xF1,0x83,0x7E,0x3C,0x00,0x75,0x21};
+    static const uint8_t expectedRelease[9] =
+        {0x56,0x8B,0xF1,0xF6,0x46,0x48,0x02,0x74,0x2C};
+
+    // Fail closed: verify both prologues before modifying either function.
+    if (std::memcmp(
+            reinterpret_cast<const void*>(base + kPoolAllocRva),
+            expectedAlloc, sizeof(expectedAlloc)) != 0)
+    {
+        Log("[FAIL] Streaming pool allocator exact prologue mismatch at RVA 0x%08X.",
+            static_cast<unsigned>(kPoolAllocRva));
+        return false;
+    }
+    if (std::memcmp(
+            reinterpret_cast<const void*>(base + kPoolReleaseRva),
+            expectedRelease, sizeof(expectedRelease)) != 0)
+    {
+        Log("[FAIL] Streaming pool release exact prologue mismatch at RVA 0x%08X.",
+            static_cast<unsigned>(kPoolReleaseRva));
+        return false;
+    }
+
+    g_streamPoolProvenanceBase = base;
+
+    if (!InstallExactDetour9(
+            reinterpret_cast<void*>(base + kPoolAllocRva),
+            expectedAlloc,
+            reinterpret_cast<void*>(&HookStreamingPoolAlloc),
+            reinterpret_cast<void**>(&g_streamPoolAllocOriginal),
+            "WS pool allocator provenance"))
+        return false;
+
+    if (!InstallExactDetour9(
+            reinterpret_cast<void*>(base + kPoolReleaseRva),
+            expectedRelease,
+            reinterpret_cast<void*>(&HookStreamingPoolRelease),
+            reinterpret_cast<void**>(&g_streamPoolReleaseOriginal),
+            "WS pool release provenance"))
+        return false;
+
+    Log("[OK] Streaming-pool provenance active for WSReadJob/WSUncompressJob only.");
+    return true;
+}
+
+static void LogPoolCallerTable(
+    const char* action,
+    const char* pool,
+    const PoolCallerRecord* table)
+{
+    for (size_t i = 0; i < kPoolCallerSlots; ++i)
+    {
+        const PoolCallerRecord& slot = table[i];
+        if (slot.returnRva == 0 || slot.count == 0)
+            continue;
+
+        Log("[POOLPROV] %s %s callerReturnRVA=0x%08X callerCallRVA~=0x%08X count=%llu first=%llums last=%llums",
+            action,
+            pool,
+            slot.returnRva,
+            slot.returnRva >= 5 ? slot.returnRva - 5 : 0,
+            slot.count,
+            slot.firstTick,
+            slot.lastTick);
+    }
+}
+
+static void LogStreamingPoolProvenanceSummary()
+{
+    Log("[POOLPROV] summary Read alloc/release=%ld/%ld | Uncompress alloc/release=%ld/%ld",
+        InterlockedCompareExchange(&g_streamPoolReadAllocEvents, 0, 0),
+        InterlockedCompareExchange(&g_streamPoolReadReleaseEvents, 0, 0),
+        InterlockedCompareExchange(&g_streamPoolUncompressAllocEvents, 0, 0),
+        InterlockedCompareExchange(&g_streamPoolUncompressReleaseEvents, 0, 0));
+
+    AcquireSRWLockShared(&g_streamPoolCallerLock);
+    LogPoolCallerTable("ALLOC", "WSReadJob", g_streamPoolAllocCallers[0]);
+    LogPoolCallerTable("ALLOC", "WSUncompressJob", g_streamPoolAllocCallers[1]);
+    LogPoolCallerTable("FREE", "WSReadJob", g_streamPoolReleaseCallers[0]);
+    LogPoolCallerTable("FREE", "WSUncompressJob", g_streamPoolReleaseCallers[1]);
+    ReleaseSRWLockShared(&g_streamPoolCallerLock);
+}
+
+
+// -----------------------------------------------------------------------------
 // ASI 0.2 OdinMeshInstance diagnostic
 // -----------------------------------------------------------------------------
 //
@@ -4266,7 +4536,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.26 RETAIL SCHEDULER TELEMETRY DIAGNOSTIC");
+    Log("SaboteurEnhanced ASI 0.27 STREAMING POOL PROVENANCE DIAGNOSTIC");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -4276,6 +4546,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const LONG streamingTelemetryReportMs = GetPrivateProfileIntW(L"Diagnostics", L"StreamingTelemetryReportMs", 5000, iniPath.c_str());
     const bool enableStreamingSchedulerTelemetry = GetPrivateProfileIntW(L"Diagnostics", L"StreamingSchedulerTelemetry", 1, iniPath.c_str()) != 0;
     const LONG streamingSchedulerSampleMs = GetPrivateProfileIntW(L"Diagnostics", L"StreamingSchedulerSampleMs", 5, iniPath.c_str());
+    const bool enableStreamingPoolProvenance = GetPrivateProfileIntW(L"Diagnostics", L"StreamingPoolProvenance", 1, iniPath.c_str()) != 0;
     const bool enableV310 = GetPrivateProfileIntW(L"Fixes", L"WSModelFullRenderMask", 1, iniPath.c_str()) != 0;
     const bool enableV311 = GetPrivateProfileIntW(L"Fixes", L"ModelInfoFullRenderSlice", 1, iniPath.c_str()) != 0;
     const bool enableOdinChildVisibility = GetPrivateProfileIntW(L"Fixes", L"OdinChildVisibilityGate", 0, iniPath.c_str()) != 0;
@@ -4834,6 +5105,16 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         Log("[OFF] Retail scheduler telemetry disabled by INI.");
     }
 
+    if (enableStreamingPoolProvenance)
+    {
+        if (!InstallStreamingPoolProvenance(exe))
+            Log("[FAIL] Streaming pool provenance could not be installed.");
+    }
+    else
+    {
+        Log("[OFF] Streaming pool provenance disabled by INI.");
+    }
+
     if (enableOdin)
     {
         if (InstallOdinDiagnostics(exe))
@@ -4879,6 +5160,7 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID)
                 InterlockedCompareExchange(&g_streamUncompressCapacityHits, 0, 0),
                 InterlockedCompareExchange(&g_streamFifoFullEvents, 0, 0));
             LogStreamingSchedulerSnapshot("final");
+            LogStreamingPoolProvenanceSummary();
             Log("Odin summary: SyncCalls=%ld Mismatches=%ld F9Markers=%ld LoggedEvents=%ld",
                 g_odinSyncCalls, g_odinSyncMismatches, g_markerCount, g_odinLoggedEvents);
             Log("ASI unload.");
