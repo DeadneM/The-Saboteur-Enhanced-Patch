@@ -557,3 +557,41 @@ Validated brightness path:
 - `ExperimentalPostFX.BloomPrefilterGain=1.0`
 
 0.21 supersedes 0.12 as the canonical ASI baseline.
+
+
+## 0.22 world render-target quality candidate
+
+Status: **TEST CANDIDATE — built strictly from canonical 0.21**.
+
+0.22 leaves the validated 0.21 post-processing, brightness, AO, shadows and
+CorrectUV chain untouched. It only raises world-facing render targets whose
+dimension owners are already audited and self-consistent:
+
+- WaterReflection: 512x128 -> 2048x512
+  - exact 4:1 aspect ratio preserved;
+  - shared width/height owners feed both creation and backend/surface paths.
+- WaterNormals / WaterNormalsTemp: 128x128 -> 512x512
+  - all four fixed dimension immediates changed coherently.
+- SkyDome RT family: multiplier 1 -> 2
+  - main blend /4 -> /2;
+  - 3x3 family /12 -> /6;
+  - distortion /8 -> /4.
+- RainCubeRT: 128 -> 512
+  - cubemap face resolution only;
+  - HardwareRainDepthTexture remains owned by ShadowMapResolution and is not
+    modified here.
+- Rain density remains native.
+
+No change to:
+- ToneMap 0.25;
+- Bloom prefilter normalization 1.0;
+- BloomFinal/samplers;
+- PCF5x5 / AO full-res / ShadowMap 4096;
+- LightVolume/particle CorrectUV;
+- any distance/LOD or engine-limit setting.
+
+Validation target:
+1. water reflections and normal detail;
+2. sky gradients/distortion clarity;
+3. rain cubemap sharpness;
+4. no seams, UV shifts, brightness changes or crashes.
