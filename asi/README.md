@@ -902,3 +902,18 @@ Decision gate:
 - only instrument that proven path in the next diagnostic;
 - keep historical Async32 disabled unless the active path itself later proves
   serialized and backlogged.
+
+
+## 0.27 rejected after runtime crash
+
+0.27 pool-provenance instrumentation crashed at runtime.
+
+Decision:
+- reject 0.27 completely;
+- stop allocator/scheduler hook telemetry as a development direction;
+- restore the repository to the clean 0.23 canonical ASI baseline;
+- keep 0.25/0.26 only as historical diagnostics;
+- future work must prefer static audit and narrowly justified functional fixes
+  over invasive runtime instrumentation.
+
+0.23 remains the canonical gameplay/render baseline.
