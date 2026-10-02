@@ -2464,3 +2464,71 @@ ASI 0.26 final CI:
 0.26 remains diagnostic-only. Canonical gameplay/render baseline remains 0.23
 until telemetry justifies and a separate functional scheduler candidate is
 explicitly validated.
+
+
+## ASI 0.26 runtime result — historical Async32 path dormant
+
+The user-supplied 0.26 runtime log confirms:
+- both 0.25 pool telemetry and 0.26 scheduler telemetry installed successfully;
+- WSReadJob peak reached 121 / 1200;
+- WSUncompressJob peak reached 542 / 1200;
+- no pool capacity hit;
+- no Core1 FIFO-full event.
+
+However every 0.26 scheduler metric remained exactly zero for the entire run:
+- Submit=0;
+- Complete=0;
+- QueuePeak=0;
+- Busy=0.0%;
+- Busy+Queued=0.0%;
+- no read-size samples;
+- no latency samples.
+
+Therefore the region-146/V200 Async32 scheduler path is not the active path for
+the observed current streaming workload. This invalidates the assumption that
+the active WSReadJob/WSUncompressJob traffic necessarily flows through that
+historical scheduler.
+
+Decision:
+- do not restore Async32;
+- disable 0.26 scheduler telemetry by default;
+- trace the active pool allocation/free provenance directly.
+
+## ASI 0.27 active streaming-pool provenance diagnostic
+
+Status: **DIAGNOSTIC ONLY. 0.23 remains canonical.**
+
+Exact generic pool manager functions:
+- Allocate VA 0x00DC1940 / RVA 0x009C1940;
+- Release VA 0x00DC1A20 / RVA 0x009C1A20.
+
+Exact verified 9-byte prologues:
+- allocate: `56 8B F1 83 7E 3C 00 75 21`;
+- release: `56 8B F1 F6 46 48 02 74 2C`.
+
+Descriptor filter:
+- WSReadJob RVA 0x00F2B9D8;
+- WSUncompressJob RVA 0x00F2BA40.
+
+Hook architecture:
+- exact fail-closed prologue verification;
+- local executable trampoline reproduces the replaced 9 bytes;
+- pass-through __fastcall wrappers preserve the original thiscall argument
+  contract;
+- unrelated pools are ignored after two pointer comparisons;
+- no per-event disk logging.
+
+Collected provenance:
+- allocation/free totals;
+- distinct caller return RVAs;
+- approximate direct CALL RVA as returnRVA - 5;
+- per-caller counts;
+- first/last observed tick.
+
+0.25 pool/FIFO pressure telemetry remains enabled.
+0.26 scheduler probe remains compiled for reference but defaults OFF.
+
+Source/config:
+- `6e3af6e9cdf362e6e840bfb161b57496977ef1ce` — pool provenance implementation;
+- `c6ef474845e15afdf7e90beccfc9b3349777914c` — diagnostic INI switch;
+- `0c907ebed13486dd1bdddfc25e2fac4ac1120322` — 0.27 CI artifact label.
