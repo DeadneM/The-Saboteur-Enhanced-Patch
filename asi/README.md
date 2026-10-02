@@ -697,3 +697,22 @@ Everything else remains frozen from canonical 0.23, including the validated
 This candidate is intended as the endpoint for simple world-RT scaling. If it is
 validated, future work should move to a different engine/render owner instead
 of increasing these dimensions further.
+
+
+## 0.24 abandoned
+
+The 0.24 maximum-RT experiment is abandoned by user direction.
+
+Reason:
+- no more blind render-target escalation;
+- 0.23 already established a stable high-quality world-RT baseline;
+- further work must target a proven engine/render owner with a concrete
+  gameplay or visual problem.
+
+The repository is restored to the 0.23 canonical values:
+- WaterReflection 4096x1024
+- WaterNormals 1024
+- SkyDome x2
+- RainCubeRT 1024
+
+Future candidates must not continue simple RT-size inflation.
