@@ -2781,3 +2781,29 @@ ASI 0.29 CI:
 - packaged documentation remains `README.txt`.
 
 0.29 remains test-only. 0.28 remains canonical until explicit validation.
+
+
+## ASI 0.29 user validation — PROMOTED TO CANONICAL
+
+User result: **validated**.
+
+0.29 is now the canonical ASI baseline.
+
+Validated functional delta over 0.28:
+- Scaleform _Mesh_Cache 8 MiB -> 16 MiB;
+- vector glyph cache 512 -> 1024;
+- both font-cache constructors 1 -> 2 textures.
+
+Validated 0.29 artifact:
+- workflow run: 195
+- run ID: `37133207518`
+- artifact ID: `11277238768`
+- artifact: `SaboteurEnhanced_ASI_0.29_SCALEFORM_UI_CACHE_TEST_x86`
+- ZIP SHA-256:
+  `e5d862bffab7e3510e2d38740a5fade0e9f3d1b125a27fee74e0625c9dbcea4f`
+- ASI SHA-256:
+  `89989868fa02f62e914df42154bcf084fd11dbde552ec26c9cd2ee16888d1210`
+- dinput8 SHA-256:
+  `befb7361d5c9591a7bf83ceed9cc579b1844d55dc678ce3d0362aa25abb59c19`
+
+Future builds must start from 0.29.
