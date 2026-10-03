@@ -2873,3 +2873,33 @@ ASI 0.30 CI:
 - packaged documentation remains `README.txt`.
 
 0.30 remains test-only. 0.29 remains canonical until explicit validation.
+
+
+## ASI 0.30 user validation — PROMOTED TO CANONICAL
+
+User result: **validated**.
+
+0.30 is now the canonical ASI baseline.
+
+Validated functional delta over 0.29:
+- WSModel small-object hard-cull bypass enabled;
+- exact branch RVA 0x0023954E;
+- retail bytes `7A 1A`;
+- canonical bytes `EB 1A`;
+- preserves the independent +0xAC shadow cutoff path;
+- no streaming, pool, render-target, shader-quality or LOD-table change.
+
+Validated 0.30 test artifact:
+- workflow run: 203
+- run ID: `37145483911`
+- artifact ID: `11282033353`
+- artifact: `SaboteurEnhanced_ASI_0.30_WSMODEL_SMALL_OBJECT_HARDCULL_TEST_x86`
+- ZIP SHA-256:
+  `a497ad329fad590ccf23fa5e56875e523cda87830deec27ad0f36954130a473b`
+- ASI SHA-256:
+  `addb16eb605c5b5151c0dc8f13981376e0de348712042ec7c5f6c3892be9b645`
+- dinput8 SHA-256:
+  `5b558de59c90c111dc25cb853c828a5b3c0fad0ef420d0a7ef878803ed58bca9`
+
+Future builds must start from 0.30 and preserve the hard-cull bypass unless an
+explicit isolated rollback is requested.
