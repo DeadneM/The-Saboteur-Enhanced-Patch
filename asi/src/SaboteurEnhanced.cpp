@@ -3476,6 +3476,116 @@ static bool InstallOdinDiagnostics(HMODULE exe)
     return true;
 }
 
+
+static bool ApplyUiMeshCacheMiB(HMODULE exe, int mib)
+{
+    // Exact Scaleform _Mesh_Cache constructor owner.
+    // Retail: 8 MiB. Historical V200: 16 MiB.
+    if (mib != 8 && mib != 16)
+    {
+        Log("[FAIL] UI MeshCacheMiB=%d; supported audited values are 8 or 16.", mib);
+        return false;
+    }
+    if (mib == 8) return true;
+
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* at = reinterpret_cast<uint8_t*>(base + 0x007B4667);
+    static const uint8_t expected[7] = {0xC7,0x46,0x14,0x00,0x00,0x80,0x00};
+    static const uint8_t patch[7]    = {0xC7,0x46,0x14,0x00,0x00,0x00,0x01};
+
+    if (std::memcmp(at, expected, sizeof(expected)) != 0)
+    {
+        Log("[SKIP] Scaleform _Mesh_Cache constructor mismatch at RVA 0x007B4667.");
+        return false;
+    }
+    if (!WriteBytes(at, patch, sizeof(patch)))
+    {
+        Log("[FAIL] Scaleform _Mesh_Cache write failed.");
+        return false;
+    }
+
+    Log("[OK] Scaleform _Mesh_Cache 8 MiB -> 16 MiB.");
+    return true;
+}
+
+static bool ApplyUiVectorGlyphCache(HMODULE exe, int capacity)
+{
+    // Exact _Font_Cache vector-glyph owner next to the native warning:
+    // "Increase vector glyph cache capacity - SetMaxVectorCacheSize()."
+    // Retail: 512. Historical V200: 1024.
+    if (capacity != 512 && capacity != 1024)
+    {
+        Log("[FAIL] UI VectorGlyphCache=%d; supported audited values are 512 or 1024.", capacity);
+        return false;
+    }
+    if (capacity == 512) return true;
+
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* at = reinterpret_cast<uint8_t*>(base + 0x007E6AD7);
+    static const uint8_t expected[10] = {
+        0xC7,0x86,0xC0,0x09,0x00,0x00,0x00,0x02,0x00,0x00
+    };
+    static const uint8_t patch[10] = {
+        0xC7,0x86,0xC0,0x09,0x00,0x00,0x00,0x04,0x00,0x00
+    };
+
+    if (std::memcmp(at, expected, sizeof(expected)) != 0)
+    {
+        Log("[SKIP] Scaleform vector glyph-cache constructor mismatch at RVA 0x007E6AD7.");
+        return false;
+    }
+    if (!WriteBytes(at, patch, sizeof(patch)))
+    {
+        Log("[FAIL] Scaleform vector glyph-cache write failed.");
+        return false;
+    }
+
+    Log("[OK] Scaleform vector glyph cache 512 -> 1024.");
+    return true;
+}
+
+static bool ApplyUiFontCacheTextures(HMODULE exe, int textures)
+{
+    // Two _Font_Cache constructors initialize the same +0x1C field.
+    // Treat them atomically: retail 1, historical V200 2.
+    if (textures != 1 && textures != 2)
+    {
+        Log("[FAIL] UI FontCacheTextures=%d; supported audited values are 1 or 2.", textures);
+        return false;
+    }
+    if (textures == 1) return true;
+
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    const uintptr_t rvas[] = {0x007E7D3E, 0x007E7E19};
+    static const uint8_t expected[7] = {0xC7,0x46,0x1C,0x01,0x00,0x00,0x00};
+    static const uint8_t patch[7]    = {0xC7,0x46,0x1C,0x02,0x00,0x00,0x00};
+
+    for (uintptr_t rva : rvas)
+    {
+        const auto* at = reinterpret_cast<const uint8_t*>(base + rva);
+        if (std::memcmp(at, expected, sizeof(expected)) != 0)
+        {
+            Log("[SKIP] Scaleform font-cache constructor mismatch at RVA 0x%08X; nothing written.",
+                static_cast<unsigned>(rva));
+            return false;
+        }
+    }
+
+    for (uintptr_t rva : rvas)
+    {
+        auto* at = reinterpret_cast<uint8_t*>(base + rva);
+        if (!WriteBytes(at, patch, sizeof(patch)))
+        {
+            Log("[FAIL] Scaleform font-cache texture-count write failed at RVA 0x%08X.",
+                static_cast<unsigned>(rva));
+            return false;
+        }
+    }
+
+    Log("[OK] Scaleform font-cache texture count 1 -> 2 in both constructors.");
+    return true;
+}
+
 static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 {
     HMODULE exe = GetModuleHandleW(nullptr);
@@ -3485,7 +3595,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.28 CANONICAL");
+    Log("SaboteurEnhanced ASI 0.29 SCALEFORM UI CACHE TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -3511,6 +3621,10 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const bool fullResolutionAo = GetPrivateProfileIntW(L"AmbientOcclusion", L"FullResolution", 0, iniPath.c_str()) != 0;
     const float aoBlurScale = ReadIniFloat(iniPath, L"AmbientOcclusion", L"BlurScale", 2.0f);
     const float aoErodeScale = ReadIniFloat(iniPath, L"AmbientOcclusion", L"ErodeScale", 2.0f);
+
+    const int uiMeshCacheMiB = GetPrivateProfileIntW(L"UI", L"MeshCacheMiB", 8, iniPath.c_str());
+    const int uiVectorGlyphCache = GetPrivateProfileIntW(L"UI", L"VectorGlyphCache", 512, iniPath.c_str());
+    const int uiFontCacheTextures = GetPrivateProfileIntW(L"UI", L"FontCacheTextures", 1, iniPath.c_str());
 
     const float streamCoverageLow = ReadIniFloat(iniPath, L"Streaming", L"CoverageLow", 16000.0f);
     const float streamCoverageMedium = ReadIniFloat(iniPath, L"Streaming", L"CoverageMedium", 3200.0f);
@@ -3610,6 +3724,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         shadowMapResolution, shadowPcf5x5 ? 1 : 0, csmLambda, csmFarDistance,
         shadowDepthBiasScale, shadowSlopeBiasScale, spotShadowResolutionScale);
     Log("[AO] FullResolution=%d Blur=%.3f Erode=%.3f", fullResolutionAo ? 1 : 0, aoBlurScale, aoErodeScale);
+    Log("[UI] MeshCacheMiB=%d VectorGlyphCache=%d FontCacheTextures=%d",
+        uiMeshCacheMiB, uiVectorGlyphCache, uiFontCacheTextures);
     Log("[Streaming] Coverage=%.1f/%.1f/%.1f", streamCoverageLow, streamCoverageMedium, streamCoverageHigh);
     Log("[Distances] FarScene=%.1f DecalVisibility=%.1f RenderSlice3HighFar=%.1f Outer=%.1f ModelInfoLOD=%.1f VeryFarTerrain=%.1f ClipRangeHigh=%.1f DetailSystem=%.1f",
         farSceneDistance, decalVisibilityDistance, renderSlice3HighFar, renderSliceHighOuter,
@@ -3723,6 +3839,21 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplySpotShadowResolutionScale(exe, static_cast<double>(spotShadowResolutionScale));
     else
         Log("[OFF] Spot-shadow Z-buffer resolution scale left native 0.5.");
+
+    if (uiMeshCacheMiB != 8)
+        ApplyUiMeshCacheMiB(exe, uiMeshCacheMiB);
+    else
+        Log("[OFF] Scaleform _Mesh_Cache left retail 8 MiB.");
+
+    if (uiVectorGlyphCache != 512)
+        ApplyUiVectorGlyphCache(exe, uiVectorGlyphCache);
+    else
+        Log("[OFF] Scaleform vector glyph cache left retail 512.");
+
+    if (uiFontCacheTextures != 1)
+        ApplyUiFontCacheTextures(exe, uiFontCacheTextures);
+    else
+        Log("[OFF] Scaleform font-cache texture count left retail 1.");
 
     if (std::fabs(streamCoverageLow - 1500.0f) > 0.01f ||
         std::fabs(streamCoverageMedium - 300.0f) > 0.01f ||
