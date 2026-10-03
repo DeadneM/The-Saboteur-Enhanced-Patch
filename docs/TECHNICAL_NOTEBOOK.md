@@ -2903,3 +2903,20 @@ Validated 0.30 test artifact:
 
 Future builds must start from 0.30 and preserve the hard-cull bypass unless an
 explicit isolated rollback is requested.
+
+
+ASI 0.30 canonical CI:
+- workflow run: 206
+- run ID: `37146342807`
+- artifact ID: `11281869894`
+- artifact: `SaboteurEnhanced_ASI_0.30_CANONICAL_x86`
+- artifact ZIP SHA-256:
+  `1436c8aae5af91315064ddf4522449f7cf4f60c57a961b5610d8b0f1b3e62ff8`
+- `SaboteurEnhanced.asi` SHA-256:
+  `784b32a05ee4dd941ebcfaaa6e9b1485cb9080c0bbcbb359bfcc17cc7ea46706`
+- `dinput8.dll` SHA-256:
+  `a3a33c29115cf0cc5402e4ee9f95aad259818c6bec16b5999631fa9d1c5a5f0d`
+- both binaries verified PE machine x86 / 0x14C;
+- package keeps `README.txt`.
+
+This canonical artifact is the distribution baseline for all future 0.31+ work.
