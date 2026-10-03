@@ -2807,3 +2807,52 @@ Validated 0.29 artifact:
   `befb7361d5c9591a7bf83ceed9cc579b1844d55dc678ce3d0362aa25abb59c19`
 
 Future builds must start from 0.29.
+
+
+## ASI 0.30 WSModel small-object hard-cull candidate
+
+Status: **FUNCTIONAL TEST CANDIDATE. 0.29 remains canonical.**
+
+Target:
+- renderer-specific hard visibility cutoff for small unlisted WSModel objects;
+- chosen because prior SliceQuality, DetailSystem, VeryFarScene and other
+  broader distance experiments did not explain the very-near prop pop.
+
+Retail ownership:
+- WSModel constructor initializes +0xA8 = 10000 and +0xAC = 10000;
+- setup uses the model size/radius metric at WSModel+0x58;
+- if metric < 1.5, +0xA8 is rewritten to:
+  `20 + (metric / 1.5) * 90 = 20 + 60*metric`;
+- at VA 0x00638710, camera-forward depth greater than +0xA8 zeroes the render
+  mask, so this is a true hard cull.
+
+Surgical branch:
+- VA 0x0063954E;
+- runtime RVA 0x0023954E;
+- RAW 0x0023874E;
+- retail bytes `7A 1A`;
+- candidate bytes `EB 1A`.
+
+The change skips only the small-model A8 formula/store and leaves the
+constructor default 10000 active. Execution rejoins the existing AC/shadow
+distance path, preserving that independent calculation and x87 stack behavior.
+
+INI:
+- `Fixes.WSModelSmallObjectHardCullBypass=1`.
+
+Scope:
+- one 2-byte branch edit;
+- exact retail verification before write;
+- no telemetry/hook;
+- no streaming/pool/LOD-table/RT change;
+- all canonical 0.29 settings frozen.
+
+Source:
+- `c402b2ccb447440ea9b7a303659450608f971744` — hard-cull owner and INI/runtime integration;
+- `674db8f120e2a73ba0e564d39779c5aff1ee445f` — 0.30 CI artifact label.
+
+Validation target:
+- small props should remain visible substantially farther away;
+- compare especially the previous garage/workshop near-pop scenes;
+- reject if there is obvious scene clutter explosion, geometry corruption,
+  severe performance loss or unrelated visibility regression.
