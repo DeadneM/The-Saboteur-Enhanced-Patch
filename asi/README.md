@@ -1037,3 +1037,20 @@ Validation target:
 - no visual regression at current resolution.
 
 0.28 remains canonical until explicit validation.
+
+
+## 0.29 validated canonical baseline
+
+Status: **VALIDATED — current canonical ASI baseline**.
+
+User validation confirms the audited Scaleform UI-cache profile is stable.
+
+Canonical UI values:
+- MeshCacheMiB = 16;
+- VectorGlyphCache = 1024;
+- FontCacheTextures = 2.
+
+All validated 0.28 rendering, DepthBlur, AO, shadow, distance, streaming and
+post-processing settings remain unchanged.
+
+0.29 supersedes 0.28 as the canonical ASI baseline.
