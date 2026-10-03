@@ -2856,3 +2856,20 @@ Validation target:
 - compare especially the previous garage/workshop near-pop scenes;
 - reject if there is obvious scene clutter explosion, geometry corruption,
   severe performance loss or unrelated visibility regression.
+
+
+ASI 0.30 CI:
+- workflow run: 203
+- run ID: `37145483911`
+- artifact ID: `11282033353`
+- artifact: `SaboteurEnhanced_ASI_0.30_WSMODEL_SMALL_OBJECT_HARDCULL_TEST_x86`
+- ZIP SHA-256:
+  `a497ad329fad590ccf23fa5e56875e523cda87830deec27ad0f36954130a473b`
+- `SaboteurEnhanced.asi` SHA-256:
+  `addb16eb605c5b5151c0dc8f13981376e0de348712042ec7c5f6c3892be9b645`
+- `dinput8.dll` SHA-256:
+  `5b558de59c90c111dc25cb853c828a5b3c0fad0ef420d0a7ef878803ed58bca9`
+- both binaries verified PE machine x86 / 0x14C;
+- packaged documentation remains `README.txt`.
+
+0.30 remains test-only. 0.29 remains canonical until explicit validation.
