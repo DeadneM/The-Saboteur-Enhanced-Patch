@@ -2764,3 +2764,20 @@ Source/config:
 - `6e0d079d7555c8b7a02b5135afbe2ca5bf14731f` — CI artifact label.
 
 Do not promote 0.29 until explicit user validation.
+
+
+ASI 0.29 CI:
+- workflow run: 195
+- run ID: `37133207518`
+- artifact ID: `11277238768`
+- artifact: `SaboteurEnhanced_ASI_0.29_SCALEFORM_UI_CACHE_TEST_x86`
+- artifact ZIP SHA-256:
+  `e5d862bffab7e3510e2d38740a5fade0e9f3d1b125a27fee74e0625c9dbcea4f`
+- `SaboteurEnhanced.asi` SHA-256:
+  `89989868fa02f62e914df42154bcf084fd11dbde552ec26c9cd2ee16888d1210`
+- `dinput8.dll` SHA-256:
+  `befb7361d5c9591a7bf83ceed9cc579b1844d55dc678ce3d0362aa25abb59c19`
+- both binaries verified PE machine x86 / 0x14C;
+- packaged documentation remains `README.txt`.
+
+0.29 remains test-only. 0.28 remains canonical until explicit validation.
