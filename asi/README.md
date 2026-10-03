@@ -1054,3 +1054,35 @@ All validated 0.28 rendering, DepthBlur, AO, shadow, distance, streaming and
 post-processing settings remain unchanged.
 
 0.29 supersedes 0.28 as the canonical ASI baseline.
+
+
+## 0.30 WSModel small-object hard-cull candidate
+
+Status: **FUNCTIONAL TEST CANDIDATE — canonical baseline remains 0.29**.
+
+This candidate targets the strongest remaining renderer-specific explanation for
+very-near small-prop pop-in.
+
+Retail WSModel behavior:
+- constructor initializes WSModel+0xA8 = 10000;
+- for unlisted models with size metric < 1.5, setup rewrites A8 to:
+  `20 + 60 * metric`;
+- the visibility path later hard-culls the model when camera-forward depth
+  exceeds A8.
+
+Exact branch:
+- VA 0x0063954E
+- runtime RVA 0x0023954E
+- retail bytes: `7A 1A` (JP)
+- 0.30: `EB 1A` (JMP)
+
+The branch change skips only the A8 rewrite. It continues into the existing
+AC/shadow-distance calculation, so the shadow cutoff path is preserved.
+
+New INI:
+`Fixes.WSModelSmallObjectHardCullBypass=1`
+
+No slice table, LOD scalar, streaming value, render target, pool or scheduler
+setting changes in 0.30.
+
+0.29 remains canonical until explicit validation.
