@@ -3617,6 +3617,33 @@ static bool ApplyWsModelSmallObjectHardCullBypass(HMODULE exe)
     return true;
 }
 
+
+static void LogWsModelAcAuditWindow(HMODULE exe)
+{
+    // 0.31 is diagnostic-only. Capture the untouched Core1 bytes around the
+    // WSModel A8/AC setup before any runtime patch is applied. This gives the
+    // exact instruction stream needed to isolate the independent +0xAC
+    // shadow-distance rewrite without guessing an address or branch.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    const auto* p = reinterpret_cast<const uint8_t*>(base + 0x00239540);
+
+    Log("[AUDIT] WSModel A8/AC setup raw bytes, pre-patch, RVA 0x00239540..0x002395BF.");
+    for (size_t row = 0; row < 0x80; row += 0x10)
+    {
+        Log("[AUDIT] RVA 0x%08X: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X",
+            static_cast<unsigned>(0x00239540 + row),
+            static_cast<unsigned>(p[row + 0]),  static_cast<unsigned>(p[row + 1]),
+            static_cast<unsigned>(p[row + 2]),  static_cast<unsigned>(p[row + 3]),
+            static_cast<unsigned>(p[row + 4]),  static_cast<unsigned>(p[row + 5]),
+            static_cast<unsigned>(p[row + 6]),  static_cast<unsigned>(p[row + 7]),
+            static_cast<unsigned>(p[row + 8]),  static_cast<unsigned>(p[row + 9]),
+            static_cast<unsigned>(p[row + 10]), static_cast<unsigned>(p[row + 11]),
+            static_cast<unsigned>(p[row + 12]), static_cast<unsigned>(p[row + 13]),
+            static_cast<unsigned>(p[row + 14]), static_cast<unsigned>(p[row + 15]));
+    }
+    Log("[AUDIT] 0.31 byte audit itself performs no writes.");
+}
+
 static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 {
     HMODULE exe = GetModuleHandleW(nullptr);
@@ -3626,7 +3653,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.30 CANONICAL");
+    Log("SaboteurEnhanced ASI 0.31 WSMODEL AC BYTE AUDIT");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -3824,6 +3851,9 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log(".text range: RVA 0x%08X, size 0x%08X",
         static_cast<unsigned>(reinterpret_cast<uintptr_t>(text.begin) - g_moduleBase),
         static_cast<unsigned>(text.size));
+
+    // Capture Core1 WSModel setup bytes before 0.30/V310/V311 modify this area.
+    LogWsModelAcAuditWindow(exe);
 
     if (wsModelSmallObjectHardCullBypass)
         ApplyWsModelSmallObjectHardCullBypass(exe);

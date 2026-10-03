@@ -1110,3 +1110,43 @@ DepthBlur, AO, shadow, distance, streaming and post-processing fixes remain
 unchanged.
 
 0.30 supersedes 0.29 as the canonical ASI baseline.
+
+## 0.31 WSModel +0xAC byte-audit diagnostic
+
+Status: **DIAGNOSTIC ONLY - 0.30 remains the canonical gameplay/render baseline**.
+
+0.31 follows the cumulative rule strictly: every validated 0.30 setting remains
+unchanged, including the WSModel +0xA8 hard-cull bypass, V310/V311 full render
+masks, Scaleform caches, graphics, AO, shadows, distances and PostFX.
+
+Purpose:
+- recover the exact untouched Core1 instruction stream for the independent
+  WSModel+0xAC size-derived shadow-distance rewrite;
+- avoid guessing a branch address or globally changing a shared 5/15/100
+  constant;
+- prepare a later one-owner functional A/B only after exact bytes are proven.
+
+Static semantics already established:
+- constructor initializes WSModel+0xAC = 10000;
+- for size metric < 5.0 retail derives approximately
+  AC = 15 + 20 * metric;
+- the WSModel visibility path treats AC separately from the A8 full-render
+  hard cutoff and clears the secondary low-nibble/shadow mask when exceeded.
+
+Diagnostic behavior:
+- at startup, before 0.30/V310/V311 write into the WSModel setup region,
+  the ASI logs exactly 128 bytes from runtime RVA
+  0x00239540..0x002395BF;
+- log lines are prefixed [AUDIT];
+- the 0.31 audit itself performs **no memory writes** and changes no renderer
+  decision.
+
+Test procedure:
+1. Install/run exactly as 0.30.
+2. Start the game once and reach the menu or gameplay.
+3. Return SaboteurEnhanced.log.
+4. The [AUDIT] byte window will be disassembled to identify the exact +0xAC
+   branch/store for the next isolated candidate.
+
+0.30 remains canonical until a later functional candidate is explicitly
+validated.
