@@ -984,3 +984,56 @@ Frozen validated values:
 - DepthBlurColorTexelOffsetScale = 0.6666667.
 
 0.28 supersedes 0.23 as the canonical ASI baseline.
+
+
+## 0.29 Scaleform high-resolution UI cache candidate
+
+Status: **FUNCTIONAL TEST CANDIDATE — canonical baseline remains 0.28**.
+
+0.29 adds one coherent UI/Scaleform resource family recovered exactly from the
+retail executable and the historical V200 image. It does not alter rendering,
+streaming, LOD, shadows, AO, bloom, particles or world render targets.
+
+Audited owners:
+
+1. Scaleform `_Mesh_Cache`
+   - constructor RVA 0x007B4667
+   - retail 8 MiB
+   - historical V200 16 MiB
+   - 0.29 = 16 MiB
+
+2. Vector glyph cache
+   - constructor RVA 0x007E6AD7
+   - field [esi+0x9C0]
+   - retail 512
+   - historical V200 1024
+   - 0.29 = 1024
+
+3. Font cache texture count
+   - constructor RVAs 0x007E7D3E and 0x007E7E19
+   - shared field [esi+0x1C]
+   - retail 1
+   - historical V200 2
+   - 0.29 = 2
+
+The font-cache pair is atomic: both retail signatures are verified before
+either is written.
+
+New INI:
+```
+[UI]
+MeshCacheMiB=16
+VectorGlyphCache=1024
+FontCacheTextures=2
+```
+
+0.29 deliberately supports only the exact audited retail/V200 pairs. There is
+no arbitrary x2/x4 extrapolation beyond those historical values.
+
+Validation target:
+- normal menus/HUD/text rendering;
+- no missing/corrupted glyphs;
+- no UI crash;
+- no visual regression at current resolution.
+
+0.28 remains canonical until explicit validation.
