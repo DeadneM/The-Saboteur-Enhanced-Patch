@@ -2920,3 +2920,59 @@ ASI 0.30 canonical CI:
 - package keeps `README.txt`.
 
 This canonical artifact is the distribution baseline for all future 0.31+ work.
+
+
+## ASI 0.31 WSModel +0xAC byte-audit diagnostic
+
+Status: **DIAGNOSTIC ONLY. ASI 0.30 remains canonical.**
+
+Reason for this step:
+- 0.30 validated the independent WSModel +0xA8 hard-render cutoff bypass;
+- historical V310/V311 already validated both automatic and explicit RenderSlice full-mask corrections;
+- the separate WSModel +0xAC size-derived shadow-distance path has never been isolated in a functional build;
+- existing documentation proves the formula semantics but does not preserve enough exact retail instruction bytes to patch the +0xAC path safely without guessing.
+
+0.31 therefore makes no new renderer decision. It captures the untouched Core1
+instruction stream before 0.30/V310/V311 modify the WSModel setup area.
+
+Logged byte window:
+- runtime RVA start: 0x00239540
+- runtime RVA end: 0x002395BF
+- length: 0x80 / 128 bytes
+- log prefix: [AUDIT]
+
+Known semantics to correlate with the dump:
+- constructor WSModel+0xAC = 10000;
+- for metric < 5.0 retail derives AC = 15 + 20*metric;
+- the visibility consumer treats AC independently from A8 and clears the
+  secondary low-nibble/shadow mask when the camera-forward depth exceeds AC.
+
+The byte audit is executed before ApplyWsModelSmallObjectHardCullBypass and
+before V310/V311 runtime writes. The audit function itself performs no writes.
+
+Source commit:
+- e4b7ec77d2b6340c705c1018330aebd7246d8343
+
+CI:
+- workflow: Build Core ASI x86
+- run: 208
+- run ID: 37151980715
+- conclusion: success
+- artifact ID: 11283699752
+- artifact: SaboteurEnhanced_ASI_0.31_WSMODEL_AC_BYTE_AUDIT_x86
+- artifact ZIP SHA-256:
+  3fd19404767a7d7fde855f843743b45c44b953f4b3b9084eff9a497bcf5233c5
+- SaboteurEnhanced.asi SHA-256:
+  45ebc48111b668456061def857c9273c9259cb20b92a2ec3fd350b6aa2f40fbf
+- dinput8.dll SHA-256:
+  1b9dc983d8ef8d97022c574fded72207f33500bc7332cafb5067d550d0a97534
+- both binaries verified PE machine x86 / 0x14C.
+
+Next step after user runtime log:
+1. disassemble the [AUDIT] window;
+2. identify exact +0xAC comparison/branch/store sequence;
+3. prove stack/x87 rejoin behavior;
+4. build one isolated +0xAC A/B from canonical 0.30 if and only if the patch can
+   preserve all unrelated WSModel setup behavior.
+
+0.30 remains the canonical rollback and functional baseline.
