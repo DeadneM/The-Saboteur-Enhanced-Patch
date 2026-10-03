@@ -964,3 +964,23 @@ Expected runtime result:
   radius rather than silently running without its compensation.
 
 0.23 remains canonical until explicit visual validation.
+
+
+## 0.28 validated canonical baseline
+
+Status: **VALIDATED — current canonical ASI baseline**.
+
+User validation confirms the DepthBlur RAW-to-RVA correction is good in game.
+
+Canonical 0.28 preserves the full validated 0.23 profile and permanently fixes
+the two DepthBlur shader compensation groups by applying the correct embedded
+shader section mapping:
+
+- mask family RAW offsets -> runtime RVA +0x1600;
+- color family RAW offsets -> runtime RVA +0x1600.
+
+Frozen validated values:
+- DepthBlurMaskTapOffsetScale = 0.5;
+- DepthBlurColorTexelOffsetScale = 0.6666667.
+
+0.28 supersedes 0.23 as the canonical ASI baseline.
