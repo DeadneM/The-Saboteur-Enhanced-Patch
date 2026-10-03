@@ -1086,3 +1086,27 @@ No slice table, LOD scalar, streaming value, render target, pool or scheduler
 setting changes in 0.30.
 
 0.29 remains canonical until explicit validation.
+
+
+## 0.30 validated canonical baseline
+
+Status: **VALIDATED — current canonical ASI baseline**.
+
+User validation confirms the WSModel small-object hard-cull correction is good
+in game.
+
+Validated 0.30 delta over 0.29:
+- exact branch at RVA 0x0023954E;
+- retail `7A 1A` -> canonical `EB 1A`;
+- skips only the size-derived WSModel+0xA8 hard-cull rewrite;
+- preserves the independent +0xAC shadow-distance calculation;
+- keeps the constructor default +0xA8 = 10000.
+
+Canonical INI:
+- `Fixes.WSModelSmallObjectHardCullBypass=1`.
+
+All validated 0.29 Scaleform UI-cache changes and all earlier graphics,
+DepthBlur, AO, shadow, distance, streaming and post-processing fixes remain
+unchanged.
+
+0.30 supersedes 0.29 as the canonical ASI baseline.
