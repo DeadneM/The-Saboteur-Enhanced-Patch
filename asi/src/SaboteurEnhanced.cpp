@@ -3586,6 +3586,37 @@ static bool ApplyUiFontCacheTextures(HMODULE exe, int textures)
     return true;
 }
 
+
+static bool ApplyWsModelSmallObjectHardCullBypass(HMODULE exe)
+{
+    // Small unlisted models start with WSModel+0xA8 = 10000.0, then retail
+    // rewrites A8 to a short size-derived hard-cull distance when metric < 1.5:
+    // A8 = 20 + 60 * metric.
+    //
+    // VA 0x0063954E / runtime RVA 0x0023954E is the exact JP entering
+    // that A8 rewrite block. JP -> JMP skips only the A8 rewrite and
+    // continues into the existing AC/shadow-distance path.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* at = reinterpret_cast<uint8_t*>(base + 0x0023954E);
+    static const uint8_t expected[2] = {0x7A, 0x1A};
+    static const uint8_t patch[2]    = {0xEB, 0x1A};
+
+    if (std::memcmp(at, expected, sizeof(expected)) != 0)
+    {
+        Log("[SKIP] WSModel small-object A8 hard-cull branch mismatch at RVA 0x0023954E.");
+        return false;
+    }
+
+    if (!WriteBytes(at, patch, sizeof(patch)))
+    {
+        Log("[FAIL] WSModel small-object A8 hard-cull bypass write failed.");
+        return false;
+    }
+
+    Log("[OK] WSModel small-object A8 hard-cull rewrite bypassed; constructor 10000 retained.");
+    return true;
+}
+
 static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 {
     HMODULE exe = GetModuleHandleW(nullptr);
@@ -3595,7 +3626,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.29 CANONICAL");
+    Log("SaboteurEnhanced ASI 0.30 WSMODEL SMALL-OBJECT HARD-CULL TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -3605,6 +3636,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const bool enableOdinChildVisibility = GetPrivateProfileIntW(L"Fixes", L"OdinChildVisibilityGate", 0, iniPath.c_str()) != 0;
     const bool enableWSDamageableVariant = GetPrivateProfileIntW(L"Fixes", L"WSDamageableVariantSelector", 0, iniPath.c_str()) != 0;
     const int wsDynamicPartPriorityRadius = GetPrivateProfileIntW(L"Fixes", L"WSDynamicPartPriorityRadius", 25, iniPath.c_str());
+    const bool wsModelSmallObjectHardCullBypass = GetPrivateProfileIntW(L"Fixes", L"WSModelSmallObjectHardCullBypass", 0, iniPath.c_str()) != 0;
     const int environmentMapResolution = GetPrivateProfileIntW(L"Graphics", L"EnvironmentMapResolution", 2048, iniPath.c_str());
     const int anisotropicFiltering = GetPrivateProfileIntW(L"Graphics", L"AnisotropicFiltering", 16, iniPath.c_str());
     const float mipLodBias = ReadIniFloat(iniPath, L"Graphics", L"MipLODBias", 0.0f);
@@ -3718,6 +3750,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("OdinChildVisibilityGate=%d", enableOdinChildVisibility ? 1 : 0);
     Log("WSDamageableVariantSelector=%d", enableWSDamageableVariant ? 1 : 0);
     Log("WSDynamicPartPriorityRadius=%d", wsDynamicPartPriorityRadius);
+    Log("WSModelSmallObjectHardCullBypass=%d", wsModelSmallObjectHardCullBypass ? 1 : 0);
     Log("[Graphics] EnvironmentMapResolution=%d AF=%d MipLODBias=%.3f ToneMap=%.3f",
         environmentMapResolution, anisotropicFiltering, mipLodBias, toneMap);
     Log("[Shadows] ShadowMapResolution=%d PCF5x5=%d Lambda=%.3f Far=%.3f Bias=%.3f/%.3f SpotScale=%.3f",
@@ -3791,6 +3824,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log(".text range: RVA 0x%08X, size 0x%08X",
         static_cast<unsigned>(reinterpret_cast<uintptr_t>(text.begin) - g_moduleBase),
         static_cast<unsigned>(text.size));
+
+    if (wsModelSmallObjectHardCullBypass)
+        ApplyWsModelSmallObjectHardCullBypass(exe);
+    else
+        Log("[OFF] WSModel small-object A8 hard-cull rewrite left retail.");
 
     // Restored validated graphics/render findings. Every family is controlled
     // independently by SaboteurEnhanced.ini and verified against Core1/native bytes.
