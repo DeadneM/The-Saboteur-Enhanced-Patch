@@ -2689,3 +2689,78 @@ Validated 0.28 artifact:
 
 Future builds must start from 0.28 and must not restore the old DepthBlur
 addresses 0x00D66AE0 / 0x00D664A0 as runtime RVAs.
+
+
+## ASI 0.29 Scaleform / high-resolution UI cache candidate
+
+Status: **FUNCTIONAL TEST CANDIDATE. 0.28 remains canonical.**
+
+This candidate follows the post-0.27 audit-first rule and contains no runtime
+telemetry hook.
+
+Exact owners were already re-audited against both the exact retail executable
+and the byte-perfect reconstructed V200 image.
+
+### _Mesh_Cache
+
+- adjacent retail cache name VA 0x01062064;
+- constructor VA 0x00BB4667 / RVA 0x007B4667 / RAW 0x007B3867;
+- exact retail instruction:
+  `C7 46 14 00 00 80 00`
+  = `mov dword ptr [esi+14h], 0x00800000` = 8 MiB;
+- V200:
+  `C7 46 14 00 00 00 01`
+  = 16 MiB.
+
+INI owner:
+- `UI.MeshCacheMiB`
+- supported in 0.29: 8 or 16 only.
+
+### Vector glyph cache
+
+- constructor VA 0x00BE6AD7 / RVA 0x007E6AD7;
+- field [esi+0x9C0];
+- exact retail:
+  `C7 86 C0 09 00 00 00 02 00 00` = 512;
+- V200:
+  `C7 86 C0 09 00 00 00 04 00 00` = 1024;
+- nearby retail warning explicitly names SetMaxVectorCacheSize.
+
+INI owner:
+- `UI.VectorGlyphCache`
+- supported in 0.29: 512 or 1024 only.
+
+### Font-cache texture count
+
+Constructor A:
+- VA 0x00BE7D3E / RVA 0x007E7D3E;
+- exact retail `C7 46 1C 01 00 00 00`.
+
+Constructor B:
+- VA 0x00BE7E19 / RVA 0x007E7E19;
+- exact retail `C7 46 1C 01 00 00 00`.
+
+Historical V200 changes both to:
+`C7 46 1C 02 00 00 00`.
+
+0.29 verifies both constructor signatures before writing either site.
+
+INI owner:
+- `UI.FontCacheTextures`
+- supported in 0.29: 1 or 2 only.
+
+### Scope
+
+Default 0.29 test profile:
+- MeshCacheMiB = 16;
+- VectorGlyphCache = 1024;
+- FontCacheTextures = 2.
+
+Every 0.28 validated graphics/render/DepthBlur setting is otherwise frozen.
+
+Source/config:
+- `3a93cef7f5b441ead8d902b2a8c7b26b83662b03` — exact UI cache owners;
+- `806aaf18f046601f6c6b38614f3aee4db92fe76a` — 0.29 UI profile;
+- `6e0d079d7555c8b7a02b5135afbe2ca5bf14731f` — CI artifact label.
+
+Do not promote 0.29 until explicit user validation.
