@@ -2661,3 +2661,31 @@ ASI 0.28 CI:
 - packaged documentation remains `README.txt`.
 
 0.28 is functional test only. 0.23 remains canonical until explicit validation.
+
+
+## ASI 0.28 user validation — PROMOTED TO CANONICAL
+
+User result: **validated**.
+
+0.28 is now the canonical ASI baseline.
+
+Validated functional delta over 0.23:
+- corrected DepthBlur mask shader owner RVAs using RAW + 0x1600;
+- corrected DepthBlur color shader owner RVAs using RAW + 0x1600;
+- no quality scalar, render-target size, streaming, LOD, shadow, AO, bloom or
+  engine-capacity change.
+
+Validated 0.28 artifact:
+- workflow run: 187
+- run ID: `37015359254`
+- artifact ID: `11229427250`
+- artifact: `SaboteurEnhanced_ASI_0.28_DEPTHBLUR_RAW_RVA_CORRECTUV_FIX_TEST_x86`
+- artifact ZIP SHA-256:
+  `00bf03d6ed7f2c3094a062f349fc7efa6d9af33e1fb37ebfedea9bb206ce0376`
+- `SaboteurEnhanced.asi` SHA-256:
+  `100e9f98cbb94561e1ce5fb1c4f2ad350348959c159bba5b3cf43d7870d8c6ff`
+- `dinput8.dll` SHA-256:
+  `9a909fa33ec19a2d264633ddf848cb4764ee7fb6d7945bc4091b4a2263a079f9`
+
+Future builds must start from 0.28 and must not restore the old DepthBlur
+addresses 0x00D66AE0 / 0x00D664A0 as runtime RVAs.
