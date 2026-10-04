@@ -46,7 +46,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SaboteurEnhanced_ASI_0.40_WSSPHEREACTIVATOR_X10_TEST_x86
+          name: SaboteurEnhanced_ASI_0.41_PERF_ISOLATION_SPHERE_NATIVE_TEST_x86
           path: dist/*
           if-no-files-found: error
           compression-level: 0
