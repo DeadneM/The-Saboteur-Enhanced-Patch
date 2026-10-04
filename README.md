@@ -25,6 +25,30 @@ Experimental PC enhancement patch for **The Saboteur**, developed through static
 > **Current Windows patcher source/CI target: v1Pv260**  
 > **Current work: exact-retail audit of water, rain, post-processing, renderer limits and hidden quality owners**
 
+## Current ASI canonical baseline — 0.40
+
+**ASI 0.40 is the canonical working baseline by explicit user decision.**
+
+Retained cumulatively:
+- all validated 0.35 engine-limit changes;
+- all validated 0.36 simple engine-limit changes;
+- all validated 0.37 particle/physics capacity changes;
+- Havok TOI 250 -> 1024 from 0.38;
+- WSSphereActivator max radius 2.06 -> 20.6 from the 0.39/0.40 line.
+
+Known issue:
+- severe lag/performance degradation was reported somewhere across the cumulative
+  0.35 -> 0.40 sequence;
+- this regression is **accepted for now** and does not invalidate 0.40 as the
+  requested development base;
+- future builds continue from 0.40 unless the user explicitly changes that rule.
+
+**ASI 0.41 is abandoned**. Its temporary WSSphereActivator rollback to native
+2.06 must not enter the retained lineage.
+
+Packaging rule:
+- distributed ZIPs remain minimal and do not include BUILD_NOTES.txt.
+
 ## Current canonical build
 
 Core 1 + SaboteurEnhanced ASI 0.1 is the current validated architecture. V311 remains the historical retained cumulative research state. It is no longer intended to be the future distribution base. The next executable will be a reconstructed clean Core containing only proven system/UI/correctness fixes; engine tuning moves to the ASI. It keeps the validated engine/LOD lineage through V296, retains the V298 RenderSlice expansion, and applies the later coherent High SliceQuality expansion that was validated with scenery intact.

@@ -16,6 +16,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Audit historical Havok 1024 to 2048 owner
+        shell: pwsh
+        run: |
+          @'
+          import base64, json, zlib
+          from pathlib import Path
+          p = Path("patches/original_to_v200.json.zlib.b64")
+          m = json.loads(zlib.decompress(base64.b64decode(p.read_bytes())).decode("utf-8"))
+          pairs = [(1024, 2048), (250, 512)]
+          for old, new in pairs:
+              ob = int(old).to_bytes(4, "little")
+              nb = int(new).to_bytes(4, "little")
+              print(f"=== {old}->{new} ===")
+              for i, r in enumerate(m["regions"]):
+                  b = bytes.fromhex(r["before"])
+                  a = bytes.fromhex(r["after"])
+                  for j in range(0, len(b)-3):
+                      if b[j:j+4] == ob and a[j:j+4] == nb:
+                          print("region", i, "offset", r["offset"], "inner", hex(j), "length", r["length"])
+                          print("before", r["before"])
+                          print("after ", r["after"])
+          '@ | python -
+
       - name: Enable MSVC x86 environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
