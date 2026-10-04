@@ -2628,17 +2628,27 @@ static bool ApplyWSDecalCapacity(HMODULE exe, int capacity)
         return true;
 
     const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* pool = reinterpret_cast<uint8_t*>(base + 0x0058D7C9);
+    auto* cap  = reinterpret_cast<uint8_t*>(base + 0x0058E997);
 
-    // WSDecal pool initialization, VA 0x0098D7C9:
-    //   push 0x190
-    if (!PatchPushImm32(exe, 0x0058D7C9, 400u,
-                        static_cast<uint32_t>(capacity),
-                        "WSDecal pool"))
+    // 0.34 treats WSDecal as one atomic owner:
+    // - pool initialization, VA 0x0098D7C9: push 0x190
+    // - active-list ceiling, VA 0x0098E997: cmp ecx,0x190
+    // Verify both sites before changing either one.
+    if (pool[0] != 0x68)
+    {
+        Log("[SKIP] WSDecal pool push opcode mismatch.");
         return false;
+    }
 
-    // WSDecal active-list ceiling, VA 0x0098E997:
-    //   cmp ecx,0x190
-    auto* cap = reinterpret_cast<uint8_t*>(base + 0x0058E997);
+    uint32_t poolCurrent = 0;
+    std::memcpy(&poolCurrent, pool + 1, sizeof(poolCurrent));
+    if (poolCurrent != 400u)
+    {
+        Log("[SKIP] WSDecal pool value mismatch: expected 400 got %u.", poolCurrent);
+        return false;
+    }
+
     const uint8_t expectedPrefix[2] = {0x81,0xF9};
     if (std::memcmp(cap, expectedPrefix, sizeof(expectedPrefix)) != 0)
     {
@@ -2646,22 +2656,30 @@ static bool ApplyWSDecalCapacity(HMODULE exe, int capacity)
         return false;
     }
 
-    uint32_t current = 0;
-    std::memcpy(&current, cap + 2, sizeof(current));
-    if (current != 400u)
+    uint32_t capCurrent = 0;
+    std::memcpy(&capCurrent, cap + 2, sizeof(capCurrent));
+    if (capCurrent != 400u)
     {
-        Log("[SKIP] WSDecal active-ceiling value mismatch: expected 400 got %u.", current);
+        Log("[SKIP] WSDecal active-ceiling value mismatch: expected 400 got %u.", capCurrent);
         return false;
     }
 
     const uint32_t value = static_cast<uint32_t>(capacity);
-    if (!WriteBytes(cap + 2, &value, sizeof(value)))
+    if (!WriteBytes(pool + 1, &value, sizeof(value)))
     {
-        Log("[FAIL] WSDecal active-ceiling write failed.");
+        Log("[FAIL] WSDecal pool write failed.");
         return false;
     }
 
-    Log("[OK] WSDecal pool + active ceiling 400 -> %d.", capacity);
+    if (!WriteBytes(cap + 2, &value, sizeof(value)))
+    {
+        const uint32_t retail = 400u;
+        WriteBytes(pool + 1, &retail, sizeof(retail));
+        Log("[FAIL] WSDecal active-ceiling write failed; pool restored to 400.");
+        return false;
+    }
+
+    Log("[OK] WSDecal atomic pool + active ceiling 400 -> %d.", capacity);
     return true;
 }
 
@@ -3788,7 +3806,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.33 CANONICAL");
+    Log("SaboteurEnhanced ASI 0.34 WSDECAL 800 TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
