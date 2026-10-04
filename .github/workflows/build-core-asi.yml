@@ -1,4 +1,5 @@
 name: Build Core ASI x86
+# ASI 0.33 canonical packaging
 
 on:
   workflow_dispatch:
