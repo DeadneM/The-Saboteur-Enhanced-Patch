@@ -2460,6 +2460,101 @@ static bool ApplyWSParticleRenderCapacities(HMODULE exe,
 }
 
 
+static bool ApplyValidatedParticleCapacityPack037(HMODULE exe)
+{
+    // 0.37 combines the historically validated particle/physics capacity
+    // lineage into one fail-closed transaction.
+    //
+    // WSPhysicsParticle:
+    //   allocation 1000 -> 2000
+    //   runtime cap 1000 -> 2000
+    //
+    // WSParticleRender:
+    //   arenas 4500/1000/500 -> 9000/2000/1000
+    //   sort scratch follows 9000/2000
+    //   every matching runtime cap follows the same capacities.
+    //
+    // All 14 owners are verified before the first write.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+
+    struct Site
+    {
+        uintptr_t rva;
+        uint8_t opcode;
+        uint8_t immOffset;
+        uint32_t expected;
+        uint32_t value;
+        const char* label;
+    };
+
+    const Site sites[] = {
+        {0x005DB5D2, 0x68, 1, 1000u, 2000u, "WSPhysicsParticle allocation"},
+        {0x005DB66B, 0x81, 6, 1000u, 2000u, "WSPhysicsParticle runtime ceiling"},
+
+        {0x002E7B83, 0x68, 1, 4500u * 68u, 9000u * 68u, "WSParticleRender main arena"},
+        {0x002E7BAD, 0x68, 1, 1000u * 68u, 2000u * 68u, "WSParticleRender medium arena"},
+        {0x002E7B9C, 0x68, 1,  500u * 68u, 1000u * 68u, "WSParticleRender small arena"},
+        {0x002E7BBE, 0x68, 1, 4500u * 8u, 9000u * 8u, "WSParticleRender main sort scratch"},
+        {0x002E7BCF, 0x68, 1, 1000u * 8u, 2000u * 8u, "WSParticleRender medium sort scratch"},
+
+        {0x002E3F72, 0x81, 6, 4500u, 9000u, "WSParticleRender main cap A"},
+        {0x002E4066, 0x81, 6, 4500u, 9000u, "WSParticleRender main cap B"},
+        {0x002E40CD, 0x81, 6, 4500u, 9000u, "WSParticleRender main cap C"},
+        {0x002E4097, 0x81, 6, 1000u, 2000u, "WSParticleRender medium cap"},
+        {0x002E40FA, 0x81, 6,  499u,  999u, "WSParticleRender small cap A"},
+        {0x002E412E, 0x81, 6,  500u, 1000u, "WSParticleRender small cap B"},
+        {0x002E416A, 0x81, 6,  499u,  999u, "WSParticleRender small cap C"}
+    };
+
+    for (const Site& site : sites)
+    {
+        auto* at = reinterpret_cast<uint8_t*>(base + site.rva);
+        if (at[0] != site.opcode)
+        {
+            Log("[SKIP] 0.37 %s opcode mismatch at RVA 0x%08X.",
+                site.label, static_cast<unsigned>(site.rva));
+            return false;
+        }
+
+        uint32_t current = 0;
+        std::memcpy(&current, at + site.immOffset, sizeof(current));
+        if (current != site.expected)
+        {
+            Log("[SKIP] 0.37 %s value mismatch: expected %u got %u.",
+                site.label, site.expected, current);
+            return false;
+        }
+    }
+
+    size_t written = 0;
+    for (; written < (sizeof(sites) / sizeof(sites[0])); ++written)
+    {
+        const Site& site = sites[written];
+        auto* at = reinterpret_cast<uint8_t*>(base + site.rva);
+        if (!WriteBytes(at + site.immOffset, &site.value, sizeof(site.value)))
+            break;
+    }
+
+    if (written != (sizeof(sites) / sizeof(sites[0])))
+    {
+        for (size_t i = written; i > 0; --i)
+        {
+            const Site& site = sites[i - 1];
+            auto* at = reinterpret_cast<uint8_t*>(base + site.rva);
+            WriteBytes(at + site.immOffset, &site.expected, sizeof(site.expected));
+        }
+
+        Log("[FAIL] 0.37 particle-capacity pack failed at %s; prior sites restored.",
+            sites[written].label);
+        return false;
+    }
+
+    Log("[OK] 0.37 particle-capacity pack applied atomically across 14 owners.");
+    Log("[OK] WSPhysicsParticle 1000->2000; WSParticleRender 4500/1000/500->9000/2000/1000.");
+    return true;
+}
+
+
 static bool ApplyHavokToiEventQueue(HMODULE exe, int capacity)
 {
     if (capacity < 64 || capacity > 8192)
@@ -3991,7 +4086,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.36 SIMPLE ENGINE LIMITS PACK TEST");
+    Log("SaboteurEnhanced ASI 0.37 PARTICLE CAPACITY PACK TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -4107,6 +4202,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         wsParticleInfoDataCapacity == 2800 &&
         wsActivateSphereCapacity == 512 &&
         wallGraphCapacity == 100;
+    const bool validatedParticleCapacityPack037 =
+        wsPhysicsParticleCapacity == 2000 &&
+        wsParticleRenderMainCapacity == 9000 &&
+        wsParticleRenderMediumCapacity == 2000 &&
+        wsParticleRenderSmallCapacity == 1000;
 
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
@@ -4523,21 +4623,26 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     else
         Log("[OFF] Additional simple engine limits left at retail capacities.");
 
-    if (wsPhysicsParticleCapacity != 1000)
-        ApplyWSPhysicsParticleCapacity(exe, wsPhysicsParticleCapacity);
+    if (validatedParticleCapacityPack037)
+        ApplyValidatedParticleCapacityPack037(exe);
     else
-        Log("[OFF] WSPhysicsParticle left at retail capacity 1000.");
+    {
+        if (wsPhysicsParticleCapacity != 1000)
+            ApplyWSPhysicsParticleCapacity(exe, wsPhysicsParticleCapacity);
+        else
+            Log("[OFF] WSPhysicsParticle left at retail capacity 1000.");
 
-    if (wsParticleRenderMainCapacity != 4500 ||
-        wsParticleRenderMediumCapacity != 1000 ||
-        wsParticleRenderSmallCapacity != 500)
-        ApplyWSParticleRenderCapacities(
-            exe,
-            wsParticleRenderMainCapacity,
-            wsParticleRenderMediumCapacity,
-            wsParticleRenderSmallCapacity);
-    else
-        Log("[OFF] WSParticleRender capacities left retail 4500/1000/500.");
+        if (wsParticleRenderMainCapacity != 4500 ||
+            wsParticleRenderMediumCapacity != 1000 ||
+            wsParticleRenderSmallCapacity != 500)
+            ApplyWSParticleRenderCapacities(
+                exe,
+                wsParticleRenderMainCapacity,
+                wsParticleRenderMediumCapacity,
+                wsParticleRenderSmallCapacity);
+        else
+            Log("[OFF] WSParticleRender capacities left retail 4500/1000/500.");
+    }
 
     if (havokToiEventQueue != 250)
         ApplyHavokToiEventQueue(exe, havokToiEventQueue);
