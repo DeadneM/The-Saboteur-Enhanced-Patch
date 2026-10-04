@@ -3094,3 +3094,23 @@ Validated functional delta over 0.30:
 All validated 0.30 behavior is frozen underneath 0.32.
 
 Future functional builds must start from 0.32.
+
+
+### ASI 0.32 canonical CI artifact
+
+- workflow: Build Core ASI x86
+- run: 211
+- run ID: `37190629627`
+- conclusion: success
+- canonical promotion commit: `0475250cf7b008568a9bf6ef5634b50da783dcc5`
+- artifact ID: `11299470064`
+- artifact: `SaboteurEnhanced_ASI_0.32_CANONICAL_x86`
+- artifact ZIP SHA-256:
+  `bd8a2a43c766c620d90bc51eb11ea8b49ebe3ba92d82bdb0af9493b1c656c4d9`
+- `SaboteurEnhanced.asi` SHA-256:
+  `99110bb6ab19fb789ca1134dee6ed10630fc3095975dfa5f648d625163965b7c`
+- `dinput8.dll` SHA-256:
+  `020e7d04112e3b107a476221a1fac7b3582d719748c8da51a5ce7b19cc71e804`
+- both binaries verified PE machine x86 / `0x14C`.
+
+This is the canonical distribution baseline for future 0.33+ work.
