@@ -206,6 +206,31 @@ particle_native:
     }
 }
 
+
+static uintptr_t g_wsPhGridInitOriginal = 0;
+
+__declspec(naked) static void WSPhGridInitWrapper()
+{
+    __asm
+    {
+        // Preserve the caller's original three cdecl arguments while calling
+        // the retail generic pool initializer ourselves.
+        mov eax, dword ptr [esp+4]
+        mov ecx, dword ptr [esp+8]
+        mov edx, dword ptr [esp+0Ch]
+        push edx
+        push ecx
+        push eax
+        call dword ptr [g_wsPhGridInitOriginal]
+        add esp, 0Ch
+
+        // Historical V264 invariant: only WSPhGridObject receives 2000.
+        // The adjacent WSHKCreationDataContainer must continue to see EDI=1000.
+        mov edi, 03E8h
+        ret
+    }
+}
+
 static float ReadIniFloat(const std::wstring& path, const wchar_t* section, const wchar_t* key, float fallback)
 {
     wchar_t fallbackText[64] = {};
@@ -2582,6 +2607,131 @@ static bool ApplyValidatedParticleCapacityPack037(HMODULE exe)
 }
 
 
+static bool ApplyWSPhGridObjectCapacity(HMODULE exe, int capacity)
+{
+    if (capacity != 1000 && capacity != 2000)
+    {
+        Log("[FAIL] WSPhGridObjectCapacity=%d; supported values are 1000 or 2000.", capacity);
+        return false;
+    }
+    if (capacity == 1000)
+        return true;
+
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+
+    // Exact retail initializer:
+    //   VA 0x009AE665 / RVA 0x005AE665: mov edi,1000
+    // WSPhGridObject then stores EDI into both capacity fields
+    //   0x0132AF7C / 0x0132AF78,
+    // sets stride 0x38, and calls the generic pool initializer at 0x00E44D00.
+    //
+    // The immediately following WSHKCreationDataContainer shares EDI and MUST
+    // remain at 1000. We therefore redirect only the first generic initializer
+    // CALL through an ASI wrapper that restores EDI=1000 before returning.
+    //
+    // Three active-count guards compare [0x0132AF80] against 1000 and must
+    // move together to 2000:
+    //   VA 0x006CC64C / RVA 0x002CC64C
+    //   VA 0x006CCB30 / RVA 0x002CCB30
+    //   VA 0x006CCDD2 / RVA 0x002CCDD2
+    auto* loadAt = reinterpret_cast<uint8_t*>(base + 0x005AE665);
+    auto* callAt = reinterpret_cast<uint8_t*>(base + 0x005AE6A6);
+    const uintptr_t capRvas[] = {0x002CC64C, 0x002CCB30, 0x002CCDD2};
+
+    const uint8_t expectedLoad[5] = {0xBF,0xE8,0x03,0x00,0x00};
+    const uint8_t expectedCall[5] = {0xE8,0x55,0x66,0x49,0x00};
+    const uint8_t expectedCmpPrefix[6] = {0x81,0x3D,0x80,0xAF,0x32,0x01};
+
+    if (std::memcmp(loadAt, expectedLoad, sizeof(expectedLoad)) != 0)
+    {
+        Log("[SKIP] WSPhGridObject shared EDI initializer bytes mismatch.");
+        return false;
+    }
+    if (std::memcmp(callAt, expectedCall, sizeof(expectedCall)) != 0)
+    {
+        Log("[SKIP] WSPhGridObject generic initializer CALL mismatch.");
+        return false;
+    }
+
+    for (uintptr_t rva : capRvas)
+    {
+        auto* at = reinterpret_cast<uint8_t*>(base + rva);
+        if (std::memcmp(at, expectedCmpPrefix, sizeof(expectedCmpPrefix)) != 0)
+        {
+            Log("[SKIP] WSPhGridObject active-cap prefix mismatch at RVA 0x%08X.",
+                static_cast<unsigned>(rva));
+            return false;
+        }
+        uint32_t current = 0;
+        std::memcpy(&current, at + 6, sizeof(current));
+        if (current != 1000u)
+        {
+            Log("[SKIP] WSPhGridObject active-cap value mismatch at RVA 0x%08X: %u.",
+                static_cast<unsigned>(rva), current);
+            return false;
+        }
+    }
+
+    g_wsPhGridInitOriginal = base + 0x00A44D00;
+
+    // Prepare all replacement bytes before touching retail code.
+    uint8_t loadPatch[5] = {0xBF,0,0,0,0};
+    const uint32_t value = 2000u;
+    std::memcpy(loadPatch + 1, &value, sizeof(value));
+
+    const intptr_t delta =
+        reinterpret_cast<intptr_t>(&WSPhGridInitWrapper) -
+        (reinterpret_cast<intptr_t>(callAt) + 5);
+    if (delta < INT32_MIN || delta > INT32_MAX)
+    {
+        Log("[FAIL] WSPhGridObject wrapper is outside rel32 range.");
+        return false;
+    }
+    uint8_t callPatch[5] = {0xE8,0,0,0,0};
+    const int32_t rel = static_cast<int32_t>(delta);
+    std::memcpy(callPatch + 1, &rel, sizeof(rel));
+
+    // Fail-closed transaction with explicit rollback.
+    bool loadWritten = false;
+    bool callWritten = false;
+    size_t capsWritten = 0;
+
+    if (!WriteBytes(loadAt, loadPatch, sizeof(loadPatch)))
+        goto rollback;
+    loadWritten = true;
+
+    if (!WriteBytes(callAt, callPatch, sizeof(callPatch)))
+        goto rollback;
+    callWritten = true;
+
+    for (; capsWritten < 3; ++capsWritten)
+    {
+        auto* at = reinterpret_cast<uint8_t*>(base + capRvas[capsWritten]);
+        if (!WriteBytes(at + 6, &value, sizeof(value)))
+            goto rollback;
+    }
+
+    Log("[OK] WSPhGridObject capacity 1000 -> 2000 with matched three active caps.");
+    Log("[OK] WSHKCreationDataContainer preserved at 1000 via post-init EDI restore.");
+    return true;
+
+rollback:
+    for (size_t i = capsWritten; i > 0; --i)
+    {
+        const uint32_t retail = 1000u;
+        auto* at = reinterpret_cast<uint8_t*>(base + capRvas[i - 1]);
+        WriteBytes(at + 6, &retail, sizeof(retail));
+    }
+    if (callWritten)
+        WriteBytes(callAt, expectedCall, sizeof(expectedCall));
+    if (loadWritten)
+        WriteBytes(loadAt, expectedLoad, sizeof(expectedLoad));
+
+    Log("[FAIL] WSPhGridObject 0.43 transaction failed; prior writes restored.");
+    return false;
+}
+
+
 static bool ApplyHavokBroadPhaseQuerySize(HMODULE exe, int querySize)
 {
     if (querySize < 256 || querySize > 16384)
@@ -4155,7 +4305,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.42 HAVOK BROADPHASE 2048 TEST");
+    Log("SaboteurEnhanced ASI 0.43 WSPHGRIDOBJECT 2000 TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -4258,6 +4408,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const int havokToiEventQueue = GetPrivateProfileIntW(L"EngineLimits", L"HavokTOIEventQueue", 250, iniPath.c_str());
     const int havokBroadPhaseQuerySize = GetPrivateProfileIntW(
         L"EngineLimits", L"HavokBroadPhaseQuerySize", 1024, iniPath.c_str());
+    const int wsPhGridObjectCapacity = GetPrivateProfileIntW(
+        L"EngineLimits", L"WSPhGridObjectCapacity", 1000, iniPath.c_str());
     const int streamingJobCapacity = GetPrivateProfileIntW(L"EngineLimits", L"StreamingJobCapacity", 1200, iniPath.c_str());
     const int pblCrcTreeNodeCapacity = GetPrivateProfileIntW(L"EngineLimits", L"PblCRCTreeNodeCapacity", 40000, iniPath.c_str());
 
@@ -4358,6 +4510,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("[EngineLimits] HavokTOI=%d HavokBroadPhase=%d StreamingJobs=%d PblCRC=%d",
         havokToiEventQueue, havokBroadPhaseQuerySize,
         streamingJobCapacity, pblCrcTreeNodeCapacity);
+    Log("[EngineLimits] WSPhGridObject=%d", wsPhGridObjectCapacity);
     Log("[EngineLimits] DamageSphere=%d InventoryStow=%d",
         wsDamageSphereCapacity, wsInventoryStateStowCapacity);
     Log("[EngineLimits] WSDecal=%d", wsDecalCapacity);
@@ -4734,6 +4887,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplyHavokBroadPhaseQuerySize(exe, havokBroadPhaseQuerySize);
     else
         Log("[OFF] Havok broad-phase query size left at retail 1024.");
+
+    if (wsPhGridObjectCapacity != 1000)
+        ApplyWSPhGridObjectCapacity(exe, wsPhGridObjectCapacity);
+    else
+        Log("[OFF] WSPhGridObject left at retail capacity 1000.");
 
     if (streamingJobCapacity != 1200)
         ApplyStreamingJobCapacity(exe, streamingJobCapacity);
