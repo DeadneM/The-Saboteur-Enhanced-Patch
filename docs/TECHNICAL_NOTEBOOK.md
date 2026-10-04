@@ -3157,3 +3157,23 @@ No CSM distance, slice bound, bias, PCF kernel, AO or visibility owner changes
 in 0.33.
 
 0.32 remains canonical until explicit in-game validation.
+
+
+### ASI 0.33 CI artifact
+
+- workflow: Build Core ASI x86
+- run: 212
+- run ID: `37191181566`
+- conclusion: success
+- source/config commit: `e398c0d7db502a3d79c0128acd2823cafa6743f7`
+- artifact ID: `11298583237`
+- artifact: `SaboteurEnhanced_ASI_0.33_FULLRES_SPOT_SHADOW_TEST_x86`
+- artifact ZIP SHA-256:
+  `36e2e9b38288cbd2298dc104ee011109a50e70f4239cdf7f598e50c666b33474`
+- `SaboteurEnhanced.asi` SHA-256:
+  `0d8d0684831c3f14ab1807a9a1ac60610890082fa550f3191dff7d4440973cd4`
+- `dinput8.dll` SHA-256:
+  `08ec9de35b6ddb7afa375a9b77fe0c9921a41468d866ba815b1236c7ed9e5e0f`
+- both binaries verified PE machine x86 / `0x14C`.
+
+0.33 remains test-only. 0.32 remains canonical until explicit user validation.
