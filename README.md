@@ -873,3 +873,18 @@ Retail path:
 miss. It does **not** recolor shaders/materials and does **not** disable the
 native real `WSCivilianProp` path.
 
+
+### 0.47 rejected as final fix
+
+User result: the red bug disappeared, but pedestrians no longer had props in their hands. This exactly matches the historical V106/V107/V243 behavior. 0.47 therefore remains diagnostic proof only and is **not** retained.
+
+
+### 0.48 CivilianProp gate test
+
+0.48 restores the native fallback behavior from 0.46 and does not remove hand props. It ports the historical V244A gate redirect:
+
+- table VA `0x00B85C80` / RVA `0x00785C80`;
+- expected target `0x00474A20`;
+- replacement target `0x0048B560`.
+
+Goal: keep accessories present while reducing/eliminating the red proxy transition by allowing the normal CivilianProp path through its native alternate handler.

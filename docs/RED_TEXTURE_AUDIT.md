@@ -59,3 +59,16 @@ Validation target:
 If validated, this becomes the release behavior. If the temporary no-prop
 interval is considered unacceptable, the next research branch is to accelerate
 population of the native civilian-prop table rather than recolor the proxy.
+
+## 0.47 in-game result
+
+The proxy bypass removed the red bug but also removed pedestrian hand props entirely. Therefore suppression of `rnd civilian prop(%d)` is diagnostic only, not a shippable fix.
+
+## 0.48 branch
+
+Restore the native proxy and test the historical CivilianProp gate redirect:
+- table VA 0x00B85C80 / RVA 0x00785C80;
+- retail pointer 0x00474A20;
+- alternate native pointer 0x0048B560.
+
+This branch preserves the prop system and tests whether earlier access to the normal CivilianProp handler can prevent the red proxy phase without deleting accessories.

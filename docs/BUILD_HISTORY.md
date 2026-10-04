@@ -540,3 +540,9 @@ See `docs/ASI_0_6_WSDYNAMICPART_RADIUS.md`.
 
 This is the modern ASI port of the decisive V243A ownership test, not a shader,
 material recolor, WTF, LOD or streaming change.
+
+## ASI 0.47 rejected / 0.48 CivilianProp gate test
+
+0.47 removed the red proxy but also removed pedestrian hand props. Rejected.
+
+0.48 restores 0.46 functional behavior and tests only the historical V244A CivilianProp gate redirect at VA 0x00B85C80: 0x00474A20 -> 0x0048B560.

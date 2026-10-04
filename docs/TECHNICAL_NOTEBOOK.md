@@ -3250,3 +3250,19 @@ Expected A/B:
 - temporary absence is possible while the genuine prop resource is unavailable;
 - genuine accessory must still appear normally once the native lookup succeeds.
 
+
+## 0.47 rejection / 0.48 next branch
+
+0.47 test result:
+- red proxy: removed;
+- hand props: also removed;
+- status: rejected as final behavior.
+
+This confirms again that outright suppression of `rnd civilian prop(%d)` is not acceptable. Historical flag tests 0x10/0x40 and immediate-model creation are also closed: they affected spawning or changed nothing, not the red cause.
+
+0.48 therefore restores the fallback and ports V244A's exact CivilianProp gate redirect:
+- VA `0x00B85C80` / RVA `0x00785C80`;
+- dword `0x00474A20 -> 0x0048B560`;
+- exact retail pointer preflight before write.
+
+Unlike 0.47, props are expected to remain present.
