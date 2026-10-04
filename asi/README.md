@@ -1154,7 +1154,7 @@ validated.
 
 ## 0.32 WSModel shadow-distance + DepthBlur owner repair candidate
 
-Status: **FUNCTIONAL TEST CANDIDATE - 0.30 remains canonical until explicit validation**.
+Status: **VALIDATED - 0.32 is the current canonical ASI baseline**.
 
 0.31 was diagnostic-only and is not part of the functional lineage. Its one
 useful result was an exact byte window for the independent WSModel+0xAC path.
@@ -1216,6 +1216,28 @@ Validation target:
 - reject on shadow corruption, detached/ghost shadows, obvious scene clutter
   explosion or material/render instability.
 
-0.30 remains the rollback/canonical baseline until explicit user validation.
+User validation: **passed**. 0.32 supersedes 0.30 as the canonical gameplay/render baseline.
 
 Build trigger note: the 0.32 functional candidate is compiled from the exact source/config state documented above.
+
+
+## 0.32 validated canonical baseline
+
+Status: **VALIDATED - current canonical ASI baseline**.
+
+User validation confirms the 0.32 functional candidate is good in game.
+
+Canonical delta over 0.30:
+- WSModel +0xAC size-derived secondary/shadow cutoff bypass at RVA 0x00239577;
+- retail/Core1 `75 1A` -> canonical `EB 1A`;
+- branch rejoins at the native `fstp st(0)` cleanup, preserving x87 balance;
+- constructor +0xAC = 10000 is retained;
+- DepthBlur mask and color compensation owners are resolved by fail-closed
+  unique runtime signatures instead of fragile fixed RVAs;
+- validated compensation values remain 0.5 and 0.6666667;
+- 0.31 diagnostic byte logging remains removed.
+
+All validated 0.30 features remain cumulative, including +0xA8, V310/V311,
+Scaleform caches, graphics, AO, shadows, distances, streaming and PostFX.
+
+0.32 is now the required base for future functional builds.

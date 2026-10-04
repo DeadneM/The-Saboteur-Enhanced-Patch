@@ -2980,7 +2980,7 @@ Next step after user runtime log:
 
 ## ASI 0.32 functional candidate - WSModel +0xAC and DepthBlur signature repair
 
-Status: **FUNCTIONAL TEST CANDIDATE. ASI 0.30 remains canonical.**
+Status: **VALIDATED. ASI 0.32 is now canonical.**
 
 ### Trigger from 0.31 runtime log
 
@@ -3050,7 +3050,7 @@ preserved.
 Artifact label:
 `SaboteurEnhanced_ASI_0.32_WSMODEL_SHADOW_DEPTHBLUR_REPAIR_TEST_x86`
 
-0.30 remains canonical until explicit in-game validation of 0.32.
+User validation passed. 0.32 supersedes 0.30 as the canonical baseline for all future work.
 
 
 ### ASI 0.32 CI artifact
@@ -3072,4 +3072,25 @@ Artifact label:
 - packaged files: `SaboteurEnhanced.asi`, `dinput8.dll`,
   `SaboteurEnhanced.ini`, `README.txt`.
 
-0.32 remains test-only. 0.30 remains canonical until explicit user validation.
+Historical test artifact above is validated. A canonical-labeled 0.32 artifact is rebuilt from the same functional source/config with only promotion labels changed.
+
+
+## ASI 0.32 user validation - PROMOTED TO CANONICAL
+
+User result: **validated**.
+
+0.32 is now the canonical ASI baseline.
+
+Validated functional delta over 0.30:
+- WSModel +0xAC rewrite bypass at RVA 0x00239577;
+- exact bytes `75 1A -> EB 1A`;
+- preserves native x87 cleanup at RVA 0x00239593;
+- retains constructor +0xAC = 10000;
+- repairs DepthBlur cumulative ownership through unique fail-closed runtime
+  signatures for both mask and color shader families;
+- retains the previously validated compensation values exactly;
+- no telemetry or diagnostic byte dump remains in the functional lineage.
+
+All validated 0.30 behavior is frozen underneath 0.32.
+
+Future functional builds must start from 0.32.
