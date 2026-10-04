@@ -2582,6 +2582,48 @@ static bool ApplyValidatedParticleCapacityPack037(HMODULE exe)
 }
 
 
+static bool ApplyHavokBroadPhaseQuerySize(HMODULE exe, int querySize)
+{
+    if (querySize < 256 || querySize > 16384)
+    {
+        Log("[FAIL] HavokBroadPhaseQuerySize=%d outside 256..16384.", querySize);
+        return false;
+    }
+    if (querySize == 1024)
+        return true;
+
+    // Recovered from the exact retail -> V200 byte manifest:
+    //   RAW 0x006C4560: 04 -> 08
+    // This is byte +1 of the little-endian dword 1024 -> 2048.
+    // Runtime mapping for this .text area is RAW + 0xE00:
+    //   RVA 0x006C535F = 00 04 00 00 (1024).
+    //
+    // Adjacent historical TOI owner cross-check:
+    //   RAW 0x006C45B0: FA 00 -> 00 02
+    //   matching the independently audited TOI field in the same Havok block.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    auto* at = reinterpret_cast<uint8_t*>(base + 0x006C535F);
+
+    uint32_t current = 0;
+    std::memcpy(&current, at, sizeof(current));
+    if (current != 1024u)
+    {
+        Log("[SKIP] Havok broad-phase retail value mismatch: expected 1024 got %u.", current);
+        return false;
+    }
+
+    const uint32_t value = static_cast<uint32_t>(querySize);
+    if (!WriteBytes(at, &value, sizeof(value)))
+    {
+        Log("[FAIL] Havok broad-phase query-size write failed.");
+        return false;
+    }
+
+    Log("[OK] Havok broad-phase query size 1024 -> %d.", querySize);
+    return true;
+}
+
+
 static bool ApplyHavokToiEventQueue(HMODULE exe, int capacity)
 {
     if (capacity < 64 || capacity > 8192)
@@ -4113,7 +4155,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.41 PERF ISOLATION SPHERE NATIVE TEST");
+    Log("SaboteurEnhanced ASI 0.42 HAVOK BROADPHASE 2048 TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -4214,6 +4256,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const int wsParticleRenderSmallCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WSParticleRenderSmallCapacity", 500, iniPath.c_str());
 
     const int havokToiEventQueue = GetPrivateProfileIntW(L"EngineLimits", L"HavokTOIEventQueue", 250, iniPath.c_str());
+    const int havokBroadPhaseQuerySize = GetPrivateProfileIntW(
+        L"EngineLimits", L"HavokBroadPhaseQuerySize", 1024, iniPath.c_str());
     const int streamingJobCapacity = GetPrivateProfileIntW(L"EngineLimits", L"StreamingJobCapacity", 1200, iniPath.c_str());
     const int pblCrcTreeNodeCapacity = GetPrivateProfileIntW(L"EngineLimits", L"PblCRCTreeNodeCapacity", 40000, iniPath.c_str());
 
@@ -4311,8 +4355,9 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         wsParticleRenderMainCapacity,
         wsParticleRenderMediumCapacity,
         wsParticleRenderSmallCapacity);
-    Log("[EngineLimits] HavokTOI=%d StreamingJobs=%d PblCRC=%d",
-        havokToiEventQueue, streamingJobCapacity, pblCrcTreeNodeCapacity);
+    Log("[EngineLimits] HavokTOI=%d HavokBroadPhase=%d StreamingJobs=%d PblCRC=%d",
+        havokToiEventQueue, havokBroadPhaseQuerySize,
+        streamingJobCapacity, pblCrcTreeNodeCapacity);
     Log("[EngineLimits] DamageSphere=%d InventoryStow=%d",
         wsDamageSphereCapacity, wsInventoryStateStowCapacity);
     Log("[EngineLimits] WSDecal=%d", wsDecalCapacity);
@@ -4684,6 +4729,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         ApplyHavokToiEventQueue(exe, havokToiEventQueue);
     else
         Log("[OFF] Havok TOI event queue left at retail 250.");
+
+    if (havokBroadPhaseQuerySize != 1024)
+        ApplyHavokBroadPhaseQuerySize(exe, havokBroadPhaseQuerySize);
+    else
+        Log("[OFF] Havok broad-phase query size left at retail 1024.");
 
     if (streamingJobCapacity != 1200)
         ApplyStreamingJobCapacity(exe, streamingJobCapacity);

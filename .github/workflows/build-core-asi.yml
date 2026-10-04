@@ -16,32 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Audit historical Havok 1024 to 2048 owner
-        shell: pwsh
-        run: |
-          @'
-          import base64, json, zlib
-          from pathlib import Path
-          p = Path("patches/original_to_v200.json.zlib.b64")
-          m = json.loads(zlib.decompress(base64.b64decode(p.read_bytes())).decode("utf-8"))
-          print("=== exact 04->08 byte deltas ===")
-          for i, r in enumerate(m["regions"]):
-              if r["before"].lower() == "04" and r["after"].lower() == "08":
-                  print("region", i, "offset", r["offset"], "length", r["length"], "04->08")
-          print("=== Havok neighborhood RAW 0x006B0000..0x006E0000 ===")
-          for i, r in enumerate(m["regions"]):
-              off = int(r["offset"], 16)
-              if 0x006B0000 <= off < 0x006E0000:
-                  print("region", i, "offset", r["offset"], "length", r["length"],
-                        "before", r["before"], "after", r["after"])
-          print("=== small FA/00/02 deltas for TOI cross-check ===")
-          for i, r in enumerate(m["regions"]):
-              bh, ah = r["before"].lower(), r["after"].lower()
-              if len(bh) <= 12 and ("fa" in bh or "0002" in ah):
-                  print("region", i, "offset", r["offset"], "length", r["length"],
-                        "before", bh, "after", ah)
-          '@ | python -
-
       - name: Enable MSVC x86 environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -72,7 +46,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SaboteurEnhanced_ASI_0.41_PERF_ISOLATION_SPHERE_NATIVE_TEST_x86
+          name: SaboteurEnhanced_ASI_0.42_HAVOK_BROADPHASE_2048_TEST_x86
           path: dist/*
           if-no-files-found: error
           compression-level: 0
