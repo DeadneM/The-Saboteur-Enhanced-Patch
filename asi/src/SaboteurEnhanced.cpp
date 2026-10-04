@@ -2617,6 +2617,113 @@ static bool ApplyClassOwnedPoolConstants(HMODULE exe,
 }
 
 
+static bool ApplyValidatedEngineLimitsPack035(HMODULE exe)
+{
+    // 0.35 bundles four historically validated, structurally independent
+    // engine-capacity owners into one fail-closed transaction:
+    //   WSLuaCall            20 -> 40
+    //   WSDamageSphere      512 -> 1024
+    //   WSInventoryStateStow 32 -> 64
+    //   PblCRCTreeNode    40000 -> 60000
+    //
+    // Every retail/Core1 site is verified before the first write. If any
+    // later write fails, every earlier site is restored to its retail value.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+
+    auto* lua = reinterpret_cast<uint8_t*>(base + 0x005F6C74);
+    auto* damage = reinterpret_cast<uint32_t*>(base + 0x00B87564);
+    auto* inventory = reinterpret_cast<uint32_t*>(base + 0x00BD0AF4);
+    auto* crc = reinterpret_cast<uint8_t*>(base + 0x012055F2);
+
+    if (lua[0] != 0xB8)
+    {
+        Log("[SKIP] 0.35 WSLuaCall opcode mismatch.");
+        return false;
+    }
+    uint32_t luaCurrent = 0;
+    std::memcpy(&luaCurrent, lua + 1, sizeof(luaCurrent));
+    if (luaCurrent != 20u)
+    {
+        Log("[SKIP] 0.35 WSLuaCall value mismatch: expected 20 got %u.", luaCurrent);
+        return false;
+    }
+
+    uint32_t damageCurrent = 0;
+    std::memcpy(&damageCurrent, damage, sizeof(damageCurrent));
+    if (damageCurrent != 512u)
+    {
+        Log("[SKIP] 0.35 WSDamageSphere value mismatch: expected 512 got %u.", damageCurrent);
+        return false;
+    }
+
+    uint32_t inventoryCurrent = 0;
+    std::memcpy(&inventoryCurrent, inventory, sizeof(inventoryCurrent));
+    if (inventoryCurrent != 32u)
+    {
+        Log("[SKIP] 0.35 InventoryStow value mismatch: expected 32 got %u.", inventoryCurrent);
+        return false;
+    }
+
+    if (crc[0] != 0x68)
+    {
+        Log("[SKIP] 0.35 PblCRCTreeNode push opcode mismatch.");
+        return false;
+    }
+    uint32_t crcCurrent = 0;
+    std::memcpy(&crcCurrent, crc + 1, sizeof(crcCurrent));
+    if (crcCurrent != 40000u)
+    {
+        Log("[SKIP] 0.35 PblCRCTreeNode value mismatch: expected 40000 got %u.", crcCurrent);
+        return false;
+    }
+
+    const uint32_t luaNew = 40u;
+    const uint32_t damageNew = 1024u;
+    const uint32_t inventoryNew = 64u;
+    const uint32_t crcNew = 60000u;
+
+    if (!WriteBytes(lua + 1, &luaNew, sizeof(luaNew)))
+    {
+        Log("[FAIL] 0.35 WSLuaCall write failed.");
+        return false;
+    }
+
+    if (!WriteBytes(damage, &damageNew, sizeof(damageNew)))
+    {
+        const uint32_t retail = 20u;
+        WriteBytes(lua + 1, &retail, sizeof(retail));
+        Log("[FAIL] 0.35 WSDamageSphere write failed; WSLuaCall restored.");
+        return false;
+    }
+
+    if (!WriteBytes(inventory, &inventoryNew, sizeof(inventoryNew)))
+    {
+        const uint32_t luaRetail = 20u;
+        const uint32_t damageRetail = 512u;
+        WriteBytes(damage, &damageRetail, sizeof(damageRetail));
+        WriteBytes(lua + 1, &luaRetail, sizeof(luaRetail));
+        Log("[FAIL] 0.35 InventoryStow write failed; prior sites restored.");
+        return false;
+    }
+
+    if (!WriteBytes(crc + 1, &crcNew, sizeof(crcNew)))
+    {
+        const uint32_t luaRetail = 20u;
+        const uint32_t damageRetail = 512u;
+        const uint32_t inventoryRetail = 32u;
+        WriteBytes(inventory, &inventoryRetail, sizeof(inventoryRetail));
+        WriteBytes(damage, &damageRetail, sizeof(damageRetail));
+        WriteBytes(lua + 1, &luaRetail, sizeof(luaRetail));
+        Log("[FAIL] 0.35 PblCRCTreeNode write failed; prior sites restored.");
+        return false;
+    }
+
+    Log("[OK] 0.35 validated engine-limit pack applied atomically.");
+    Log("[OK] WSLuaCall 20->40, WSDamageSphere 512->1024, InventoryStow 32->64, PblCRC 40000->60000.");
+    return true;
+}
+
+
 static bool ApplyWSDecalCapacity(HMODULE exe, int capacity)
 {
     if (capacity < 100 || capacity > 5000)
@@ -3806,7 +3913,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.34 WSDECAL 800 TEST");
+    Log("SaboteurEnhanced ASI 0.35 VALIDATED ENGINE LIMITS PACK TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -3912,6 +4019,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const int wsInventoryStateStowCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WSInventoryStateStowCapacity", 32, iniPath.c_str());
     const int wsDecalCapacity = GetPrivateProfileIntW(L"EngineLimits", L"WSDecalCapacity", 400, iniPath.c_str());
     const int coalescedReadBatchByteLimit = GetPrivateProfileIntW(L"Streaming", L"CoalescedReadBatchByteLimit", 512000, iniPath.c_str());
+    const bool validatedEngineLimitsPack035 =
+        wsLuaCallCapacity == 40 &&
+        pblCrcTreeNodeCapacity == 60000 &&
+        wsDamageSphereCapacity == 1024 &&
+        wsInventoryStateStowCapacity == 64;
 
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
@@ -4306,20 +4418,23 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     else
         Log("[OFF] WTF transition-ring RT family left native 128x128.");
 
-    if (wsLuaCallCapacity != 20 ||
+    if (validatedEngineLimitsPack035)
+        ApplyValidatedEngineLimitsPack035(exe);
+
+    if ((!validatedEngineLimitsPack035 && wsLuaCallCapacity != 20) ||
         wsParkingSpaceCapacity != 32 ||
         wsParticleInfoDataCapacity != 1400 ||
         wsActivateSphereCapacity != 256 ||
         wallGraphCapacity != 50)
         ApplySimpleEngineLimits(
             exe,
-            wsLuaCallCapacity,
+            validatedEngineLimitsPack035 ? 20 : wsLuaCallCapacity,
             wsParkingSpaceCapacity,
             wsParticleInfoDataCapacity,
             wsActivateSphereCapacity,
             wallGraphCapacity);
     else
-        Log("[OFF] Simple engine limits left at retail capacities.");
+        Log("[OFF] Additional simple engine limits left at retail capacities.");
 
     if (wsPhysicsParticleCapacity != 1000)
         ApplyWSPhysicsParticleCapacity(exe, wsPhysicsParticleCapacity);
@@ -4347,18 +4462,19 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     else
         Log("[OFF] WSReadJob / WSUncompressJob left at retail 1200.");
 
-    if (pblCrcTreeNodeCapacity != 40000)
+    if (!validatedEngineLimitsPack035 && pblCrcTreeNodeCapacity != 40000)
         ApplyPblCrcTreeNodeCapacity(exe, pblCrcTreeNodeCapacity);
-    else
+    else if (!validatedEngineLimitsPack035)
         Log("[OFF] PblCRCTreeNode left at retail 40000.");
 
-    if (wsDamageSphereCapacity != 512 ||
-        wsInventoryStateStowCapacity != 32)
+    if (!validatedEngineLimitsPack035 &&
+        (wsDamageSphereCapacity != 512 ||
+         wsInventoryStateStowCapacity != 32))
         ApplyClassOwnedPoolConstants(
             exe,
             wsDamageSphereCapacity,
             wsInventoryStateStowCapacity);
-    else
+    else if (!validatedEngineLimitsPack035)
         Log("[OFF] WSDamageSphere and WSInventoryStateStow left at retail capacities.");
 
     if (wsDecalCapacity != 400)
