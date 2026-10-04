@@ -2724,6 +2724,84 @@ static bool ApplyValidatedEngineLimitsPack035(HMODULE exe)
 }
 
 
+static bool ApplyValidatedSimpleEngineLimitsPack036(HMODULE exe)
+{
+    // 0.36 bundles the remaining historically validated simple fixed-pool
+    // owners into one fail-closed transaction:
+    //   WSParkingSpace      32 -> 64
+    //   WSParticleInfoData 1400 -> 2800
+    //   WSActivateSphere   256 -> 512
+    //   WallPoint           50 -> 100
+    //   WallSegment         50 -> 100
+    //
+    // All five MOV EAX,imm32 owners are verified before the first write.
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+
+    struct Site
+    {
+        uintptr_t rva;
+        uint32_t expected;
+        uint32_t value;
+        const char* label;
+    };
+
+    const Site sites[] = {
+        {0x0050706E,   32u,   64u, "WSParkingSpace"},
+        {0x005D3173, 1400u, 2800u, "WSParticleInfoData"},
+        {0x005AE7E6,  256u,  512u, "WSActivateSphere"},
+        {0x005F6B91,   50u,  100u, "WallPoint"},
+        {0x005F6BDE,   50u,  100u, "WallSegment"}
+    };
+
+    for (const Site& site : sites)
+    {
+        auto* at = reinterpret_cast<uint8_t*>(base + site.rva);
+        if (at[0] != 0xB8)
+        {
+            Log("[SKIP] 0.36 %s opcode mismatch at RVA 0x%08X.",
+                site.label, static_cast<unsigned>(site.rva));
+            return false;
+        }
+
+        uint32_t current = 0;
+        std::memcpy(&current, at + 1, sizeof(current));
+        if (current != site.expected)
+        {
+            Log("[SKIP] 0.36 %s value mismatch: expected %u got %u.",
+                site.label, site.expected, current);
+            return false;
+        }
+    }
+
+    size_t written = 0;
+    for (; written < (sizeof(sites) / sizeof(sites[0])); ++written)
+    {
+        const Site& site = sites[written];
+        auto* at = reinterpret_cast<uint8_t*>(base + site.rva);
+        if (!WriteBytes(at + 1, &site.value, sizeof(site.value)))
+            break;
+    }
+
+    if (written != (sizeof(sites) / sizeof(sites[0])))
+    {
+        for (size_t i = written; i > 0; --i)
+        {
+            const Site& site = sites[i - 1];
+            auto* at = reinterpret_cast<uint8_t*>(base + site.rva);
+            WriteBytes(at + 1, &site.expected, sizeof(site.expected));
+        }
+
+        Log("[FAIL] 0.36 simple engine-limit pack write failed at %s; prior sites restored.",
+            sites[written].label);
+        return false;
+    }
+
+    Log("[OK] 0.36 simple engine-limit pack applied atomically.");
+    Log("[OK] Parking 32->64, ParticleInfo 1400->2800, ActivateSphere 256->512, WallPoint/WallSegment 50->100.");
+    return true;
+}
+
+
 static bool ApplyWSDecalCapacity(HMODULE exe, int capacity)
 {
     if (capacity < 100 || capacity > 5000)
@@ -3913,7 +3991,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.35 VALIDATED ENGINE LIMITS PACK TEST");
+    Log("SaboteurEnhanced ASI 0.36 SIMPLE ENGINE LIMITS PACK TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -4024,6 +4102,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         pblCrcTreeNodeCapacity == 60000 &&
         wsDamageSphereCapacity == 1024 &&
         wsInventoryStateStowCapacity == 64;
+    const bool validatedSimpleEngineLimitsPack036 =
+        wsParkingSpaceCapacity == 64 &&
+        wsParticleInfoDataCapacity == 2800 &&
+        wsActivateSphereCapacity == 512 &&
+        wallGraphCapacity == 100;
 
     const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
     g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
@@ -4421,18 +4504,22 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     if (validatedEngineLimitsPack035)
         ApplyValidatedEngineLimitsPack035(exe);
 
+    if (validatedSimpleEngineLimitsPack036)
+        ApplyValidatedSimpleEngineLimitsPack036(exe);
+
     if ((!validatedEngineLimitsPack035 && wsLuaCallCapacity != 20) ||
-        wsParkingSpaceCapacity != 32 ||
-        wsParticleInfoDataCapacity != 1400 ||
-        wsActivateSphereCapacity != 256 ||
-        wallGraphCapacity != 50)
+        (!validatedSimpleEngineLimitsPack036 &&
+         (wsParkingSpaceCapacity != 32 ||
+          wsParticleInfoDataCapacity != 1400 ||
+          wsActivateSphereCapacity != 256 ||
+          wallGraphCapacity != 50)))
         ApplySimpleEngineLimits(
             exe,
             validatedEngineLimitsPack035 ? 20 : wsLuaCallCapacity,
-            wsParkingSpaceCapacity,
-            wsParticleInfoDataCapacity,
-            wsActivateSphereCapacity,
-            wallGraphCapacity);
+            validatedSimpleEngineLimitsPack036 ? 32 : wsParkingSpaceCapacity,
+            validatedSimpleEngineLimitsPack036 ? 1400 : wsParticleInfoDataCapacity,
+            validatedSimpleEngineLimitsPack036 ? 256 : wsActivateSphereCapacity,
+            validatedSimpleEngineLimitsPack036 ? 50 : wallGraphCapacity);
     else
         Log("[OFF] Additional simple engine limits left at retail capacities.");
 
