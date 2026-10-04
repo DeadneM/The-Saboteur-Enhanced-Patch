@@ -25,6 +25,23 @@ Experimental PC enhancement patch for **The Saboteur**, developed through static
 > **Current Windows patcher source/CI target: v1Pv260**  
 > **Current work: exact-retail audit of water, rain, post-processing, renderer limits and hidden quality owners**
 
+
+## ASI 0.45 Release Candidate
+
+0.45 is the release-candidate continuation of validated 0.44.
+
+No engine/render values are changed.
+
+Release-path cleanup:
+- rejected Odin child-visibility A/B no longer has a runtime INI/read/apply path;
+- rejected WSDamageable variant-selector A/B no longer has a runtime INI/read/apply path;
+- old Odin diagnostic INI reads, hook installation, marker-thread start and
+  shutdown summary are removed from the normal runtime path;
+- historical diagnostic source remains compiled but unreachable in this RC.
+
+The known 0.35 -> 0.40 performance regression remains explicitly accepted for
+this release line by project decision.
+
 ## Current ASI canonical baseline — 0.43
 
 **ASI 0.43 is the current validated/canonical working baseline.**

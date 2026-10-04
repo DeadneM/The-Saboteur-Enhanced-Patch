@@ -4305,15 +4305,13 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.44 CLEAN CUMULATIVE BASELINE TEST");
+    Log("SaboteurEnhanced ASI 0.45 RELEASE CANDIDATE");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
     const std::wstring iniPath = dir + L"\\SaboteurEnhanced.ini";
     const bool enableV310 = GetPrivateProfileIntW(L"Fixes", L"WSModelFullRenderMask", 1, iniPath.c_str()) != 0;
     const bool enableV311 = GetPrivateProfileIntW(L"Fixes", L"ModelInfoFullRenderSlice", 1, iniPath.c_str()) != 0;
-    const bool enableOdinChildVisibility = GetPrivateProfileIntW(L"Fixes", L"OdinChildVisibilityGate", 0, iniPath.c_str()) != 0;
-    const bool enableWSDamageableVariant = GetPrivateProfileIntW(L"Fixes", L"WSDamageableVariantSelector", 0, iniPath.c_str()) != 0;
     const int wsDynamicPartPriorityRadius = GetPrivateProfileIntW(L"Fixes", L"WSDynamicPartPriorityRadius", 25, iniPath.c_str());
     const bool wsModelSmallObjectHardCullBypass = GetPrivateProfileIntW(L"Fixes", L"WSModelSmallObjectHardCullBypass", 0, iniPath.c_str()) != 0;
     const bool wsModelShadowCullBypass = GetPrivateProfileIntW(L"Fixes", L"WSModelShadowCullBypass", 0, iniPath.c_str()) != 0;
@@ -4433,23 +4431,9 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         wsParticleRenderMediumCapacity == 2000 &&
         wsParticleRenderSmallCapacity == 1000;
 
-    const bool enableOdin = GetPrivateProfileIntW(L"Diagnostics", L"OdinInstancing", 0, iniPath.c_str()) != 0;
-    g_odinTraceAllQueries = GetPrivateProfileIntW(L"Diagnostics", L"OdinTraceAllQueries", 0, iniPath.c_str()) != 0;
-    g_odinEventLimit = GetPrivateProfileIntW(L"Diagnostics", L"OdinEventLimit", 5000, iniPath.c_str());
-    if (g_odinEventLimit < 100) g_odinEventLimit = 100;
-    if (g_odinEventLimit > 100000) g_odinEventLimit = 100000;
-    g_fingerprintWindowMs = GetPrivateProfileIntW(L"Diagnostics", L"FingerprintWindowMs", 1200, iniPath.c_str());
-    if (g_fingerprintWindowMs < 200) g_fingerprintWindowMs = 200;
-    if (g_fingerprintWindowMs > 5000) g_fingerprintWindowMs = 5000;
-    g_fingerprintMaxRoots = GetPrivateProfileIntW(L"Diagnostics", L"FingerprintMaxRoots", 16, iniPath.c_str());
-    if (g_fingerprintMaxRoots < 1) g_fingerprintMaxRoots = 1;
-    if (g_fingerprintMaxRoots > 32) g_fingerprintMaxRoots = 32;
-
     Log("INI: %ls", iniPath.c_str());
     Log("WSModelFullRenderMask=%d", enableV310 ? 1 : 0);
     Log("ModelInfoFullRenderSlice=%d", enableV311 ? 1 : 0);
-    Log("OdinChildVisibilityGate=%d", enableOdinChildVisibility ? 1 : 0);
-    Log("WSDamageableVariantSelector=%d", enableWSDamageableVariant ? 1 : 0);
     Log("WSDynamicPartPriorityRadius=%d", wsDynamicPartPriorityRadius);
     Log("WSModelSmallObjectHardCullBypass=%d", wsModelSmallObjectHardCullBypass ? 1 : 0);
     Log("WSModelShadowCullBypass=%d", wsModelShadowCullBypass ? 1 : 0);
@@ -4924,31 +4908,10 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     if (enableV311) ApplyV311(text, g_moduleBase);
     else Log("[OFF] V311 ModelInfo fix disabled by INI.");
 
-    if (enableOdinChildVisibility) ApplyOdinChildVisibilityGate(text, g_moduleBase);
-    else Log("[OFF] Odin child-visibility A/B disabled by INI.");
-
-    if (enableWSDamageableVariant) ApplyWSDamageableVariantSelectorBypass(text, g_moduleBase);
-    else Log("[OFF] WSDamageablePart variant-selector A/B disabled by INI.");
-
     if (wsDynamicPartPriorityRadius != 25)
         ApplyWSDynamicPartPriorityRadius(exe, static_cast<float>(wsDynamicPartPriorityRadius));
     else
         Log("[OFF] WSDynamicPart priority radius left at native 25.");
-
-    if (enableOdin)
-    {
-        if (InstallOdinDiagnostics(exe))
-        {
-            Log("[OK] Odin sync diagnostics active. No Odin rendering decision is modified.");
-            StartDiagnosticMarker();
-        }
-        else
-            Log("[FAIL] Odin diagnostics not installed completely.");
-    }
-    else
-    {
-        Log("[OFF] Odin diagnostics disabled by INI.");
-    }
 
     Log("ASI initialization complete.");
     return TRUE;
@@ -4970,9 +4933,6 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID)
     {
         if (g_log)
         {
-            InterlockedExchange(&g_markerThreadRun, 0);
-            Log("Odin summary: SyncCalls=%ld Mismatches=%ld F9Markers=%ld LoggedEvents=%ld",
-                g_odinSyncCalls, g_odinSyncMismatches, g_markerCount, g_odinLoggedEvents);
             Log("ASI unload.");
             AcquireSRWLockExclusive(&g_logLock);
             std::fclose(g_log);
