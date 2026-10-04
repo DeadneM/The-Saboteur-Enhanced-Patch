@@ -25,26 +25,26 @@ Experimental PC enhancement patch for **The Saboteur**, developed through static
 > **Current Windows patcher source/CI target: v1Pv260**  
 > **Current work: exact-retail audit of water, rain, post-processing, renderer limits and hidden quality owners**
 
-## Current ASI canonical baseline — 0.40
+## Current ASI canonical baseline — 0.43
 
-**ASI 0.40 is the canonical working baseline by explicit user decision.**
+**ASI 0.43 is the current validated/canonical working baseline.**
 
-Retained cumulatively:
-- all validated 0.35 engine-limit changes;
-- all validated 0.36 simple engine-limit changes;
-- all validated 0.37 particle/physics capacity changes;
-- Havok TOI 250 -> 1024 from 0.38;
-- WSSphereActivator max radius 2.06 -> 20.6 from the 0.39/0.40 line.
+Lineage policy:
+- 0.40 remains the explicitly accepted cumulative base despite the known severe
+  performance regression somewhere in the 0.35 -> 0.40 sequence;
+- 0.41 is abandoned and excluded;
+- 0.42 adds validated Havok broad-phase 1024 -> 2048;
+- 0.43 adds validated WSPhGridObject 1000 -> 2000 while preserving the adjacent
+  WSHKCreationDataContainer at 1000.
+
+Audit correction:
+- the historical 25/50/70/100/150/200/300 object-distance family is already
+  implemented by `HumanObjectQualityScale=5.0`; it must not be duplicated by
+  a second patch owner.
 
 Known issue:
-- severe lag/performance degradation was reported somewhere across the cumulative
-  0.35 -> 0.40 sequence;
-- this regression is **accepted for now** and does not invalidate 0.40 as the
-  requested development base;
-- future builds continue from 0.40 unless the user explicitly changes that rule.
-
-**ASI 0.41 is abandoned**. Its temporary WSSphereActivator rollback to native
-2.06 must not enter the retained lineage.
+- the cumulative 0.35 -> 0.40 lag regression remains accepted for now and is
+  not rolled back unless explicitly requested.
 
 Packaging rule:
 - distributed ZIPs remain minimal and do not include BUILD_NOTES.txt.

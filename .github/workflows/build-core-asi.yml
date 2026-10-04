@@ -16,51 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Audit generic object LOD historical redirections
-        shell: pwsh
-        run: |
-          @'
-          import base64, json, zlib, struct
-          from pathlib import Path
-
-          p = Path("patches/original_to_v200.json.zlib.b64")
-          m = json.loads(zlib.decompress(base64.b64decode(p.read_bytes())).decode("utf-8"))
-
-          print("=== changed regions RAW 0x000F0000..0x0010B000 ===")
-          for i, r in enumerate(m["regions"]):
-              off = int(r["offset"], 16)
-              if 0x000F0000 <= off < 0x0010B000:
-                  print("REGION", i, "OFF", r["offset"], "LEN", r["length"])
-                  print("BEFORE", r["before"])
-                  print("AFTER ", r["after"])
-
-          print("=== pointer-like dword changes in same window ===")
-          for i, r in enumerate(m["regions"]):
-              off = int(r["offset"], 16)
-              if not (0x000F0000 <= off < 0x0010B000):
-                  continue
-              b = bytes.fromhex(r["before"])
-              a = bytes.fromhex(r["after"])
-              for j in range(0, min(len(b), len(a)) - 3):
-                  bv = struct.unpack_from("<I", b, j)[0]
-                  av = struct.unpack_from("<I", a, j)[0]
-                  if bv != av and 0x00400000 <= bv <= 0x02000000 and 0x00400000 <= av <= 0x02000000:
-                      print("PTR", i, hex(off+j), hex(bv), "->", hex(av))
-
-          print("=== exact target floats around after-pointer destinations ===")
-          wanted = {20.0,40.0,56.0,80.0,120.0,160.0,240.0}
-          # Manifest does not embed full EXE bytes, so this section only emits
-          # changed literal float regions if any occur directly.
-          for i, r in enumerate(m["regions"]):
-              b = bytes.fromhex(r["before"])
-              a = bytes.fromhex(r["after"])
-              for j in range(0, min(len(b), len(a)) - 3):
-                  bf = struct.unpack_from("<f", b, j)[0]
-                  af = struct.unpack_from("<f", a, j)[0]
-                  if bf in wanted or af in wanted:
-                      print("FLOAT", i, r["offset"], "inner", hex(j), bf, "->", af)
-          '@ | python -
-
       - name: Enable MSVC x86 environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -91,7 +46,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SaboteurEnhanced_ASI_0.43_WSPHGRIDOBJECT_2000_TEST_x86
+          name: SaboteurEnhanced_ASI_0.44_CLEAN_CUMULATIVE_BASELINE_TEST_x86
           path: dist/*
           if-no-files-found: error
           compression-level: 0
