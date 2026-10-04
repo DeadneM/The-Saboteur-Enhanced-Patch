@@ -1150,3 +1150,70 @@ Test procedure:
 
 0.30 remains canonical until a later functional candidate is explicitly
 validated.
+
+
+## 0.32 WSModel shadow-distance + DepthBlur owner repair candidate
+
+Status: **FUNCTIONAL TEST CANDIDATE - 0.30 remains canonical until explicit validation**.
+
+0.31 was diagnostic-only and is not part of the functional lineage. Its one
+useful result was an exact byte window for the independent WSModel+0xAC path.
+
+### WSModel +0xAC owner
+
+The 0.31 runtime bytes disassemble as:
+
+- RVA 0x00239577: `75 1A` = conditional jump to RVA 0x00239593;
+- RVA 0x00239579..0x00239590: size-derived +0xAC calculation/store;
+- RVA 0x00239593: `DD D8` = `fstp st(0)`, the native x87 cleanup path.
+
+Retail behavior for metric < 5 is approximately:
+
+`AC = 15 + 20 * metric`
+
+0.32 changes only:
+
+`RVA 0x00239577: 75 1A -> EB 1A`
+
+This always takes the existing cleanup branch, skips only the +0xAC rewrite,
+retains constructor +0xAC = 10000 and preserves x87 stack balance.
+
+New INI owner:
+
+`Fixes.WSModelShadowCullBypass=1`
+
+The validated 0.30 +0xA8 hard-render cutoff bypass remains unchanged.
+
+### DepthBlur cumulative repair
+
+The current 0.31 runtime log exposed that both previously intended DepthBlur
+shader compensation groups were still failing exact fixed-RVA verification.
+
+0.32 removes that fragile fixed-address dependency. It resolves each complete
+retail shader family by a narrow runtime signature and writes only when the
+combined signature is unique:
+
+- mask family: all 11 known retail constants across both shaders, including the
+  exact +0x2D8 relationship between the two groups;
+- color family: both -1/+1 pairs with their exact +0x210 relationship.
+
+Searches are restricted to the known embedded-shader windows. Zero or multiple
+matches fail closed and write nothing.
+
+The validated compensation values are unchanged:
+
+- `DepthBlurMaskTapOffsetScale=0.5`;
+- `DepthBlurColorTexelOffsetScale=0.6666667`.
+
+No telemetry, byte dump, pool change, streaming change, new render-target
+multiplier or global shader constant is introduced.
+
+Validation target:
+
+- no regression versus canonical 0.30;
+- DepthBlur log groups must now resolve and apply instead of `[SKIP]`;
+- secondary/shadow visibility on small WSModel props should persist farther;
+- reject on shadow corruption, detached/ghost shadows, obvious scene clutter
+  explosion or material/render instability.
+
+0.30 remains the rollback/canonical baseline until explicit user validation.

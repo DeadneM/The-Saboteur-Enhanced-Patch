@@ -2976,3 +2976,78 @@ Next step after user runtime log:
    preserve all unrelated WSModel setup behavior.
 
 0.30 remains the canonical rollback and functional baseline.
+
+
+## ASI 0.32 functional candidate - WSModel +0xAC and DepthBlur signature repair
+
+Status: **FUNCTIONAL TEST CANDIDATE. ASI 0.30 remains canonical.**
+
+### Trigger from 0.31 runtime log
+
+The diagnostic-only 0.31 log confirmed the untouched Core1 WSModel setup bytes:
+
+- RVA 0x00239577 = `75 1A`;
+- the +0xAC formula/store occupies RVA 0x00239579..0x00239590;
+- RVA 0x00239593 = `DD D8` / `fstp st(0)`.
+
+Local disassembly proves that the conditional path which skips the formula
+already lands on the native x87 cleanup. Therefore forcing the branch does not
+leave an extra x87 value live.
+
+Functional 0.32 edit:
+
+- RVA: 0x00239577
+- retail/Core1: `75 1A`
+- 0.32: `EB 1A`
+- effect: retain constructor WSModel+0xAC = 10000 instead of applying the
+  size-derived approximately `15 + 20*metric` cutoff for small models.
+
+The independent validated 0.30 +0xA8 bypass at RVA 0x0023954E remains enabled.
+
+### DepthBlur cumulative invariant repair
+
+The same 0.31 runtime log also showed:
+
+- DepthBlur mask shader tap group: `[SKIP]`;
+- DepthBlur color texel-offset group: `[SKIP]`.
+
+This contradicts the intended cumulative 0.28+ lineage. Core1 reconstruction
+does not retain broad post-process shader edits in this region, so 0.32 removes
+the fragile fixed-RVA assumption instead of adding another diagnostic build.
+
+0.32 runtime ownership rules:
+
+Mask signature:
+- one narrow search window: RVA 0x00D66000..0x00D69000;
+- require all 11 retail floats across both known mask shaders;
+- second shader anchor is +0x2D8 from the first;
+- require exactly one combined match before writing.
+
+Color signature:
+- one narrow search window: RVA 0x00D65800..0x00D68800;
+- require both retail -1/+1 pairs together;
+- second pair is +0x210 from the first;
+- require exactly one combined match before writing.
+
+Fail-closed behavior:
+- zero matches: no write;
+- more than one match: no write;
+- only one complete signature: patch the existing validated compensation
+  values.
+
+Retained values:
+- DepthBlurMaskTapOffsetScale = 0.5;
+- DepthBlurColorTexelOffsetScale = 0.6666667.
+
+### Scope
+
+0.31 byte logging is removed from the source and is not part of 0.32.
+No new telemetry is added.
+All canonical 0.30 features, V310/V311 fixes, Scaleform caches, graphics,
+distance, AO, shadow, post-process and streaming settings are otherwise
+preserved.
+
+Artifact label:
+`SaboteurEnhanced_ASI_0.32_WSMODEL_SHADOW_DEPTHBLUR_REPAIR_TEST_x86`
+
+0.30 remains canonical until explicit in-game validation of 0.32.

@@ -1498,32 +1498,73 @@ static bool ApplyDepthBlurMaskTapOffsetScale(HMODULE exe, float scale)
         return false;
     }
 
-    // Embedded DepthBlur mask shaders use literal spatial tap distances in
-    // conjunction with g_uvScale. Retail constants are:
-    //   shader A: 7.5 and 2/4/6/8
-    //   shader B: 6/7.5 and 2/4/5/8
-    // Keep the normalization constants (1/9) untouched. When the mask RT is
-    // raised from 0.5x to 1.0x, 0.5 preserves the original screen-space tap
-    // radius, mirroring the coherent resolution/UV correction used by AO.
-    // 0.14 audit originally recorded these as RVAs, but they were RAW file
-    // offsets. This embedded-shader PE section maps RAW -> RVA with +0x1600,
-    // the same mapping independently verified for PsBloom/PsBloomFinal.
-    const uintptr_t rvas[] = {
-        0x00D680E0,
-        0x00D680F8,0x00D680FC,0x00D68100,0x00D68104,
-        0x00D683B8,0x00D683BC,
-        0x00D683D0,0x00D683D4,0x00D683D8,0x00D683DC
+    // The original 0.14 audit recovered these literals from RAW file offsets.
+    // 0.28 used a fixed RAW->RVA displacement, but the current canonical Core1
+    // runtime proves that fixed-address verification is still fragile.
+    //
+    // Resolve the complete two-shader retail signature instead. Both shader
+    // families must match together, exactly once, inside the narrow embedded
+    // shader window before any write is allowed.
+    static const uintptr_t rels[] = {
+        0x000,
+        0x018,0x01C,0x020,0x024,
+        0x2D8,0x2DC,
+        0x2F0,0x2F4,0x2F8,0x2FC
     };
-    const float expected[] = {
+    static const float expected[] = {
         7.5f,
         2.0f,4.0f,6.0f,8.0f,
         6.0f,7.5f,
         2.0f,4.0f,5.0f,8.0f
     };
-    float values[_countof(rvas)] = {};
-    for (size_t i = 0; i < _countof(rvas); ++i)
-        values[i] = expected[i] * scale;
 
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    constexpr uintptr_t searchStart = 0x00D66000;
+    constexpr uintptr_t searchEnd   = 0x00D69000;
+
+    uintptr_t foundRva = 0;
+    unsigned matches = 0;
+    for (uintptr_t candidate = searchStart;
+         candidate + rels[_countof(rels) - 1] + sizeof(float) <= searchEnd;
+         candidate += 4)
+    {
+        bool match = true;
+        for (size_t i = 0; i < _countof(rels); ++i)
+        {
+            float current = 0.0f;
+            std::memcpy(&current,
+                        reinterpret_cast<const void*>(base + candidate + rels[i]),
+                        sizeof(current));
+            if (std::memcmp(&current, &expected[i], sizeof(current)) != 0)
+            {
+                match = false;
+                break;
+            }
+        }
+        if (match)
+        {
+            foundRva = candidate;
+            ++matches;
+        }
+    }
+
+    if (matches != 1)
+    {
+        Log("[SKIP] DepthBlur mask retail signature match count=%u in RVA 0x00D66000..0x00D69000.",
+            matches);
+        return false;
+    }
+
+    uintptr_t rvas[_countof(rels)] = {};
+    float values[_countof(rels)] = {};
+    for (size_t i = 0; i < _countof(rels); ++i)
+    {
+        rvas[i] = foundRva + rels[i];
+        values[i] = expected[i] * scale;
+    }
+
+    Log("[OK] DepthBlur mask retail signature resolved at RVA 0x%08X.",
+        static_cast<unsigned>(foundRva));
     return ApplyFloatGroup(exe, "DepthBlur mask shader tap offsets",
                            rvas, expected, _countof(rvas), values);
 }
@@ -1536,21 +1577,60 @@ static bool ApplyDepthBlurColorTexelOffsetScale(HMODULE exe, float scale)
         return false;
     }
 
-    // Two embedded DepthBlur color shaders multiply g_vTexelSize by literal
-    // -1/+1 offsets. Scale ONLY those spatial offsets; the separate 0.2
-    // threshold remains untouched. 0.13 changes the color pyramid from
-    // divisors 1.5/3/6/12 to 1/2/4/8, i.e. 1.5x more pixels per dimension.
-    // A 2/3 offset scale therefore preserves the retail screen-space radius.
-    // Same corrected RAW -> RVA +0x1600 mapping as the mask shaders.
-    const uintptr_t rvas[] = {
-        0x00D67AA0,0x00D67AA4,
-        0x00D67CB0,0x00D67CB4
-    };
-    const float expected[] = {-1.0f,1.0f,-1.0f,1.0f};
-    float values[_countof(rvas)] = {};
-    for (size_t i = 0; i < _countof(rvas); ++i)
-        values[i] = expected[i] * scale;
+    // Resolve both retail -1/+1 texel-offset pairs as one signature.
+    // The second pair is exactly +0x210 from the first in the retail shader
+    // layout. Requiring the combined signature to be unique prevents a broad
+    // -1/+1 float scan from patching unrelated shader constants.
+    static const uintptr_t rels[] = {0x000,0x004,0x210,0x214};
+    static const float expected[] = {-1.0f,1.0f,-1.0f,1.0f};
 
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    constexpr uintptr_t searchStart = 0x00D65800;
+    constexpr uintptr_t searchEnd   = 0x00D68800;
+
+    uintptr_t foundRva = 0;
+    unsigned matches = 0;
+    for (uintptr_t candidate = searchStart;
+         candidate + rels[_countof(rels) - 1] + sizeof(float) <= searchEnd;
+         candidate += 4)
+    {
+        bool match = true;
+        for (size_t i = 0; i < _countof(rels); ++i)
+        {
+            float current = 0.0f;
+            std::memcpy(&current,
+                        reinterpret_cast<const void*>(base + candidate + rels[i]),
+                        sizeof(current));
+            if (std::memcmp(&current, &expected[i], sizeof(current)) != 0)
+            {
+                match = false;
+                break;
+            }
+        }
+        if (match)
+        {
+            foundRva = candidate;
+            ++matches;
+        }
+    }
+
+    if (matches != 1)
+    {
+        Log("[SKIP] DepthBlur color retail signature match count=%u in RVA 0x00D65800..0x00D68800.",
+            matches);
+        return false;
+    }
+
+    uintptr_t rvas[_countof(rels)] = {};
+    float values[_countof(rels)] = {};
+    for (size_t i = 0; i < _countof(rels); ++i)
+    {
+        rvas[i] = foundRva + rels[i];
+        values[i] = expected[i] * scale;
+    }
+
+    Log("[OK] DepthBlur color retail signature resolved at RVA 0x%08X.",
+        static_cast<unsigned>(foundRva));
     return ApplyFloatGroup(exe, "DepthBlur color shader texel offsets",
                            rvas, expected, _countof(rvas), values);
 }
@@ -3617,32 +3697,37 @@ static bool ApplyWsModelSmallObjectHardCullBypass(HMODULE exe)
     return true;
 }
 
-
-static void LogWsModelAcAuditWindow(HMODULE exe)
+static bool ApplyWsModelShadowCullBypass(HMODULE exe)
 {
-    // 0.31 is diagnostic-only. Capture the untouched Core1 bytes around the
-    // WSModel A8/AC setup before any runtime patch is applied. This gives the
-    // exact instruction stream needed to isolate the independent +0xAC
-    // shadow-distance rewrite without guessing an address or branch.
+    // 0.31 byte audit proved the independent WSModel+0xAC path exactly:
+    //   RVA 0x00239577: 75 1A  jne 0x00239593
+    //   RVA 0x00239579..0x00239590 computes/stores the size-derived AC value
+    //   RVA 0x00239593: DD D8  fstp st(0)
+    //
+    // For metric < 5 retail derives approximately AC = 15 + 20*metric.
+    // Forcing the existing branch to the native cleanup block skips only that
+    // rewrite, retains constructor +0xAC = 10000, and preserves x87 balance.
     const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
-    const auto* p = reinterpret_cast<const uint8_t*>(base + 0x00239540);
+    auto* at = reinterpret_cast<uint8_t*>(base + 0x00239577);
+    static const uint8_t expected[2] = {0x75, 0x1A};
+    static const uint8_t patch[2]    = {0xEB, 0x1A};
 
-    Log("[AUDIT] WSModel A8/AC setup raw bytes, pre-patch, RVA 0x00239540..0x002395BF.");
-    for (size_t row = 0; row < 0x80; row += 0x10)
+    if (std::memcmp(at, expected, sizeof(expected)) != 0)
     {
-        Log("[AUDIT] RVA 0x%08X: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X",
-            static_cast<unsigned>(0x00239540 + row),
-            static_cast<unsigned>(p[row + 0]),  static_cast<unsigned>(p[row + 1]),
-            static_cast<unsigned>(p[row + 2]),  static_cast<unsigned>(p[row + 3]),
-            static_cast<unsigned>(p[row + 4]),  static_cast<unsigned>(p[row + 5]),
-            static_cast<unsigned>(p[row + 6]),  static_cast<unsigned>(p[row + 7]),
-            static_cast<unsigned>(p[row + 8]),  static_cast<unsigned>(p[row + 9]),
-            static_cast<unsigned>(p[row + 10]), static_cast<unsigned>(p[row + 11]),
-            static_cast<unsigned>(p[row + 12]), static_cast<unsigned>(p[row + 13]),
-            static_cast<unsigned>(p[row + 14]), static_cast<unsigned>(p[row + 15]));
+        Log("[SKIP] WSModel +0xAC shadow-cull branch mismatch at RVA 0x00239577.");
+        return false;
     }
-    Log("[AUDIT] 0.31 byte audit itself performs no writes.");
+
+    if (!WriteBytes(at, patch, sizeof(patch)))
+    {
+        Log("[FAIL] WSModel +0xAC shadow-cull bypass write failed.");
+        return false;
+    }
+
+    Log("[OK] WSModel +0xAC size-derived shadow cutoff bypassed; constructor 10000 retained.");
+    return true;
 }
+
 
 static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 {
@@ -3653,7 +3738,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.31 WSMODEL AC BYTE AUDIT");
+    Log("SaboteurEnhanced ASI 0.32 WSMODEL SHADOW + DEPTHBLUR REPAIR TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -3664,6 +3749,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const bool enableWSDamageableVariant = GetPrivateProfileIntW(L"Fixes", L"WSDamageableVariantSelector", 0, iniPath.c_str()) != 0;
     const int wsDynamicPartPriorityRadius = GetPrivateProfileIntW(L"Fixes", L"WSDynamicPartPriorityRadius", 25, iniPath.c_str());
     const bool wsModelSmallObjectHardCullBypass = GetPrivateProfileIntW(L"Fixes", L"WSModelSmallObjectHardCullBypass", 0, iniPath.c_str()) != 0;
+    const bool wsModelShadowCullBypass = GetPrivateProfileIntW(L"Fixes", L"WSModelShadowCullBypass", 0, iniPath.c_str()) != 0;
     const int environmentMapResolution = GetPrivateProfileIntW(L"Graphics", L"EnvironmentMapResolution", 2048, iniPath.c_str());
     const int anisotropicFiltering = GetPrivateProfileIntW(L"Graphics", L"AnisotropicFiltering", 16, iniPath.c_str());
     const float mipLodBias = ReadIniFloat(iniPath, L"Graphics", L"MipLODBias", 0.0f);
@@ -3778,6 +3864,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("WSDamageableVariantSelector=%d", enableWSDamageableVariant ? 1 : 0);
     Log("WSDynamicPartPriorityRadius=%d", wsDynamicPartPriorityRadius);
     Log("WSModelSmallObjectHardCullBypass=%d", wsModelSmallObjectHardCullBypass ? 1 : 0);
+    Log("WSModelShadowCullBypass=%d", wsModelShadowCullBypass ? 1 : 0);
     Log("[Graphics] EnvironmentMapResolution=%d AF=%d MipLODBias=%.3f ToneMap=%.3f",
         environmentMapResolution, anisotropicFiltering, mipLodBias, toneMap);
     Log("[Shadows] ShadowMapResolution=%d PCF5x5=%d Lambda=%.3f Far=%.3f Bias=%.3f/%.3f SpotScale=%.3f",
@@ -3852,13 +3939,15 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
         static_cast<unsigned>(reinterpret_cast<uintptr_t>(text.begin) - g_moduleBase),
         static_cast<unsigned>(text.size));
 
-    // Capture Core1 WSModel setup bytes before 0.30/V310/V311 modify this area.
-    LogWsModelAcAuditWindow(exe);
-
     if (wsModelSmallObjectHardCullBypass)
         ApplyWsModelSmallObjectHardCullBypass(exe);
     else
         Log("[OFF] WSModel small-object A8 hard-cull rewrite left retail.");
+
+    if (wsModelShadowCullBypass)
+        ApplyWsModelShadowCullBypass(exe);
+    else
+        Log("[OFF] WSModel +0xAC size-derived shadow cutoff left retail.");
 
     // Restored validated graphics/render findings. Every family is controlled
     // independently by SaboteurEnhanced.ini and verified against Core1/native bytes.

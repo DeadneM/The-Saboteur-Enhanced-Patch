@@ -46,7 +46,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SaboteurEnhanced_ASI_0.31_WSMODEL_AC_BYTE_AUDIT_x86
+          name: SaboteurEnhanced_ASI_0.32_WSMODEL_SHADOW_DEPTHBLUR_REPAIR_TEST_x86
           path: dist/*
           if-no-files-found: error
           compression-level: 0
