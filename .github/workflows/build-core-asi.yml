@@ -32,7 +32,7 @@ jobs:
           if errorlevel 1 exit /b 1
           copy /Y asi\SaboteurEnhanced.ini dist\SaboteurEnhanced.ini
           copy /Y asi\README.md dist\README.txt
-          copy /Y docs\ASI_0_33_CANONICAL.md dist\CANONICAL.txt
+          copy /Y docs\ASI_0_34_TEST.md dist\BUILD_NOTES.txt
 
       - name: Verify PE machine is x86
         shell: cmd
@@ -48,7 +48,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SaboteurEnhanced_ASI_0.33_CANONICAL_x86
+          name: SaboteurEnhanced_ASI_0.34_WSDECAL800_TEST_x86
           path: dist/*
           if-no-files-found: error
           compression-level: 0
