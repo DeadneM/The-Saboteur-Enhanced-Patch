@@ -1747,6 +1747,33 @@ static bool ApplyWillToFightGridResolution(HMODULE exe, int resolution)
     return true;
 }
 
+static bool ApplyWSSphereActivatorMaxRadius(HMODULE exe, float radius)
+{
+    if (!std::isfinite(radius) || radius < 0.5f || radius > 64.0f)
+    {
+        Log("[FAIL] WSSphereActivatorMaxRadius=%.3f outside 0.5..64.0.", radius);
+        return false;
+    }
+
+    // Exact clean-retail clamp scalar used by WSSphereActivator sphere-create:
+    //   VA 0x00FCD834 / RVA 0x00BCD834 = 2.06f
+    // Native routine at VA 0x0068EF80 computes:
+    //   effective_radius = min(requested_radius * 1.05, 2.06)
+    //
+    // This is an experimental activation/query diagnostic, NOT a proven
+    // static-render distance owner. Fail closed if the exact retail scalar
+    // does not match.
+    const uintptr_t rvas[] = {0x00BCD834};
+    const float expected[] = {2.06f};
+    const float values[] = {radius};
+    const bool ok = ApplyFloatGroup(
+        exe, "WSSphereActivator max-radius clamp", rvas, expected, 1, values);
+    if (ok)
+        Log("[OK] WSSphereActivator max-radius clamp 2.060 -> %.3f.", radius);
+    return ok;
+}
+
+
 static bool ApplyVeryFarSceneProfileThresholds(HMODULE exe, float profile0, float profile1)
 {
     if (!std::isfinite(profile0) || !std::isfinite(profile1) ||
@@ -4086,7 +4113,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.38 HAVOK TOI 1024 TEST");
+    Log("SaboteurEnhanced ASI 0.39 WSSPHEREACTIVATOR X4 TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -4161,6 +4188,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const int willToFightGridResolution = GetPrivateProfileIntW(L"WillToFight", L"GridResolution", 256, iniPath.c_str());
     const float veryFarSceneProfile0Threshold = ReadIniFloat(iniPath, L"ExperimentalDistances", L"VeryFarSceneProfile0Threshold", 22.0f);
     const float veryFarSceneProfile1Threshold = ReadIniFloat(iniPath, L"ExperimentalDistances", L"VeryFarSceneProfile1Threshold", 49.0f);
+    const float wsSphereActivatorMaxRadius = ReadIniFloat(
+        iniPath, L"ExperimentalDistances", L"WSSphereActivatorMaxRadius", 2.06f);
 
     const float depthBlurColorPyramidFactor = ReadIniFloat(iniPath, L"ExperimentalPostFX", L"DepthBlurColorPyramidFactor", 0.75f);
     const int skyDomeResolutionMultiplier = GetPrivateProfileIntW(L"Sky", L"ResolutionMultiplier", 1, iniPath.c_str());
@@ -4263,6 +4292,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("[WillToFight] GridResolution=%d", willToFightGridResolution);
     Log("[ExperimentalDistances] VeryFarSceneProfileThresholds=%.3f/%.3f",
         veryFarSceneProfile0Threshold, veryFarSceneProfile1Threshold);
+    Log("[ExperimentalDistances] WSSphereActivatorMaxRadius=%.3f",
+        wsSphereActivatorMaxRadius);
     Log("[ExperimentalPostFX] DepthBlurColorPyramidFactor=%.3f", depthBlurColorPyramidFactor);
     Log("[Sky] ResolutionMultiplier=%d", skyDomeResolutionMultiplier);
     Log("[ExperimentalPostFX] DamageBlurResolutionScale=%.3f", damageBlurResolutionScale);
@@ -4529,6 +4560,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
             exe, veryFarSceneProfile0Threshold, veryFarSceneProfile1Threshold);
     else
         Log("[OFF] VeryFarScene profile thresholds left native 22/49.");
+
+    if (std::fabs(wsSphereActivatorMaxRadius - 2.06f) > 0.0001f)
+        ApplyWSSphereActivatorMaxRadius(exe, wsSphereActivatorMaxRadius);
+    else
+        Log("[OFF] WSSphereActivator max-radius clamp left native 2.06.");
 
     if (std::fabs(depthBlurColorPyramidFactor - 0.75f) > 0.0001f)
         ApplyDepthBlurColorPyramidFactor(exe, static_cast<double>(depthBlurColorPyramidFactor));
