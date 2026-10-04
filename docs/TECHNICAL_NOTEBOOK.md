@@ -3051,3 +3051,25 @@ Artifact label:
 `SaboteurEnhanced_ASI_0.32_WSMODEL_SHADOW_DEPTHBLUR_REPAIR_TEST_x86`
 
 0.30 remains canonical until explicit in-game validation of 0.32.
+
+
+### ASI 0.32 CI artifact
+
+- workflow: Build Core ASI x86
+- run: 210
+- run ID: 37189702471
+- conclusion: success
+- head SHA: c23e5d885816048fbfcaebc7c4c38827e69a1713
+- artifact ID: 11298690381
+- artifact: `SaboteurEnhanced_ASI_0.32_WSMODEL_SHADOW_DEPTHBLUR_REPAIR_TEST_x86`
+- artifact ZIP SHA-256:
+  `442fa9f15f29dd14c8afd1094e9e38c11f256f40a9eec4a5e046f8cd4e77d8fe`
+- `SaboteurEnhanced.asi` SHA-256:
+  `9f90096d88187e8a82dc4324bef2efb55c16334cf269db6c59c5eb29d75140be`
+- `dinput8.dll` SHA-256:
+  `15caef845910c51057cb9fecb19af88713375d5b301604b294c7b0b7ca6a8b36`
+- both binaries verified PE machine x86 / 0x14C;
+- packaged files: `SaboteurEnhanced.asi`, `dinput8.dll`,
+  `SaboteurEnhanced.ini`, `README.txt`.
+
+0.32 remains test-only. 0.30 remains canonical until explicit user validation.
