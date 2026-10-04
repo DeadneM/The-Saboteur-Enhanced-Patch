@@ -1217,3 +1217,5 @@ Validation target:
   explosion or material/render instability.
 
 0.30 remains the rollback/canonical baseline until explicit user validation.
+
+Build trigger note: the 0.32 functional candidate is compiled from the exact source/config state documented above.
