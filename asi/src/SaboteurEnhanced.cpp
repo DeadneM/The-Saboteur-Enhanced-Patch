@@ -12,6 +12,7 @@
 #pragma intrinsic(_ReturnAddress)
 
 static HMODULE g_self = nullptr;
+static uintptr_t g_moduleBase = 0;
 static INIT_ONCE g_initOnce = INIT_ONCE_STATIC_INIT;
 static FILE* g_log = nullptr;
 static SRWLOCK g_logLock = SRWLOCK_INIT;
