@@ -884,20 +884,70 @@ static bool ApplySpotShadowResolutionScale(HMODULE exe, double scale)
     // WSSpotShadowZBuffer%d resource creation multiplies dimensions by the
     // shared native 0.5 double at three exact sites. A fourth 0.5 consumer at
     // VA 0x004268B7 is projection/midpoint math and MUST remain native.
+    //
+    // 0.33 makes this owner atomic: all three opcodes and source operands are
+    // verified first. Only after the whole family matches do we redirect any
+    // operand. If a write fails, earlier writes are restored to the original
+    // retail/Core1 target.
     static double storage = 0.5;
     storage = scale;
+
     const uintptr_t sites[] = {
         0x00026054, 0x0002609B, 0x00026151
     };
 
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    const uint32_t expectedTarget = static_cast<uint32_t>(base + 0x00B7AC88);
+    const uintptr_t replacementPtr = reinterpret_cast<uintptr_t>(&storage);
+    if (replacementPtr > 0xFFFFFFFFu)
+    {
+        Log("[FAIL] Spot-shadow replacement pointer outside x86 range.");
+        return false;
+    }
+    const uint32_t replacement = static_cast<uint32_t>(replacementPtr);
+
+    // Phase 1: verify the complete three-site family before writing.
     for (uintptr_t rva : sites)
     {
-        if (!PatchAbsoluteOperand32(
-                exe, rva, 0xDC, 0x0D, 0x00B7AC88,
-                &storage, "Spot-shadow Z-buffer resolution scale"))
+        auto* instruction = reinterpret_cast<uint8_t*>(base + rva);
+        if (instruction[0] != 0xDC || instruction[1] != 0x0D)
+        {
+            Log("[SKIP] Spot-shadow Z-buffer opcode mismatch at RVA 0x%08X.",
+                static_cast<unsigned>(rva));
             return false;
+        }
+
+        uint32_t currentTarget = 0;
+        std::memcpy(&currentTarget, instruction + 2, sizeof(currentTarget));
+        if (currentTarget != expectedTarget)
+        {
+            Log("[SKIP] Spot-shadow Z-buffer source target mismatch at RVA 0x%08X: expected 0x%08X, got 0x%08X.",
+                static_cast<unsigned>(rva),
+                static_cast<unsigned>(expectedTarget),
+                static_cast<unsigned>(currentTarget));
+            return false;
+        }
     }
 
+    // Phase 2: redirect all three operands. Roll back on any write failure.
+    size_t written = 0;
+    for (; written < _countof(sites); ++written)
+    {
+        auto* operand = reinterpret_cast<uint8_t*>(base + sites[written] + 2);
+        if (!WriteBytes(operand, &replacement, sizeof(replacement)))
+        {
+            for (size_t restore = 0; restore < written; ++restore)
+            {
+                auto* previousOperand = reinterpret_cast<uint8_t*>(base + sites[restore] + 2);
+                WriteBytes(previousOperand, &expectedTarget, sizeof(expectedTarget));
+            }
+            Log("[FAIL] Spot-shadow Z-buffer operand write failed at RVA 0x%08X; prior sites restored.",
+                static_cast<unsigned>(sites[written]));
+            return false;
+        }
+    }
+
+    Log("[OK] WSSpotShadowZBuffer family atomically verified and redirected.");
     Log("[OK] WSSpotShadowZBuffer resolution scale 0.500 -> %.3f.", scale);
     return true;
 }
@@ -3738,7 +3788,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.32 CANONICAL");
+    Log("SaboteurEnhanced ASI 0.33 FULLRES SPOT SHADOW TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 

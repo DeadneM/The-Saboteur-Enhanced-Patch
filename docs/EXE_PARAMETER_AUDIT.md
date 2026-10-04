@@ -109,7 +109,7 @@ controls.
 | Foliage distance | 200 -> 250 | old V257 cave family; owner recovery required |
 | Shadow-caster distance | 180 -> 240 | two historical sites; clean owner not yet reconstructed |
 | Particle LOD distance | 100 -> 150 | old V257 cave family; clean owner not yet reconstructed |
-| Spot-shadows 4K factor | 0.5 -> 1.0 | historical result retained, exact Core1 owner not yet proven |
+| Spot-shadows 4K factor | 0.5 -> 1.0 | exact WSSpotShadowZBuffer creation owner recovered at RVAs 0x00026054 / 0x0002609B / 0x00026151; projection 0.5 consumer remains untouched |
 | WSDetailSystem | 100 -> 500 -> 1000 | real object field at +0x218 proven; three instruction owners known, exact Core1 bytes still need reconstruction before generic INI support |
 | VeryFarScene profile thresholds | 22 / 49 | real per-profile thresholds; V312 x4 did not affect balcony symptom |
 | WSSphereActivator max radius | approx. 2.06 | real clamp in VA 0x0068EF80; affects a broader activation/query system and needs focused ownership proof |
@@ -617,3 +617,25 @@ retail/V200 values and nearby Scaleform cache identifiers.
 
 They remain deferred until the 0.12 graphics A/B is validated so UI resource
 changes cannot contaminate that visual test.
+
+
+### WSSpotShadowZBuffer exact owner
+
+The dedicated spot-shadow Z-buffer creation family is now recovered cleanly
+from Core1/retail.
+
+Three creation instructions multiply target dimensions by the same native
+double 0.5:
+
+- RVA 0x00026054
+- RVA 0x0002609B
+- RVA 0x00026151
+
+All three are `DC 0D <absolute double>` and target the retail 0.5 owner at
+RVA 0x00B7AC88.
+
+A fourth 0.5 consumer at VA 0x004268B7 is projection/midpoint math and must not
+be redirected as part of the render-target quality owner.
+
+Therefore `Shadows.SpotShadowResolutionScale` is now a proven clean runtime
+control. The 0.33 candidate tests the historical 0.5 -> 1.0 quality step.

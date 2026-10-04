@@ -1241,3 +1241,57 @@ All validated 0.30 features remain cumulative, including +0xA8, V310/V311,
 Scaleform caches, graphics, AO, shadows, distances, streaming and PostFX.
 
 0.32 is now the required base for future functional builds.
+
+
+## 0.33 full-resolution spot-shadow candidate
+
+Status: **FUNCTIONAL QUALITY TEST - 0.32 remains canonical until explicit validation**.
+
+Base:
+- validated ASI 0.32 canonical;
+- no change to WSModel A8/AC, V310/V311, DepthBlur, AO, PCF, CSM bounds,
+  streaming, LOD, HUD/UI or PostFX values.
+
+### Exact owner
+
+The retail WSSpotShadowZBuffer family creates its dimensions through three
+instructions that all multiply by the same native double 0.5:
+
+- RVA 0x00026054
+- RVA 0x0002609B
+- RVA 0x00026151
+
+A separate 0.5 consumer at VA 0x004268B7 is projection/midpoint math and is
+deliberately untouched.
+
+0.33 changes only:
+
+`Shadows.SpotShadowResolutionScale = 0.5 -> 1.0`
+
+With the current 4096 shadow-map quality profile, 0.5 keeps the dedicated
+spot-shadow Z-buffer family at approximately half linear resolution. 1.0 aligns
+the family with the parent 4096-class dimensions, doubling width and height and
+therefore using four times as many pixels for these spot-shadow buffers.
+
+### 0.33 safety improvement
+
+The spot-shadow owner is now applied atomically:
+
+1. verify all three exact `DC 0D` instructions;
+2. verify all three still point to the retail/Core1 0.5 owner;
+3. redirect nothing unless the complete family matches;
+4. if any write fails, restore every earlier operand.
+
+This prevents a partial one-site/two-site spot-shadow state.
+
+### Validation target
+
+Compare directly against 0.32:
+- sharper local/dynamic spot-cast shadows;
+- no shadow disappearance or malformed projection;
+- no new horizontal/cascade bands;
+- no flicker, acne or detached shadows;
+- acceptable GPU cost.
+
+0.32 remains the rollback and canonical baseline until explicit user
+validation.

@@ -3114,3 +3114,46 @@ Future functional builds must start from 0.32.
 - both binaries verified PE machine x86 / `0x14C`.
 
 This is the canonical distribution baseline for future 0.33+ work.
+
+
+## ASI 0.33 full-resolution spot-shadow candidate
+
+Status: **TEST CANDIDATE. ASI 0.32 remains canonical.**
+
+Reason for 0.33:
+- after the validated 0.32 visibility/shadow-cutoff work, return to a real
+  audited shadow-quality owner rather than another visibility diagnostic;
+- historical research retained the 0.5 -> 1.0 spot-shadow factor, and the exact
+  clean Core1/runtime owner is now implemented directly.
+
+Exact WSSpotShadowZBuffer creation consumers:
+- RVA 0x00026054
+- RVA 0x0002609B
+- RVA 0x00026151
+- opcode family: `DC 0D <absolute double>`
+- native source RVA: 0x00B7AC88
+- native factor: 0.5
+
+Excluded on purpose:
+- VA 0x004268B7 0.5 consumer, because it belongs to projection/midpoint math
+  rather than render-target creation.
+
+0.33 test profile:
+- `Shadows.SpotShadowResolutionScale=1.0`
+- all other 0.32 canonical values frozen.
+
+Implementation hardening:
+- verify all three creation instructions before any write;
+- verify every source operand first;
+- redirect all three to one ASI-owned double;
+- roll back earlier writes if a later write fails.
+
+Quality consequence:
+- linear spot-shadow resolution factor doubles from 0.5 to 1.0;
+- pixel count for these buffers increases by 4x;
+- main ShadowMapResolution remains 4096 and PCF5x5 remains unchanged.
+
+No CSM distance, slice bound, bias, PCF kernel, AO or visibility owner changes
+in 0.33.
+
+0.32 remains canonical until explicit in-game validation.
