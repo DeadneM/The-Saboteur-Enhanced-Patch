@@ -827,3 +827,49 @@ Corrected CI build (`a1870c09c0740a3c7071d6132ebe682ae140c862`):
 - CI artifact ZIP: `e5913b0b0d01e32d7830b8066c8dfd96882d589f7ef46ca7dd29bba746fde5c7`
 
 See `docs/ASI_0_6_WSDYNAMICPART_RADIUS.md`.
+
+## ASI 0.46 clean-source checkpoint and 0.47 red-proxy fix
+
+### 0.46 clean-source checkpoint
+
+0.46 completed the requested source cleanup without changing intended game
+behavior:
+
+- rejected Odin child-visibility and WSDamageable selector source removed;
+- historical Odin diagnostic implementation removed;
+- shared `g_moduleBase` retained because validated runtime patches still use it;
+- CI run 239 completed successfully as x86.
+
+0.46 binary hashes:
+- ASI: `95773fb788a2f01f1d47fee8f749b11539afc890436bb50fc5f0902522472f01`
+- dinput8: `1b0d74d41b45c1e8e4ed1c7ab0b59409f46c0da3279b853f9c0c21a2a8a705ed`
+- artifact ZIP: `e9a2a7bf315e1153201b829725a565cc5a3245095b8f94a5be60df917acf3914`
+
+### Corrected red-texture diagnosis
+
+The red symptom is **not** treated as a generic texture, shader, WTF-grid or
+distance problem anymore.
+
+Historical proof:
+
+- V220 isolated the affected family to `PGA_HHProp_*`;
+- global shader recoloring affected walls/surfaces and is rejected;
+- V299-V301 WTF grid/common-function tests did not fix the red symptom;
+- distance, WSCivilianProp range, bank eviction and Into/Outo transition tests
+  did not remove the red proxy;
+- V243A proved the decisive ownership: neutralizing only
+  `rnd civilian prop(%d)` changed the distant state from **RED -> NONE** while
+  the genuine **NORMAL** prop still appeared at close range.
+
+Retail path:
+
+- real-prop lookup completes immediately before VA `0x00492E03`;
+- on lookup miss, VA `0x00492E03` enters the fallback;
+- fallback template is fetched through `[ebx+0x1384] -> [+0x2DC]`;
+- `rnd civilian prop(%d)` is constructed and later passed through
+  `0x00492F38 -> 0x00988B30`.
+
+0.47 therefore bypasses only this known-wrong proxy after a real-prop lookup
+miss. It does **not** recolor shaders/materials and does **not** disable the
+native real `WSCivilianProp` path.
+

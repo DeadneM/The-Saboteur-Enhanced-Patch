@@ -3521,6 +3521,61 @@ static bool ApplyWsModelShadowCullBypass(HMODULE exe)
 }
 
 
+static bool ApplyRedCivilianPropFallbackFix(HMODULE exe)
+{
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+
+    // WSHumanSpore / civilian-prop fallback branch.
+    //
+    // Native sequence at VA 0x00492E03 / RVA 0x00092E03 is reached only
+    // after the real WSCivilianProp lookup immediately above has returned
+    // null/empty:
+    //
+    //   00492DD5  mov ecx,ebp
+    //   00492DD7  test ecx,ecx
+    //   00492DD9  je  00492E03
+    //   00492DDB  cmp dword ptr [ecx],0
+    //   00492DDE  je  00492E03
+    //   ... real WSCivilianProp path ...
+    //
+    // The fallback then fetches [ebx+1384h] -> [+2DCh] and creates
+    // "rnd civilian prop(%d)". Historical V243A proved this exact proxy is
+    // the distant red object: disabling it changed far RED -> NONE while
+    // the genuine NORMAL prop still appeared when the native lookup became
+    // available at close range.
+    //
+    // 0.47 does not recolor anything and does not modify the real prop path.
+    // It simply skips the known-wrong proxy when the real prop is unavailable.
+    constexpr uintptr_t kFallbackRva = 0x00092E03;
+    auto* at = reinterpret_cast<uint8_t*>(base + kFallbackRva);
+
+    static const uint8_t expected[] = {
+        0x85,0xDB,                         // test ebx,ebx
+        0x0F,0x84,0x3B,0x01,0x00,0x00    // je 0x00492F46
+    };
+    static const uint8_t patch[] = {
+        0xE9,0x3E,0x01,0x00,0x00,         // jmp 0x00492F46
+        0x90,0x90,0x90
+    };
+
+    if (std::memcmp(at, expected, sizeof(expected)) != 0)
+    {
+        Log("[SKIP] Red civilian-prop fallback signature mismatch at RVA 0x%08X.",
+            static_cast<unsigned>(kFallbackRva));
+        return false;
+    }
+
+    if (!WriteBytes(at, patch, sizeof(patch)))
+    {
+        Log("[FAIL] Red civilian-prop fallback bypass write failed.");
+        return false;
+    }
+
+    Log("[OK] Incorrect rnd civilian prop fallback bypassed; native real-prop path retained.");
+    return true;
+}
+
+
 static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 {
     HMODULE exe = GetModuleHandleW(nullptr);
@@ -3530,13 +3585,15 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.46 CLEAN SOURCE BASELINE");
+    Log("SaboteurEnhanced ASI 0.47 RED CIVILIAN PROP FALLBACK FIX TEST");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
     const std::wstring iniPath = dir + L"\\SaboteurEnhanced.ini";
     const bool enableV310 = GetPrivateProfileIntW(L"Fixes", L"WSModelFullRenderMask", 1, iniPath.c_str()) != 0;
     const bool enableV311 = GetPrivateProfileIntW(L"Fixes", L"ModelInfoFullRenderSlice", 1, iniPath.c_str()) != 0;
+    const bool redCivilianPropFallbackFix = GetPrivateProfileIntW(
+        L"Fixes", L"RedCivilianPropFallbackFix", 1, iniPath.c_str()) != 0;
     const int wsDynamicPartPriorityRadius = GetPrivateProfileIntW(L"Fixes", L"WSDynamicPartPriorityRadius", 25, iniPath.c_str());
     const bool wsModelSmallObjectHardCullBypass = GetPrivateProfileIntW(L"Fixes", L"WSModelSmallObjectHardCullBypass", 0, iniPath.c_str()) != 0;
     const bool wsModelShadowCullBypass = GetPrivateProfileIntW(L"Fixes", L"WSModelShadowCullBypass", 0, iniPath.c_str()) != 0;
@@ -3659,6 +3716,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("INI: %ls", iniPath.c_str());
     Log("WSModelFullRenderMask=%d", enableV310 ? 1 : 0);
     Log("ModelInfoFullRenderSlice=%d", enableV311 ? 1 : 0);
+    Log("RedCivilianPropFallbackFix=%d", redCivilianPropFallbackFix ? 1 : 0);
     Log("WSDynamicPartPriorityRadius=%d", wsDynamicPartPriorityRadius);
     Log("WSModelSmallObjectHardCullBypass=%d", wsModelSmallObjectHardCullBypass ? 1 : 0);
     Log("WSModelShadowCullBypass=%d", wsModelShadowCullBypass ? 1 : 0);
@@ -4126,6 +4184,11 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 
     if (enableV311) ApplyV311(text, g_moduleBase);
     else Log("[OFF] V311 ModelInfo fix disabled by INI.");
+
+    if (redCivilianPropFallbackFix)
+        ApplyRedCivilianPropFallbackFix(exe);
+    else
+        Log("[OFF] Red civilian-prop fallback fix disabled by INI.");
 
     if (wsDynamicPartPriorityRadius != 25)
         ApplyWSDynamicPartPriorityRadius(exe, static_cast<float>(wsDynamicPartPriorityRadius));

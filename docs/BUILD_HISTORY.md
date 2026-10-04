@@ -522,3 +522,21 @@ Corrected CI build after initialization audit:
 - CI artifact ZIP: `e5913b0b0d01e32d7830b8066c8dfd96882d589f7ef46ca7dd29bba746fde5c7`
 
 See `docs/ASI_0_6_WSDYNAMICPART_RADIUS.md`.
+
+## ASI 0.45 canonical / 0.46 source cleanup / 0.47 red-proxy test
+
+- 0.45 promoted canonical after release-path cleanup.
+- 0.46 removes rejected/dormant Odin and WSDamageable source code; CI 239
+  succeeds after retaining the shared `g_moduleBase` global.
+- 0.47 opens the red-proxy correction branch from the cleaned source.
+
+0.47 single functional delta:
+- bypass native fallback entry RVA `0x00092E03`;
+- `85 DB 0F 84 3B 01 00 00`
+  -> `E9 3E 01 00 00 90 90 90`;
+- skips only `rnd civilian prop(%d)` after the real WSCivilianProp lookup has
+  already failed;
+- native real-prop path remains intact.
+
+This is the modern ASI port of the decisive V243A ownership test, not a shader,
+material recolor, WTF, LOD or streaming change.

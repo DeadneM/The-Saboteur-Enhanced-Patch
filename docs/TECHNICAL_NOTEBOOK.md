@@ -3177,3 +3177,76 @@ in 0.33.
 - both binaries verified PE machine x86 / `0x14C`.
 
 0.33 remains test-only. 0.32 remains canonical until explicit user validation.
+
+## ASI 0.46 clean-source checkpoint
+
+0.46 physically removes the rejected Odin/WSDamageable patch functions and the
+historical Odin diagnostic implementation from the ASI source. The first CI
+attempt exposed that `g_moduleBase` had originally lived inside that diagnostic
+block even though validated runtime code still uses it. The shared global was
+restored at file scope and CI run 239 then completed successfully.
+
+Hashes:
+- ASI `95773fb788a2f01f1d47fee8f749b11539afc890436bb50fc5f0902522472f01`
+- dinput8 `1b0d74d41b45c1e8e4ed1c7ab0b59409f46c0da3279b853f9c0c21a2a8a705ed`
+- artifact `e9a2a7bf315e1153201b829725a565cc5a3245095b8f94a5be60df917acf3914`
+
+No intended game behavior changes from validated 0.45.
+
+## Red civilian-prop audit restart
+
+The old red-material investigation is consolidated here to prevent repeating
+rejected branches.
+
+### Proven negative branches
+
+Do not restore as fixes:
+- `PGA_HHProp_*` global/static shader recoloring;
+- flags 0x10 / 0x40 as a root-cause fix;
+- generic object-distance sweeps;
+- WSCivilianProp 125 -> 500/1000 distance tests;
+- bank-eviction suppression;
+- Into/Outo transition suppression;
+- WSWillToFightGrid 256 -> 1024;
+- common WTF-function zero-return diagnostics;
+- SliceQuality branches that happened to hide red while breaking scenery.
+
+### Proven fallback ownership
+
+The real civilian-prop lookup is performed first at:
+- `0x00492D95..0x00492DCF`, using the global civilian-prop table rooted at
+  `0x012119C0 + 0x1020`;
+- valid result at `EBP` enters the real path `0x00492DD5..0x00492DFE`.
+
+Only when that result is null/empty does execution enter:
+- VA `0x00492E03` / RVA `0x00092E03`;
+- `mov eax,[ebx+0x1384]`;
+- `mov esi,[eax+0x2DC]`;
+- construction of `"rnd civilian prop(%d)"`;
+- creation call around `0x00492F38 -> 0x00988B30`.
+
+Historical V243A established:
+- far: RED -> NONE when fallback is neutralized;
+- intermediate: NONE;
+- close: genuine NORMAL prop still appears.
+
+Therefore the red object is the fallback proxy itself, not the normal
+WSCivilianProp and not a generic missing texture.
+
+### ASI 0.47 candidate
+
+0.47 changes only the fallback entry:
+- RVA `0x00092E03`;
+- expected retail bytes:
+  `85 DB 0F 84 3B 01 00 00`;
+- patch:
+  `E9 3E 01 00 00 90 90 90`;
+- destination: existing native common exit at VA `0x00492F46`.
+
+The real lookup and real-prop path immediately above remain untouched.
+
+Expected A/B:
+- no distant red proxy;
+- temporary absence is possible while the genuine prop resource is unavailable;
+- genuine accessory must still appear normally once the native lookup succeeds.
+
