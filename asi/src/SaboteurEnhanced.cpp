@@ -4498,12 +4498,6 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("[EngineLimits] DamageSphere=%d InventoryStow=%d",
         wsDamageSphereCapacity, wsInventoryStateStowCapacity);
     Log("[EngineLimits] WSDecal=%d", wsDecalCapacity);
-    Log("OdinInstancing=%d", enableOdin ? 1 : 0);
-    Log("OdinTraceAllQueries=%d", g_odinTraceAllQueries ? 1 : 0);
-    Log("OdinEventLimit=%ld", g_odinEventLimit);
-    Log("FingerprintWindowMs=%ld", g_fingerprintWindowMs);
-    Log("FingerprintMaxRoots=%ld", g_fingerprintMaxRoots);
-
     SectionRange text = GetSectionRange(exe, ".text");
     if (!text.begin)
     {
