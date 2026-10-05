@@ -546,3 +546,12 @@ material recolor, WTF, LOD or streaming change.
 0.47 removed the red proxy but also removed pedestrian hand props. Rejected.
 
 0.48 restores 0.46 functional behavior and tests only the historical V244A CivilianProp gate redirect at VA 0x00B85C80: 0x00474A20 -> 0x0048B560.
+
+
+## ASI 0.49 runtime red-prop audit
+
+- 0.47: diagnostic proof only; removed red proxy but also removed hand props.
+- 0.48: superseded before validation; static V244A gate test not retained.
+- 0.49: returns to clean 0.46 behavior and instruments the proven fallback
+  at RVA `0x00092E03`.
+- F6/F7/F8/F9 provide runtime A/B and memory snapshots in one game session.
