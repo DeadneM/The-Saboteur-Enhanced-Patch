@@ -3266,3 +3266,16 @@ This confirms again that outright suppression of `rnd civilian prop(%d)` is not 
 - exact retail pointer preflight before write.
 
 Unlike 0.47, props are expected to remain present.
+
+
+## ASI 0.49 - Red Prop Runtime Audit
+
+Method change: stop rebuilding old V22x/V24x hypotheses. 0.49 starts from the
+0.46 clean behavior and uses a runtime hook at the already-proven fallback
+owner.
+
+Modes F6/F8 preserve native fallback behavior. F7 reproduces the already-known
+proxy-suppression diagnostic. F9 writes a manual snapshot of the latest fallback
+actor/owner/template to `SaboteurEnhanced.log`.
+
+0.48's static CivilianProp table redirect is removed and not inherited.
