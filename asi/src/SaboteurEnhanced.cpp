@@ -3786,6 +3786,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring iniPath = dir + L"\\SaboteurEnhanced.ini";
     const bool enableV310 = GetPrivateProfileIntW(L"Fixes", L"WSModelFullRenderMask", 1, iniPath.c_str()) != 0;
     const bool enableV311 = GetPrivateProfileIntW(L"Fixes", L"ModelInfoFullRenderSlice", 1, iniPath.c_str()) != 0;
+    const bool redPropRuntimeAudit = GetPrivateProfileIntW(L"Diagnostics", L"RedPropRuntimeAudit", 1, iniPath.c_str()) != 0;
     const int wsDynamicPartPriorityRadius = GetPrivateProfileIntW(L"Fixes", L"WSDynamicPartPriorityRadius", 25, iniPath.c_str());
     const bool wsModelSmallObjectHardCullBypass = GetPrivateProfileIntW(L"Fixes", L"WSModelSmallObjectHardCullBypass", 0, iniPath.c_str()) != 0;
     const bool wsModelShadowCullBypass = GetPrivateProfileIntW(L"Fixes", L"WSModelShadowCullBypass", 0, iniPath.c_str()) != 0;
@@ -3908,7 +3909,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     Log("INI: %ls", iniPath.c_str());
     Log("WSModelFullRenderMask=%d", enableV310 ? 1 : 0);
     Log("ModelInfoFullRenderSlice=%d", enableV311 ? 1 : 0);
-    Log("CivilianPropGateBypass=%d", civilianPropGateBypass ? 1 : 0);
+    Log("RedPropRuntimeAudit=%d", redPropRuntimeAudit ? 1 : 0);
     Log("WSDynamicPartPriorityRadius=%d", wsDynamicPartPriorityRadius);
     Log("WSModelSmallObjectHardCullBypass=%d", wsModelSmallObjectHardCullBypass ? 1 : 0);
     Log("WSModelShadowCullBypass=%d", wsModelShadowCullBypass ? 1 : 0);
