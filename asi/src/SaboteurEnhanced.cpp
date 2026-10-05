@@ -3649,6 +3649,76 @@ static void __cdecl RedAuditOnFallback(uintptr_t ebx)
 }
 
 
+__declspec(naked) static void RedAuditFallbackHook()
+{
+    __asm
+    {
+        pushfd
+        pushad
+
+        push ebx
+        call RedAuditOnFallback
+        add esp, 4
+
+        popad
+        popfd
+
+        cmp dword ptr [g_redAuditMode], 1
+        je suppress_proxy
+
+        test ebx, ebx
+        jz suppress_proxy
+        jmp dword ptr [g_redFallbackContinue]
+
+suppress_proxy:
+        jmp dword ptr [g_redFallbackExit]
+    }
+}
+
+static bool InstallRedPropRuntimeAudit(HMODULE exe)
+{
+    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
+    constexpr uintptr_t kRva = 0x00092E03;
+    auto* at = reinterpret_cast<uint8_t*>(base + kRva);
+
+    static const uint8_t expected[8] = {
+        0x85,0xDB,0x0F,0x84,0x3B,0x01,0x00,0x00
+    };
+
+    if (std::memcmp(at, expected, sizeof(expected)) != 0)
+    {
+        Log("[SKIP] Red-prop audit signature mismatch at RVA 0x%08X.",
+            static_cast<unsigned>(kRva));
+        return false;
+    }
+
+    const intptr_t delta =
+        reinterpret_cast<intptr_t>(&RedAuditFallbackHook) -
+        (reinterpret_cast<intptr_t>(at) + 5);
+    if (delta < INT32_MIN || delta > INT32_MAX)
+    {
+        Log("[FAIL] Red-prop audit hook outside rel32 range.");
+        return false;
+    }
+
+    uint8_t patch[8] = {0xE9,0,0,0,0,0x90,0x90,0x90};
+    const int32_t rel = static_cast<int32_t>(delta);
+    std::memcpy(patch + 1, &rel, sizeof(rel));
+
+    g_redFallbackContinue = base + 0x00092E0B;
+    g_redFallbackExit = base + 0x00092F46;
+
+    if (!WriteBytes(at, patch, sizeof(patch)))
+    {
+        Log("[FAIL] Red-prop runtime audit hook write failed.");
+        return false;
+    }
+
+    Log("[OK] Red-prop runtime audit installed at RVA 0x00092E03.");
+    return true;
+}
+
+
 static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 {
     HMODULE exe = GetModuleHandleW(nullptr);
