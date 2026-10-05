@@ -46,7 +46,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SaboteurEnhanced_ASI_0.48_CIVILIAN_PROP_GATE_TEST_x86
+          name: SaboteurEnhanced_ASI_0.49_RED_PROP_RUNTIME_AUDIT_x86
           path: dist/*
           if-no-files-found: error
           compression-level: 0
