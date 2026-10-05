@@ -72,3 +72,33 @@ Restore the native proxy and test the historical CivilianProp gate redirect:
 - alternate native pointer 0x0048B560.
 
 This branch preserves the prop system and tests whether earlier access to the normal CivilianProp handler can prevent the red proxy phase without deleting accessories.
+
+
+## 0.49 runtime audit architecture
+
+0.48 is superseded without validation. The modern investigation now uses one
+runtime laboratory rather than static A/B rebuilds.
+
+Base behavior: clean 0.46.
+
+Hook:
+- RVA `0x00092E03`;
+- expected bytes `85 DB 0F 84 3B 01 00 00`;
+- pass-through trampoline reproduces the native `test ebx,ebx / je` semantics.
+
+Hotkeys:
+- F6 native proxy;
+- F7 suppress proxy;
+- F8 verbose native;
+- F9 snapshot latest fallback context.
+
+Captured chain:
+- `EBX`;
+- `[EBX+0x1384]`;
+- `[[EBX+0x1384]+0x2DC]`;
+- actor/owner/template dword snapshots;
+- real-prop table cell at module base + `0x00E129E0`.
+
+Goal: identify the proxy-specific runtime state responsible for the red
+appearance, then patch that property only. The proxy is no longer deleted as a
+proposed final fix.
