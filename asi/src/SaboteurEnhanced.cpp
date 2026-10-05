@@ -20,6 +20,15 @@ static SRWLOCK g_logLock = SRWLOCK_INIT;
 static float g_shadowCasterMinLodDistance = 180.0f;
 static uintptr_t g_shadowCasterReturn = 0;
 static float g_particleLodMinDistance = 100.0f;
+static volatile LONG g_redAuditMode = 0; // 0=native, 1=suppress, 2=verbose native
+static volatile LONG g_redAuditThreadRun = 0;
+static volatile LONG g_redAuditEventCount = 0;
+static volatile LONG g_redAuditLastEbx = 0;
+static volatile LONG g_redAuditLastOwner = 0;
+static volatile LONG g_redAuditLastTemplate = 0;
+static uintptr_t g_redFallbackContinue = 0;
+static uintptr_t g_redFallbackExit = 0;
+
 
 static std::wstring ModuleDirectory(HMODULE module)
 {
