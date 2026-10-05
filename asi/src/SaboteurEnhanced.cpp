@@ -3521,45 +3521,6 @@ static bool ApplyWsModelShadowCullBypass(HMODULE exe)
 }
 
 
-static bool ApplyCivilianPropGateBypass(HMODULE exe)
-{
-    const uintptr_t base = reinterpret_cast<uintptr_t>(exe);
-
-    // Historical V244A ownership test.
-    // Exact retail function-pointer table slot:
-    //   VA 0x00B85C80 / RVA 0x00785C80
-    // Retail target: 0x00474A20
-    // Alternate native target: 0x0048B560
-    //
-    // This keeps the civilian-prop system alive and bypasses only the gate
-    // that delayed/blocked the normal prop path. Unlike 0.47, it does NOT
-    // suppress "rnd civilian prop(%d)" and therefore does not remove hand props.
-    constexpr uintptr_t kSlotRva = 0x00785C80;
-    auto* slot = reinterpret_cast<uint32_t*>(base + kSlotRva);
-
-    const uint32_t expected = static_cast<uint32_t>(base + 0x00074A20);
-    const uint32_t replacement = static_cast<uint32_t>(base + 0x0008B560);
-
-    if (*slot != expected)
-    {
-        Log("[SKIP] CivilianProp gate table mismatch at RVA 0x%08X: expected 0x%08X got 0x%08X.",
-            static_cast<unsigned>(kSlotRva),
-            static_cast<unsigned>(expected),
-            static_cast<unsigned>(*slot));
-        return false;
-    }
-
-    if (!WriteBytes(slot, &replacement, sizeof(replacement)))
-    {
-        Log("[FAIL] CivilianProp gate table write failed.");
-        return false;
-    }
-
-    Log("[OK] CivilianProp gate bypass applied: 0x00474A20 -> 0x0048B560.");
-    return true;
-}
-
-
 static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 {
     HMODULE exe = GetModuleHandleW(nullptr);
@@ -3569,15 +3530,13 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.48 CIVILIAN PROP GATE TEST");
+    Log("SaboteurEnhanced ASI 0.49 RED PROP RUNTIME AUDIT");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
     const std::wstring iniPath = dir + L"\\SaboteurEnhanced.ini";
     const bool enableV310 = GetPrivateProfileIntW(L"Fixes", L"WSModelFullRenderMask", 1, iniPath.c_str()) != 0;
     const bool enableV311 = GetPrivateProfileIntW(L"Fixes", L"ModelInfoFullRenderSlice", 1, iniPath.c_str()) != 0;
-    const bool civilianPropGateBypass = GetPrivateProfileIntW(
-        L"Fixes", L"CivilianPropGateBypass", 1, iniPath.c_str()) != 0;
     const int wsDynamicPartPriorityRadius = GetPrivateProfileIntW(L"Fixes", L"WSDynamicPartPriorityRadius", 25, iniPath.c_str());
     const bool wsModelSmallObjectHardCullBypass = GetPrivateProfileIntW(L"Fixes", L"WSModelSmallObjectHardCullBypass", 0, iniPath.c_str()) != 0;
     const bool wsModelShadowCullBypass = GetPrivateProfileIntW(L"Fixes", L"WSModelShadowCullBypass", 0, iniPath.c_str()) != 0;
@@ -4168,11 +4127,6 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 
     if (enableV311) ApplyV311(text, g_moduleBase);
     else Log("[OFF] V311 ModelInfo fix disabled by INI.");
-
-    if (civilianPropGateBypass)
-        ApplyCivilianPropGateBypass(exe);
-    else
-        Log("[OFF] CivilianProp gate bypass disabled by INI.");
 
     if (wsDynamicPartPriorityRadius != 25)
         ApplyWSDynamicPartPriorityRadius(exe, static_cast<float>(wsDynamicPartPriorityRadius));
