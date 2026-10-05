@@ -3719,6 +3719,57 @@ static bool InstallRedPropRuntimeAudit(HMODULE exe)
 }
 
 
+static DWORD WINAPI RedAuditHotkeyThread(LPVOID)
+{
+    InterlockedExchange(&g_redAuditThreadRun, 1);
+
+    Log("[RED-AUDIT] F6=native | F7=suppress proxy | F8=verbose native | F9=dump latest context");
+
+    while (InterlockedCompareExchange(&g_redAuditThreadRun, 0, 0))
+    {
+        if (GetAsyncKeyState(VK_F6) & 1)
+        {
+            InterlockedExchange(&g_redAuditMode, 0);
+            Log("[RED-AUDIT] F6: mode=NATIVE proxy.");
+        }
+
+        if (GetAsyncKeyState(VK_F7) & 1)
+        {
+            InterlockedExchange(&g_redAuditMode, 1);
+            Log("[RED-AUDIT] F7: mode=SUPPRESS proxy.");
+        }
+
+        if (GetAsyncKeyState(VK_F8) & 1)
+        {
+            InterlockedExchange(&g_redAuditMode, 2);
+            Log("[RED-AUDIT] F8: mode=VERBOSE NATIVE.");
+        }
+
+        if (GetAsyncKeyState(VK_F9) & 1)
+            DumpLatestRedAuditContext();
+
+        Sleep(50);
+    }
+
+    return 0;
+}
+
+static bool StartRedAuditHotkeys()
+{
+    HANDLE thread = CreateThread(
+        nullptr, 0, RedAuditHotkeyThread, nullptr, 0, nullptr);
+
+    if (!thread)
+    {
+        Log("[FAIL] Red-prop audit hotkey thread creation failed.");
+        return false;
+    }
+
+    CloseHandle(thread);
+    return true;
+}
+
+
 static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 {
     HMODULE exe = GetModuleHandleW(nullptr);
