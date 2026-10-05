@@ -888,3 +888,22 @@ User result: the red bug disappeared, but pedestrians no longer had props in the
 - replacement target `0x0048B560`.
 
 Goal: keep accessories present while reducing/eliminating the red proxy transition by allowing the normal CivilianProp path through its native alternate handler.
+
+
+### 0.48 superseded before validation / 0.49 runtime laboratory
+
+0.48 is not retained. It was superseded before in-game validation when the
+project switched from one-build-per-hypothesis testing to runtime diagnostics.
+
+0.49 restores the clean 0.46 civilian-prop behavior and installs a pass-through
+hook only at the proven fallback entry RVA `0x00092E03`.
+
+Runtime controls:
+- **F6**: native proxy behavior;
+- **F7**: suppress the fallback proxy temporarily, reproducing the known 0.47 diagnostic;
+- **F8**: native behavior plus detailed live dumps of the fallback owner/template;
+- **F9**: dump the most recently observed fallback context to `SaboteurEnhanced.log`.
+
+The audit records `EBX`, `[EBX+0x1384]`, `[owner+0x2DC]`, memory snapshots,
+and the current real civilian-prop table cell. No V244A gate redirect is active
+in 0.49.
