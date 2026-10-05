@@ -4377,6 +4377,14 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     if (enableV311) ApplyV311(text, g_moduleBase);
     else Log("[OFF] V311 ModelInfo fix disabled by INI.");
 
+    if (redPropRuntimeAudit)
+    {
+        if (InstallRedPropRuntimeAudit(exe))
+            StartRedAuditHotkeys();
+    }
+    else
+        Log("[OFF] Red-prop runtime audit disabled by INI.");
+
     if (wsDynamicPartPriorityRadius != 25)
         ApplyWSDynamicPartPriorityRadius(exe, static_cast<float>(wsDynamicPartPriorityRadius));
     else
@@ -4400,6 +4408,7 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID)
     }
     else if (reason == DLL_PROCESS_DETACH)
     {
+        InterlockedExchange(&g_redAuditThreadRun, 0);
         if (g_log)
         {
             Log("ASI unload.");
