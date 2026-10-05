@@ -3530,6 +3530,125 @@ static bool ApplyWsModelShadowCullBypass(HMODULE exe)
 }
 
 
+static bool IsReadableAddress(const void* p, size_t bytes = sizeof(uint32_t))
+{
+    if (!p || bytes == 0) return false;
+
+    MEMORY_BASIC_INFORMATION mbi{};
+    if (!VirtualQuery(p, &mbi, sizeof(mbi))) return false;
+    if (mbi.State != MEM_COMMIT) return false;
+    if ((mbi.Protect & PAGE_GUARD) || (mbi.Protect & PAGE_NOACCESS)) return false;
+
+    const DWORD readable =
+        PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY |
+        PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
+    if ((mbi.Protect & readable) == 0) return false;
+
+    const uintptr_t start = reinterpret_cast<uintptr_t>(p);
+    const uintptr_t end = start + bytes;
+    const uintptr_t regionEnd =
+        reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
+    return end >= start && end <= regionEnd;
+}
+
+static uint32_t ReadU32Safe(uintptr_t address)
+{
+    if (!IsReadableAddress(reinterpret_cast<const void*>(address), sizeof(uint32_t)))
+        return 0;
+
+    uint32_t value = 0;
+    std::memcpy(&value, reinterpret_cast<const void*>(address), sizeof(value));
+    return value;
+}
+
+static void DumpDwords(const char* label, uintptr_t address, size_t count)
+{
+    if (!address)
+    {
+        Log("[RED-AUDIT] %s = NULL", label);
+        return;
+    }
+
+    Log("[RED-AUDIT] %s @ 0x%08X", label, static_cast<unsigned>(address));
+
+    for (size_t i = 0; i < count; i += 4)
+    {
+        uint32_t v[4] = {};
+        for (size_t j = 0; j < 4 && i + j < count; ++j)
+            v[j] = ReadU32Safe(address + (i + j) * sizeof(uint32_t));
+
+        Log("[RED-AUDIT]   +%03X : %08X %08X %08X %08X",
+            static_cast<unsigned>(i * 4),
+            static_cast<unsigned>(v[0]), static_cast<unsigned>(v[1]),
+            static_cast<unsigned>(v[2]), static_cast<unsigned>(v[3]));
+    }
+}
+
+static void DumpLatestRedAuditContext()
+{
+    const uintptr_t ebx = static_cast<uintptr_t>(
+        InterlockedCompareExchange(&g_redAuditLastEbx, 0, 0));
+    const uintptr_t owner = static_cast<uintptr_t>(
+        InterlockedCompareExchange(&g_redAuditLastOwner, 0, 0));
+    const uintptr_t templ = static_cast<uintptr_t>(
+        InterlockedCompareExchange(&g_redAuditLastTemplate, 0, 0));
+    const LONG eventCount =
+        InterlockedCompareExchange(&g_redAuditEventCount, 0, 0);
+
+    Log("[RED-AUDIT] ===== MANUAL SNAPSHOT event=%ld mode=%ld =====",
+        eventCount, InterlockedCompareExchange(&g_redAuditMode, 0, 0));
+    Log("[RED-AUDIT] EBX=0x%08X owner[+1384]=0x%08X template[+2DC]=0x%08X",
+        static_cast<unsigned>(ebx),
+        static_cast<unsigned>(owner),
+        static_cast<unsigned>(templ));
+
+    DumpDwords("WSHumanSpore/actor", ebx, 32);
+    DumpDwords("fallback owner", owner, 32);
+    DumpDwords("fallback template", templ, 64);
+
+    const uintptr_t tableCell = g_moduleBase + 0x00E129E0;
+    Log("[RED-AUDIT] real-prop table cell VA=0x%08X value=0x%08X",
+        static_cast<unsigned>(tableCell),
+        static_cast<unsigned>(ReadU32Safe(tableCell)));
+    Log("[RED-AUDIT] ===== END SNAPSHOT =====");
+}
+
+static void __cdecl RedAuditOnFallback(uintptr_t ebx)
+{
+    const LONG eventId = InterlockedIncrement(&g_redAuditEventCount);
+
+    uintptr_t owner = 0;
+    uintptr_t templ = 0;
+    if (ebx)
+    {
+        owner = static_cast<uintptr_t>(ReadU32Safe(ebx + 0x1384));
+        if (owner)
+            templ = static_cast<uintptr_t>(ReadU32Safe(owner + 0x2DC));
+    }
+
+    InterlockedExchange(&g_redAuditLastEbx, static_cast<LONG>(ebx));
+    InterlockedExchange(&g_redAuditLastOwner, static_cast<LONG>(owner));
+    InterlockedExchange(&g_redAuditLastTemplate, static_cast<LONG>(templ));
+
+    const LONG mode = InterlockedCompareExchange(&g_redAuditMode, 0, 0);
+
+    if (eventId <= 20 || mode == 2 || (eventId % 100) == 0)
+    {
+        Log("[RED-AUDIT] fallback #%ld mode=%ld EBX=0x%08X owner=0x%08X template=0x%08X",
+            eventId, mode,
+            static_cast<unsigned>(ebx),
+            static_cast<unsigned>(owner),
+            static_cast<unsigned>(templ));
+    }
+
+    if (mode == 2)
+    {
+        DumpDwords("fallback owner", owner, 16);
+        DumpDwords("fallback template", templ, 32);
+    }
+}
+
+
 static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 {
     HMODULE exe = GetModuleHandleW(nullptr);
