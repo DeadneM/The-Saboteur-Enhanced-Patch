@@ -102,3 +102,24 @@ Captured chain:
 Goal: identify the proxy-specific runtime state responsible for the red
 appearance, then patch that property only. The proxy is no longer deleted as a
 proposed final fix.
+
+
+## 0.49 in-game runtime result
+
+The runtime laboratory works, but the fallback-entry capture point is too early.
+
+Observed:
+- first 20 fallback-entry events: 19 template=NULL, 1 non-null template;
+- verbose event #78: owner valid, template=NULL;
+- manual F9 snapshot: real-prop table cell sampled as NULL.
+
+This means entry at RVA 0x00092E03 does not imply that a proxy is actually
+created. Many calls leave before a usable template exists.
+
+Next owner:
+- hook the real proxy-creation call around VA 0x00492F38 -> 0x00988B30;
+- capture arguments + return value;
+- dump the created proxy object itself;
+- compare against the real WSCivilianProp object path.
+
+Do not derive material state from [owner+0x2DC] at the early entry anymore.

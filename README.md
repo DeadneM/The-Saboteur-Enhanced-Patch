@@ -907,3 +907,21 @@ Runtime controls:
 The audit records `EBX`, `[EBX+0x1384]`, `[owner+0x2DC]`, memory snapshots,
 and the current real civilian-prop table cell. No V244A gate redirect is active
 in 0.49.
+
+
+### ASI 0.49 runtime result
+
+0.49's runtime laboratory is validated, but its first hook point is too early
+for final red-proxy diagnosis.
+
+Observed in the supplied log:
+- fallback entry fires frequently with a valid owner but no template;
+- 19 of the first 20 logged events had template=0;
+- only event #18 had a non-null template;
+- the F8/F9 snapshot also had template=0 and the sampled real-prop table cell=0.
+
+Conclusion: RVA 0x00092E03 is a broad fallback-entry gate, not the actual proxy
+creation event.
+
+Next diagnostic moves to the actual creation call around
+VA 0x00492F38 -> 0x00988B30 and captures the returned proxy object directly.

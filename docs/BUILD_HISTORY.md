@@ -555,3 +555,18 @@ material recolor, WTF, LOD or streaming change.
 - 0.49: returns to clean 0.46 behavior and instruments the proven fallback
   at RVA `0x00092E03`.
 - F6/F7/F8/F9 provide runtime A/B and memory snapshots in one game session.
+
+
+## ASI 0.49 runtime result
+
+0.49 diagnostic laboratory validated in game.
+
+Result:
+- hook/hotkeys/logging work;
+- fallback-entry RVA 0x00092E03 is too early for proxy identity;
+- 19/20 initial events had template=NULL;
+- verbose/F9 snapshot also had template=NULL.
+
+Next branch will instrument actual proxy creation around
+VA 0x00492F38 -> 0x00988B30 and capture the returned object for direct
+proxy-vs-real-prop comparison.

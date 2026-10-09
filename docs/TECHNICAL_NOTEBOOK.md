@@ -3279,3 +3279,32 @@ proxy-suppression diagnostic. F9 writes a manual snapshot of the latest fallback
 actor/owner/template to `SaboteurEnhanced.log`.
 
 0.48's static CivilianProp table redirect is removed and not inherited.
+
+
+## ASI 0.49 runtime capture result
+
+The user-supplied 0.49 log validates all diagnostic wiring:
+- audit enabled;
+- hook installed at RVA 0x00092E03;
+- hotkey thread active;
+- F8 verbose mode and F9 manual snapshot worked;
+- clean unload.
+
+However, the capture point is too early:
+- events #1-20: only #18 has a non-null template;
+- event #78 / F9 snapshot has a non-null owner but template=0;
+- sampled real-prop table cell is also 0.
+
+The fallback-entry hook therefore traces control-flow entry, not successful
+proxy creation.
+
+New rule for the red bug:
+- do not infer proxy material state from early owner/template fields;
+- instrument the call around VA 0x00492F38 -> 0x00988B30;
+- capture the actual created object pointer after return;
+- then inspect renderer/material/state fields on that concrete proxy;
+- capture the corresponding real WSCivilianProp object for a direct runtime
+  diff.
+
+This is the first diagnostic that should expose the property responsible for
+red rendering without deleting props or reviving rejected static hypotheses.
