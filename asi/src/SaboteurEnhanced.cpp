@@ -3770,6 +3770,8 @@ static bool StartRedAuditHotkeys()
 }
 
 
+#include "RedProxyCreationProbe.h"
+
 static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 {
     HMODULE exe = GetModuleHandleW(nullptr);
@@ -3779,7 +3781,7 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
     const std::wstring logPath = dir + L"\\SaboteurEnhanced.log";
     _wfopen_s(&g_log, logPath.c_str(), L"w");
 
-    Log("SaboteurEnhanced ASI 0.49 RED PROP RUNTIME AUDIT");
+    Log("SaboteurEnhanced ASI 0.50 NATIVE PROXY CREATION PROBE");
     Log("Architecture: validated Core 1 + complete retail EXE parameter audit");
     Log("Module base: 0x%08X", static_cast<unsigned>(g_moduleBase));
 
@@ -4380,8 +4382,8 @@ static BOOL CALLBACK InitializeOnce(PINIT_ONCE, PVOID, PVOID*)
 
     if (redPropRuntimeAudit)
     {
-        if (InstallRedPropRuntimeAudit(exe))
-            StartRedAuditHotkeys();
+        if (InstallProxyNativeCreationProbe(exe))
+            StartProxyHotkeys();
     }
     else
         Log("[OFF] Red-prop runtime audit disabled by INI.");
