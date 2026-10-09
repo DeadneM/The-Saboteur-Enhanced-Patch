@@ -570,3 +570,43 @@ Result:
 Next branch will instrument actual proxy creation around
 VA 0x00492F38 -> 0x00988B30 and capture the returned object for direct
 proxy-vs-real-prop comparison.
+
+
+## ASI 0.50 native proxy-creation return probe (09 Oct 2026)
+
+**TEST ONLY; never promote above canonical 0.45 before in-game evidence.**
+
+Base source: main e429156 (0.49 runtime result), isolated on branch
+dev/asi-0.50-proxy-creation-capture. No EXE or normal render/LOD/HUD/INI quality
+changes. The old 0.49 broad-entry fallback hook is NOT installed in 0.50.
+
+The new passive x86 CALL interception targets site RVA 0x00092F38
+(VA 0x00492F38 at standard image base) and expects an E8 direct call to
+RVA 0x00588B30 (VA 0x00988B30). It validates the opcode and decoded
+rel32 call target and skips patching if either differs. The shim tail-jumps
+to the genuine native target with entry GPRs, EFLAGS and argument stack
+preserved, and its return thunk observes EAX after the native call finishes.
+Per-thread 8-deep pre/post frames avoid correlating unrelated calls.
+Sampled diagnostics include raw stack arguments, GPRs, returned EAX and
+immediately copied candidate object, ECX and arg0 memory (guarded reads).
+EAX is NOT yet proven to be a true prop pointer or material handle.
+
+Hotkeys are deliberately changed: F6 quiet native, F7 capture next 16
+completed creates (not proxy suppression!), F8 capture next 64, F9 replay
+latest captured snapshot without dereferencing stale pointers. Real
+WSCivilianProp successful-lookup path RVA 0x00092DD5 is read-only:
+its original bytes are logged as groundwork, not patched. The paired
+normal-prop creation hook still requires static owner verification.
+
+CI build: Windows x86 SUCCESS (run 251, 2026-10-09).
+ASI SHA-256: bdf6e043923234b73e44bb8d9f7fae1cb054e4a6cafdff7325fa713412b28696
+Loader SHA-256: b741567a9ef766262cae9cab26a817d1204f705aab81e8d2894760b016216292
+GitHub artifact ID: 11631392340
+Artifact digest SHA-256: 2201b5f1efb7317523e4c9248b9f38e539ed23b872afa5b671551423b24aa441
+Build artifact: https://github.com/DeadneM/The-Saboteur-Enhanced-Patch/actions/runs/37960412042/artifacts/11631392340
+
+Next test: known occupied-zone route, confirm [OK] PROXY50 hook (else
+record [SKIP] observed bytes/target), press F8 and then F9, send
+SaboteurEnhanced.log; report whether red proxies and pedestrian accessories
+remain intact. Runtime behavior/stack integrity are not yet in-game validated.
+Rollback to canonical 0.45 ASI + matching INI if any instability.
