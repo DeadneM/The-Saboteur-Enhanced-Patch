@@ -995,3 +995,18 @@ WSCivilianProp hook, no LOD/quality experiments. This version is a
 Source branch: dev/asi-0.51-proxy-outparams-diff; initial source commit
 829a711400ef7805bb3ccbdfa4101cd2080ecdff. Preserve canonical 0.45.
 Detailed test and rollback procedure: docs/ASI_0_51_RUNTIME_AUDIT.md.
+
+
+### CI build verification (10 October 2026)
+
+- Workflow: GitHub Actions Build Core ASI x86, **run #253**, SUCCESS.
+- URL: https://github.com/DeadneM/The-Saboteur-Enhanced-Patch/actions/runs/38083836095
+- Compiled source commit: `829a711400ef7805bb3ccbdfa4101cd2080ecdff`.
+- ASI SHA-256: `c5bfc8b8da63d791b13740ef8404174be985ba9a2e9587faa99820423897acaf`.
+- dinput8.dll SHA-256: `9cd4fa8329996d01c1c84701890e9df0c6aa10cc64c76536303a3e010ecdaf2`.
+- GitHub artifact ID: `11681238421`, zipped payload SHA-256:
+  `bfe0367731d4aa853ba32d7caf60287ea8f70327594f80f496f44d920bd4d06b`.
+- Artifact URL: https://github.com/DeadneM/The-Saboteur-Enhanced-Patch/actions/runs/38083836095/artifacts/11681238421
+- Local ZIP verified good CRCs and **flat root** with exactly:
+  `dinput8.dll`, `README.txt`, `SaboteurEnhanced.asi`, `SaboteurEnhanced.ini`.
+- This validates **build and packaging only**, not in-game operation or the red-prop material cause. Do not promote to main/release before user's log/visual tests.
