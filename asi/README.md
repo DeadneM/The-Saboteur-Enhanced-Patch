@@ -1,6 +1,26 @@
 # SaboteurEnhanced ASI
 
-## Current test build: 0.14 — CorrectUV / texel compensation
+## Current experimental test: ASI 0.51 (native proxy memory-delta audit)
+
+Canonical validated baseline remains Core 1 + ASI 0.45. The earlier 0.14
+heading and historical experiments below are preserved as archive.
+
+0.50 runtime result: creation-site CALL hook succeeded at RVA 0x00092F38.
+Eight completed calls, each with EAX=0. F8 was pressed after the eighth
+call, so F9 only displayed that old event. EAX is not proven to return an
+object, so 0.51 watches native memory *mutations* instead.
+
+0.51 intercepts the same verified direct CALL without changing game behavior,
+logs input CPU registers and arguments, and compares the first 256 bytes
+before/after at the four candidate pointers ECX, ARG0/ESI, ARG1/EDX, EDI.
+The first 16 calls are automatically and fully logged, including during
+loading. F6 stops automatic capture, F7 captures next 16, F8 next 64,
+F9 repeats the newest captured snapshot and live call counter. 0.51 also
+prints read-only bytes of the native callsite continuation and callee entry.
+No prop suppressions, no shader/material edits, no gameplay fixes, no EXE
+changes. 0.51 is NOT a release build or an established fix.
+
+## Historical build notes: 0.14 — CorrectUV / texel compensation
 
 Validated baseline retained:
 - Core 1

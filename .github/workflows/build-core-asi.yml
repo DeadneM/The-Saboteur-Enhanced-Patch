@@ -3,7 +3,7 @@ name: Build Core ASI x86
 on:
   workflow_dispatch:
   push:
-    branches: [main, "dev/asi-0.50-proxy-creation-capture"]
+    branches: [main, "dev/asi-0.50-proxy-creation-capture", "dev/asi-0.51-proxy-outparams-diff"]
     paths:
       - "asi/**"
       - ".github/workflows/build-core-asi.yml"
@@ -46,7 +46,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SaboteurEnhanced_ASI_0.50_PROXY_NATIVE_CREATION_PROBE_x86
+          name: SaboteurEnhanced_ASI_0.51_PROXY_NATIVE_OUTPARAM_DELTA_x86
           path: dist/*
           if-no-files-found: error
           compression-level: 0
