@@ -3348,3 +3348,31 @@ record [SKIP] observed bytes/target), press F8 and then F9, send
 SaboteurEnhanced.log; report whether red proxies and pedestrian accessories
 remain intact. Runtime behavior/stack integrity are not yet in-game validated.
 Rollback to canonical 0.45 ASI + matching INI if any instability.
+
+
+## ASI 0.50 runtime RESULT -> 0.51 out-parameter memory diff (10 October 2026)
+
+**Validated by actual user log:** 0.50 loaded and hooked a real CALL
+RVA 0x00092F38 -> RVA 0x00588B30. Native CALL completion events #1..#8
+all returned EAX=00000000. This **does not prove** a missing proxy;
+the function may use return status, a void return, or an out-parameter.
+Input from #8: ECX=0AAE3D80, ESI/first argument=0B83DA50,
+EDX/second argument=01B3F5A8, EDI=0AAE6E40.
+F8 was enabled at 22:24:02 **after** last event #8 at 22:16:48;
+F9 at 22:24:11 therefore replayed stale capture #8, not a new one.
+The ASI unloaded normally; visual/gameplay state was not recorded in log.
+
+**0.51 research approach:** Keep same strict checked native E8 CALL and
+no-effects forwarding hook, copy candidate ECX/ARG0/ARG1/EDI pointee memory
+256 bytes before/after each native call, log changed dword offsets, and
+automatically capture the first 16 calls from startup to avoid missing
+events before hotkeys. F6 cancels auto/quiet, F7 records next 16,
+F8 next 64, F9 prints latest captured snapshot + total call count.
+Read-only callee prologue and caller continuation bytes also logged.
+No material/prop overrides, no target EXE changes, no speculative normal
+WSCivilianProp hook, no LOD/quality experiments. This version is a
+**diagnostic candidate**, not a red-prop correction.
+
+Source branch: dev/asi-0.51-proxy-outparams-diff; initial source commit
+829a711400ef7805bb3ccbdfa4101cd2080ecdff. Preserve canonical 0.45.
+Detailed test and rollback procedure: docs/ASI_0_51_RUNTIME_AUDIT.md.
