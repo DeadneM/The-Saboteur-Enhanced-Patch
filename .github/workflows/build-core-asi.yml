@@ -3,7 +3,7 @@ name: Build Core ASI x86
 on:
   workflow_dispatch:
   push:
-    branches: [main, "dev/asi-0.50-proxy-creation-capture", "dev/asi-0.51-proxy-outparams-diff", "dev/asi-0.52-runtime-structure-observation", "dev/asi-0.53-fallback-correlation"]
+    branches: [main, "dev/asi-0.50-proxy-creation-capture", "dev/asi-0.51-proxy-outparams-diff", "dev/asi-0.52-runtime-structure-observation", "dev/asi-0.53-fallback-correlation", "dev/asi-0.54-verified-fallback-owner-template"]
     paths:
       - "asi/**"
       - ".github/workflows/build-core-asi.yml"
@@ -46,7 +46,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SaboteurEnhanced_ASI_0.53_FALLBACK_CORRELATION_x86
+          name: SaboteurEnhanced_ASI_0.54_VERIFIED_FALLBACK_TEMPLATE_x86
           path: dist/*
           if-no-files-found: error
           compression-level: 0
@@ -102,4 +102,31 @@ jobs:
             gh release upload $tag $file --clobber --repo $env:GITHUB_REPOSITORY
           } else {
             gh release create $tag $file --target $env:GITHUB_SHA --prerelease --title "ASI 0.53 - Fallback/native correlation TEST" --notes-file docs/ASI_0_53_FALLBACK_CORRELATION.md --repo $env:GITHUB_REPOSITORY
+          }
+
+      - name: Package flat ASI 0.54 experimental ZIP
+        if: github.ref == 'refs/heads/dev/asi-0.54-verified-fallback-owner-template'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist\* -DestinationPath SaboteurEnhanced_ASI_0.54_VERIFIED_OWNER_TEMPLATE_TEST_x86.zip -Force
+          Add-Type -AssemblyName System.IO.Compression
+          $z=[System.IO.Compression.ZipFile]::OpenRead("$PWD/SaboteurEnhanced_ASI_0.54_VERIFIED_OWNER_TEMPLATE_TEST_x86.zip")
+          try {
+            $files=@($z.Entries | ForEach-Object { $_.FullName })
+            $expect=@('SaboteurEnhanced.asi','dinput8.dll','SaboteurEnhanced.ini','README.txt')
+            if(@(Compare-Object $files $expect).Count -ne 0) { throw "Unexpected ZIP root: $($files -join ',')" }
+          } finally { $z.Dispose() }
+
+      - name: Publish ASI 0.54 TEST prerelease
+        if: github.ref == 'refs/heads/dev/asi-0.54-verified-fallback-owner-template'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag="ASI-0.54-TEST"
+          $zip="SaboteurEnhanced_ASI_0.54_VERIFIED_OWNER_TEMPLATE_TEST_x86.zip"
+          if(gh release view $tag --repo $env:GITHUB_REPOSITORY 2>$null) {
+            gh release upload $tag $zip --clobber --repo $env:GITHUB_REPOSITORY
+          } else {
+            gh release create $tag $zip --target $env:GITHUB_SHA --prerelease --title "ASI 0.54 - Verified Owner + Template TEST" --notes-file docs/ASI_0_54_OWNER_TEMPLATE.md --repo $env:GITHUB_REPOSITORY
           }
