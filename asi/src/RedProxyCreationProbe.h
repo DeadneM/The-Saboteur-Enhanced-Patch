@@ -1,4 +1,4 @@
-// 0.53: correlated passive fallback-gate and native-CALL chronology (x86 only).
+// 0.54: verify exact gate actor/template ownership at native call (x86 only).
 // No red-proxy suppression, model changes, renderer changes or hot patches outside
 // the single callsite. A mismatch leaves the original CALL untouched.
 static uintptr_t g_proxyNative = 0;
@@ -8,6 +8,9 @@ static volatile LONG g_proxyBudget = 0;
 static volatile LONG g_proxyAutoFirst = 1; // first 16 calls are captured even before hotkeys
 static uintptr_t g_fbContinue=0, g_fbExit=0;
 static volatile LONG g_fbEvents=0, g_fbNonzero=0, g_fbNearCall=0;
+static volatile LONG g_fbActorMatch=0, g_fbTemplateMatch=0, g_fbDoubleMatch=0, g_fbMismatch=0;
+static __declspec(thread) DWORD g_fbSeenTemplates[8]={};
+static __declspec(thread) unsigned g_fbSeenTemplateCount=0;
 struct FallbackVisit
 {
     DWORD seq, tid, tick, ebx, owner, templ;
@@ -38,7 +41,10 @@ struct ProxyCapture
     bool ownerBeforeOK, ownerAfterOK, templateBeforeOK, templateAfterOK;
     FallbackVisit fallback;
     DWORD fallbackAgeMs;
-    bool fallbackFresh, fallbackRecent;
+    bool fallbackFresh, fallbackRecent, verifiedActor, verifiedTemplate, verifiedBoth, firstTemplate;
+    DWORD verifiedOwnerBefore[64], verifiedOwnerAfter[64], verifiedTemplateBefore[64], verifiedTemplateAfter[64];
+    bool verifiedOwnerReadBefore, verifiedOwnerReadAfter, verifiedTemplateReadBefore, verifiedTemplateReadAfter;
+    DWORD verifiedOwnerAfterPtr, verifiedTemplateAfterPtr;
     bool objectOK, ecxOK, arg0OK, inspect;
 };
 static ProxyCapture g_proxyLast = {};
@@ -63,9 +69,9 @@ static bool ProxyCopy(uintptr_t address, DWORD* out, size_t words)
 
 static void ProxyLogWords(const char* name, const DWORD* data, size_t words)
 {
-    Log("[PROXY53] %s", name);
+    Log("[PROXY54] %s", name);
     for (size_t i = 0; i + 3 < words; i += 4)
-        Log("[PROXY53]   +%03X: %08X %08X %08X %08X",
+        Log("[PROXY54]   +%03X: %08X %08X %08X %08X",
             static_cast<unsigned>(i * 4), data[i], data[i+1], data[i+2], data[i+3]);
 }
 
@@ -93,7 +99,7 @@ static void __cdecl ProxyFallbackObserved(uintptr_t actor)
         ProxyReadU32(static_cast<uintptr_t>(v.owner)+0x2DC,&v.templ);
     g_fbThreadLast=v;
     if(v.seq<=12 || v.seq%256==0)
-        Log("[PROXY53] FALLBACK_GATE #%u thread=%u EBX=%08X owner=%08X owner_read=%u template=%08X template_read=%u",
+        Log("[PROXY54] FALLBACK_GATE #%u thread=%u EBX=%08X owner=%08X owner_read=%u template=%08X template_read=%u",
             v.seq,v.tid,v.ebx,v.owner,v.ownerFieldOK?1u:0u,
             v.templ,v.templateFieldOK?1u:0u);
 }
@@ -126,20 +132,20 @@ static bool InstallProxyFallbackCorrelationProbe(HMODULE exe)
        base+kRva<reinterpret_cast<uintptr_t>(code.begin) ||
        base+kRva+8>reinterpret_cast<uintptr_t>(code.begin)+code.size)
     {
-        Log("[SKIP] PROXY53 fallback gate outside .text.");
+        Log("[SKIP] PROXY54 fallback gate outside .text.");
         return false;
     }
     static const uint8_t expected[8]={0x85,0xDB,0x0F,0x84,0x3B,0x01,0x00,0x00};
     if(std::memcmp(p,expected,8)!=0)
     {
-        Log("[SKIP] PROXY53 fallback gate RVA 00092E03 signature mismatch.");
+        Log("[SKIP] PROXY54 fallback gate RVA 00092E03 signature mismatch.");
         return false;
     }
     const intptr_t delta=reinterpret_cast<intptr_t>(&ProxyFallbackCorrelationShim)-
         reinterpret_cast<intptr_t>(p+5);
     if(delta<INT32_MIN || delta>INT32_MAX)
     {
-        Log("[SKIP] PROXY53 fallback hook unreachable.");
+        Log("[SKIP] PROXY54 fallback hook unreachable.");
         return false;
     }
     uint8_t patch[8]={0xE9,0,0,0,0,0x90,0x90,0x90};
@@ -149,10 +155,10 @@ static bool InstallProxyFallbackCorrelationProbe(HMODULE exe)
     g_fbExit=base+0x00092F46;
     if(!WriteBytes(p,patch,8))
     {
-        Log("[FAIL] PROXY53 fallback hook write failed.");
+        Log("[FAIL] PROXY54 fallback hook write failed.");
         return false;
     }
-    Log("[OK] PROXY53 fallback gate 00092E03 pass-through hooked; test EBX/JE semantics preserved.");
+    Log("[OK] PROXY54 fallback gate 00092E03 pass-through hooked; test EBX/JE semantics preserved.");
     return true;
 }
 
@@ -162,13 +168,13 @@ static void ProxyLogDiff64(const char* name, DWORD ptrBefore, DWORD ptrAfter,
 {
     if (!beforeOK || !afterOK)
     {
-        Log("[PROXY53] %s read before=%u after=%u at %08X / %08X",
+        Log("[PROXY54] %s read before=%u after=%u at %08X / %08X",
             name,beforeOK?1u:0u,afterOK?1u:0u,ptrBefore,ptrAfter);
         return;
     }
     if(ptrBefore!=ptrAfter)
     {
-        Log("[PROXY53] %s pointer transition %08X -> %08X (separate objects; not a same-object diff)",
+        Log("[PROXY54] %s pointer transition %08X -> %08X (separate objects; not a same-object diff)",
             name,ptrBefore,ptrAfter);
         ProxyLogWords("old object prefix",before,16);
         ProxyLogWords("new object prefix",after,16);
@@ -178,22 +184,22 @@ static void ProxyLogDiff64(const char* name, DWORD ptrBefore, DWORD ptrAfter,
     for(unsigned i=0;i<16;++i)
     {
         if(before[i]==after[i]) continue;
-        Log("[PROXY53] DELTA %s=%08X +%02X: %08X -> %08X",
+        Log("[PROXY54] DELTA %s=%08X +%02X: %08X -> %08X",
             name,ptrBefore,i*4,before[i],after[i]);
         ++changes;
     }
-    Log("[PROXY53] DELTA_SUM %s=%08X changed=%u/16 dwords",name,ptrBefore,changes);
+    Log("[PROXY54] DELTA_SUM %s=%08X changed=%u/16 dwords",name,ptrBefore,changes);
 }
 
 static void ProxyLogCapture(const ProxyCapture& f)
 {
-    Log("[PROXY53] completed #%u thread=%u native return EAX=%08X (candidate pointer, type unverified)",
+    Log("[PROXY54] completed #%u thread=%u native return EAX=%08X (candidate pointer, type unverified)",
         f.id, f.tid, f.result);
-    Log("[PROXY53] input EDI=%08X ESI=%08X EBP=%08X EBX=%08X EDX=%08X ECX=%08X EAX=%08X",
+    Log("[PROXY54] input EDI=%08X ESI=%08X EBP=%08X EBX=%08X EDX=%08X ECX=%08X EAX=%08X",
         f.regs[0],f.regs[1],f.regs[2],f.regs[4],f.regs[5],f.regs[6],f.regs[7]);
     ProxyLogWords("eight raw caller stack arguments", f.args, 8);
     if (f.objectOK) ProxyLogWords("returned EAX object candidate (192 bytes)", f.object, 48);
-    else Log("[PROXY53] returned EAX does not have 192 readable bytes.");
+    else Log("[PROXY54] returned EAX does not have 192 readable bytes.");
     if (f.ecxOK) ProxyLogWords("entry ECX pointee (64 bytes)", f.ecx, 16);
     if (f.arg0OK) ProxyLogWords("entry first-stack-argument pointee (64 bytes)", f.arg0, 16);
     const char* const labels[4]={"ECX","ARG0/ESI","ARG1/EDX","EDI"};
@@ -201,7 +207,7 @@ static void ProxyLogCapture(const ProxyCapture& f)
     {
         if (!f.beforeOK[c] || !f.afterOK[c])
         {
-            Log("[PROXY53] %s=%08X before readable=%u after readable=%u (cannot diff)",
+            Log("[PROXY54] %s=%08X before readable=%u after readable=%u (cannot diff)",
                 labels[c],f.candidates[c],f.beforeOK[c]?1u:0u,f.afterOK[c]?1u:0u);
             continue;
         }
@@ -210,11 +216,11 @@ static void ProxyLogCapture(const ProxyCapture& f)
         {
             if (f.before[c][w]==f.after[c][w]) continue;
             if (changed<20)
-                Log("[PROXY53] DELTA %s=%08X +%03X: %08X -> %08X",
+                Log("[PROXY54] DELTA %s=%08X +%03X: %08X -> %08X",
                     labels[c],f.candidates[c],w*4,f.before[c][w],f.after[c][w]);
             ++changed;
         }
-        Log("[PROXY53] DELTA_SUM %s=%08X changed=%u/64 dwords (first 20 differences logged)",
+        Log("[PROXY54] DELTA_SUM %s=%08X changed=%u/64 dwords (first 20 differences logged)",
             labels[c],f.candidates[c],changed);
     }
     const DWORD farBeforeAddress=f.regs[6]+0x207C;
@@ -224,25 +230,61 @@ static void ProxyLogCapture(const ProxyCapture& f)
     for(int i=0;i<2;++i)
     {
         const char* name=i==0?"ECX[+08] child":"ECX[+1C] child";
-        Log("[PROXY53] %s pointer BEFORE=%08X AFTER=%08X",
+        Log("[PROXY54] %s pointer BEFORE=%08X AFTER=%08X",
             name,f.childBeforePtr[i],f.childAfterPtr[i]);
         ProxyLogDiff64(name,f.childBeforePtr[i],f.childAfterPtr[i],
             f.childBefore[i],f.childBeforeOK[i],f.childAfter[i],f.childAfterOK[i]);
     }
-    Log("[PROXY53] RAW_CALL_EBX_UNVERIFIED=%08X guessed_owner[+1384] %08X->%08X guessed_template[+2DC] %08X->%08X",
+    Log("[PROXY54] RAW_CALL_EBX_UNVERIFIED=%08X guessed_owner[+1384] %08X->%08X guessed_template[+2DC] %08X->%08X",
         f.ebx,f.ownerBeforePtr,f.ownerAfterPtr,
         f.templateBeforePtr,f.templateAfterPtr);
     ProxyLogDiff64("EBX owner",f.ownerBeforePtr,f.ownerBeforePtr,
         f.ownerBefore,f.ownerBeforeOK,f.ownerAfter,f.ownerAfterOK);
     ProxyLogDiff64("EBX template",f.templateBeforePtr,f.templateBeforePtr,
         f.templateBefore,f.templateBeforeOK,f.templateAfter,f.templateAfterOK);
+
+    Log("[PROXY54] MATCH actor_plus_D78=%u ARG0_eq_template=%u FULL_OWNER_LINK=%u gateEBX=%08X nativeEBX=%08X owner=%08X template=%08X",
+        f.verifiedActor?1u:0u,f.verifiedTemplate?1u:0u,f.verifiedBoth?1u:0u,
+        f.fallback.ebx,f.regs[4],f.fallback.owner,f.fallback.templ);
+    if(f.verifiedBoth)
+    {
+        const bool matchChain=f.verifiedOwnerAfterPtr==f.fallback.owner &&
+                              f.verifiedTemplateAfterPtr==f.fallback.templ;
+        Log("[PROXY54] VERIFIED_CHAIN_AFTER stable=%u ownerAfter=%08X templateAfter=%08X",
+            matchChain?1u:0u,f.verifiedOwnerAfterPtr,f.verifiedTemplateAfterPtr);
+        const char* names[2]={"OWNER","TEMPLATE"};
+        const DWORD* oldBuf[2]={f.verifiedOwnerBefore,f.verifiedTemplateBefore};
+        const DWORD* newBuf[2]={f.verifiedOwnerAfter,f.verifiedTemplateAfter};
+        const bool oldOK[2]={f.verifiedOwnerReadBefore,f.verifiedTemplateReadBefore};
+        const bool newOK[2]={f.verifiedOwnerReadAfter,f.verifiedTemplateReadAfter};
+        for(int c=0;c<2;++c)
+        {
+            unsigned changes=0;
+            if(oldOK[c] && newOK[c] && matchChain)
+            {
+                for(unsigned j=0;j<64;++j)
+                {
+                    if(oldBuf[c][j]==newBuf[c][j]) continue;
+                    if(changes<12) Log("[PROXY54] VERIFIED_DELTA %s +%03X: %08X -> %08X",
+                        names[c],j*4,oldBuf[c][j],newBuf[c][j]);
+                    ++changes;
+                }
+                Log("[PROXY54] VERIFIED_DIFF_SUM %s changed=%u/64",names[c],changes);
+            }
+            else Log("[PROXY54] VERIFIED_DIFF_UNAVAILABLE %s before=%u after=%u stable=%u",
+                names[c],oldOK[c]?1u:0u,newOK[c]?1u:0u,matchChain?1u:0u);
+        }
+        if(f.firstTemplate && f.verifiedTemplateReadBefore)
+            ProxyLogWords("FIRST_SEEN VERIFIED TEMPLATE 256-byte BEFORE snapshot",
+                f.verifiedTemplateBefore,64);
+    }
     if(f.fallback.seq)
-        Log("[PROXY53] FALLBACK_GATE last_same_thread seq=%u age_ms=%u fresh_since_previous_call=%u nearby_1sec=%u gate_EBX=%08X owner=%08X owner_field_readable=%u template=%08X template_field_readable=%u",
+        Log("[PROXY54] FALLBACK_GATE last_same_thread seq=%u age_ms=%u fresh_since_previous_call=%u nearby_1sec=%u gate_EBX=%08X owner=%08X owner_field_readable=%u template=%08X template_field_readable=%u",
             f.fallback.seq,f.fallbackAgeMs,f.fallbackFresh?1u:0u,f.fallbackRecent?1u:0u,
             f.fallback.ebx,f.fallback.owner,f.fallback.ownerFieldOK?1u:0u,
             f.fallback.templ,f.fallback.templateFieldOK?1u:0u);
     else
-        Log("[PROXY53] FALLBACK_GATE no gate entry recorded on this native-call thread.");
+        Log("[PROXY54] FALLBACK_GATE no gate entry recorded on this native-call thread.");
 }
 static void __cdecl ProxyBefore(const DWORD* regs)
 {
@@ -263,7 +305,40 @@ static void __cdecl ProxyBefore(const DWORD* regs)
     if (!f.inspect) return;
     std::memcpy(f.regs,regs,sizeof(f.regs));
     // PUSHAD saved ESP is after PUSHFD; first CALL stack arg is ESP+8.
-    ProxyCopy(static_cast<uintptr_t>(regs[3])+8, f.args, 8);
+    const bool stackValid=ProxyCopy(static_cast<uintptr_t>(regs[3])+8,f.args,8);
+    // Measured in the 0.53 user log: 16/16 exact matches of both
+    // nativeEBX = gateEBX + 0xD78 and native ARG0 = gate template.
+    f.verifiedActor=f.fallbackFresh && f.fallback.ebx!=0 &&
+        f.regs[4]==static_cast<DWORD>(f.fallback.ebx+0xD78);
+    f.verifiedTemplate=f.fallbackFresh && stackValid &&
+        f.fallback.templateFieldOK && f.fallback.templ!=0 &&
+        f.args[0]==f.fallback.templ;
+    f.verifiedBoth=f.verifiedActor && f.verifiedTemplate &&
+        f.fallback.ownerFieldOK && f.fallback.owner!=0;
+    if(f.fallbackFresh && f.fallback.templateFieldOK && f.fallback.templ)
+    {
+        if(f.verifiedActor) InterlockedIncrement(&g_fbActorMatch);
+        if(f.verifiedTemplate) InterlockedIncrement(&g_fbTemplateMatch);
+        if(f.verifiedBoth) InterlockedIncrement(&g_fbDoubleMatch);
+        else InterlockedIncrement(&g_fbMismatch);
+    }
+    f.firstTemplate=false;
+    if(f.verifiedBoth)
+    {
+        f.verifiedOwnerReadBefore=ProxyCopy(f.fallback.owner,f.verifiedOwnerBefore,64);
+        f.verifiedTemplateReadBefore=ProxyCopy(f.fallback.templ,f.verifiedTemplateBefore,64);
+        if(f.verifiedTemplateReadBefore)
+        {
+            bool seen=false;
+            for(unsigned i=0;i<g_fbSeenTemplateCount;++i)
+                if(g_fbSeenTemplates[i]==f.fallback.templ) {seen=true;break;}
+            if(!seen && g_fbSeenTemplateCount<_countof(g_fbSeenTemplates))
+            {
+                g_fbSeenTemplates[g_fbSeenTemplateCount++]=f.fallback.templ;
+                f.firstTemplate=true;
+            }
+        }
+    }
     f.candidates[0]=f.regs[6]; // ECX / this-like candidate
     f.candidates[1]=f.args[0]; // in 0.50 it matched ESI
     f.candidates[2]=f.args[1]; // in 0.50 it matched EDX
@@ -304,6 +379,16 @@ static void __cdecl ProxyAfter(const DWORD* regs)
     ProxyReadU32(static_cast<uintptr_t>(ecx)+0x1C,&f.childAfterPtr[1]);
     for(unsigned i=0;i<2;++i)
         f.childAfterOK[i]=ProxyCopy(f.childAfterPtr[i],f.childAfter[i],16);
+    if(f.verifiedBoth)
+    {
+        ProxyReadU32(static_cast<uintptr_t>(f.fallback.ebx)+0x1384,&f.verifiedOwnerAfterPtr);
+        ProxyReadU32(static_cast<uintptr_t>(f.fallback.owner)+0x2DC,&f.verifiedTemplateAfterPtr);
+        if(f.verifiedOwnerAfterPtr==f.fallback.owner && f.verifiedTemplateAfterPtr==f.fallback.templ)
+        {
+            f.verifiedOwnerReadAfter=ProxyCopy(f.fallback.owner,f.verifiedOwnerAfter,64);
+            f.verifiedTemplateReadAfter=ProxyCopy(f.fallback.templ,f.verifiedTemplateAfter,64);
+        }
+    }
     ProxyReadU32(static_cast<uintptr_t>(f.ebx)+0x1384,&f.ownerAfterPtr);
     ProxyReadU32(static_cast<uintptr_t>(f.ownerBeforePtr)+0x2DC,&f.templateAfterPtr);
     // Compare the same original object addresses; pointer movements are
@@ -319,7 +404,7 @@ static void __cdecl ProxyAfter(const DWORD* regs)
     if (budget || (f.id<=16 && InterlockedCompareExchange(&g_proxyAutoFirst,0,0)>0))
         ProxyLogCapture(f);
     else if (f.id%256==0)
-        Log("[PROXY53] native completed #%u EAX=%08X (F7/F8 to capture more)",f.id,f.result);
+        Log("[PROXY54] native completed #%u EAX=%08X (F7/F8 to capture more)",f.id,f.result);
 }
 __declspec(naked) static void ProxyAfterThunk()
 {
@@ -362,12 +447,12 @@ static bool InstallProxyNativeCreationProbe(HMODULE exe)
     auto* callsite=reinterpret_cast<uint8_t*>(base+kCall);
     if (!code.begin || base+kCall<begin || base+kCall+5>begin+code.size)
     {
-        Log("[SKIP] PROXY53 callsite not inside .text.");
+        Log("[SKIP] PROXY54 callsite not inside .text.");
         return false;
     }
     if (callsite[0]!=0xE8)
     {
-        Log("[SKIP] PROXY53 RVA 00092F38 not a direct CALL (opcode %02X).",callsite[0]);
+        Log("[SKIP] PROXY54 RVA 00092F38 not a direct CALL (opcode %02X).",callsite[0]);
         return false;
     }
     int32_t displacement=0;
@@ -376,14 +461,14 @@ static bool InstallProxyNativeCreationProbe(HMODULE exe)
         static_cast<intptr_t>(displacement);
     if (destination!=base+kCallee)
     {
-        Log("[SKIP] PROXY53 target %08X instead of verified expected %08X.",
+        Log("[SKIP] PROXY54 target %08X instead of verified expected %08X.",
             static_cast<unsigned>(destination), static_cast<unsigned>(base+kCallee));
         return false;
     }
     // WSCivilianProp valid-result path: log read-only bytes, no guessed hook.
     DWORD realEntry[4]={};
     if (ProxyCopy(base+0x00092DD5,realEntry,4))
-        Log("[PROXY53] real WSCivilianProp branch +92DD5 raw bytes: %08X %08X %08X %08X",
+        Log("[PROXY54] real WSCivilianProp branch +92DD5 raw bytes: %08X %08X %08X %08X",
             realEntry[0],realEntry[1],realEntry[2],realEntry[3]);
     DWORD callerTail[8]={},calleeHead[16]={};
     if (ProxyCopy(base+kCall+5,callerTail,8))
@@ -394,7 +479,7 @@ static bool InstallProxyNativeCreationProbe(HMODULE exe)
         reinterpret_cast<intptr_t>(callsite+5);
     if (diff<INT32_MIN || diff>INT32_MAX)
     {
-        Log("[SKIP] PROXY53 hook not rel32-reachable.");
+        Log("[SKIP] PROXY54 hook not rel32-reachable.");
         return false;
     }
     uint8_t patch[5]={0xE8,0,0,0,0};
@@ -404,44 +489,50 @@ static bool InstallProxyNativeCreationProbe(HMODULE exe)
     g_proxyContinue=reinterpret_cast<uintptr_t>(callsite+5);
     if (!WriteBytes(callsite,patch,sizeof(patch)))
     {
-        Log("[FAIL] PROXY53 native CALL write failed.");
+        Log("[FAIL] PROXY54 native CALL write failed.");
         return false;
     }
-    Log("[OK] PROXY53 hooked native creator CALL RVA 00092F38 -> 00588B30; post-return EAX capture.");
-    Log("[PROXY53] guarded reads of ECX+207C, ECX[+08]/[+1C] pointees and EBX+1384 -> owner+2DC.");
-    Log("[PROXY53] read-only diagnostics; no fallback suppression and no material edits.");
+    Log("[OK] PROXY54 hooked native creator CALL RVA 00092F38 -> 00588B30; post-return EAX capture.");
+    Log("[PROXY54] guarded reads of ECX+207C, ECX[+08]/[+1C] pointees and EBX+1384 -> owner+2DC.");
+    Log("[PROXY54] guarded 256-byte actual gate OWNER and TEMPLATE before/after only when +D78 and ARG0 identities both match.");
+    Log("[PROXY54] read-only diagnostics; no fallback suppression and no material edits.");
     if(!InstallProxyFallbackCorrelationProbe(exe))
-        Log("[PROXY53] fallback gate capture unavailable; native call hook still pass-through.");
+        Log("[PROXY54] fallback gate capture unavailable; native call hook still pass-through.");
     return true;
 }
 static void ProxyDumpLatest()
 {
     if (!InterlockedCompareExchange(&g_proxyHasLast,0,0))
     {
-        Log("[PROXY53] F9: no native create return observed.");
+        Log("[PROXY54] F9: no native create return observed.");
         return;
     }
     ProxyCapture snap={};
     AcquireSRWLockShared(&g_proxyLastLock);
     snap=g_proxyLast;
     ReleaseSRWLockShared(&g_proxyLastLock);
-    Log("[PROXY53] F9: native calls=%u fallback gate entries=%u nonzero EBX=%u near_same_thread_le_1sec=%u",
+    Log("[PROXY54] F9: native calls=%u fallback gate entries=%u nonzero EBX=%u near_same_thread_le_1sec=%u",
         static_cast<unsigned>(InterlockedCompareExchange(&g_proxyEvents,0,0)),
         static_cast<unsigned>(InterlockedCompareExchange(&g_fbEvents,0,0)),
         static_cast<unsigned>(InterlockedCompareExchange(&g_fbNonzero,0,0)),
         static_cast<unsigned>(InterlockedCompareExchange(&g_fbNearCall,0,0)));
-    Log("[PROXY53] F9: latest native snapshot replay; do not confuse same-thread proximity with causality.");
+    Log("[PROXY54] F9: actor+D78 matches=%u template_ARG0_matches=%u full_verified=%u mismatches=%u",
+        static_cast<unsigned>(InterlockedCompareExchange(&g_fbActorMatch,0,0)),
+        static_cast<unsigned>(InterlockedCompareExchange(&g_fbTemplateMatch,0,0)),
+        static_cast<unsigned>(InterlockedCompareExchange(&g_fbDoubleMatch,0,0)),
+        static_cast<unsigned>(InterlockedCompareExchange(&g_fbMismatch,0,0)));
+    Log("[PROXY54] F9: replaying last sampled event; link matches alone do not prove red-material root cause.");
     ProxyLogCapture(snap);
 }
 static DWORD WINAPI ProxyHotkeyThread(LPVOID)
 {
     InterlockedExchange(&g_redAuditThreadRun,1);
-    Log("[PROXY53] AUTO first 16 native calls, F6 quiet, F7 next 16, F8 next 64, F9 latest; fallback-gate counters always on.");
+    Log("[PROXY54] AUTO first 16 native calls, F6 quiet, F7 next 16, F8 next 64, F9 latest; fallback-gate counters always on.");
     while (InterlockedCompareExchange(&g_redAuditThreadRun,0,0))
     {
-        if (GetAsyncKeyState(VK_F6)&1) { InterlockedExchange(&g_proxyBudget,0); InterlockedExchange(&g_proxyAutoFirst,0); Log("[PROXY53] F6: quiet; startup auto capture stopped."); }
-        if (GetAsyncKeyState(VK_F7)&1) { InterlockedExchange(&g_proxyBudget,16); Log("[PROXY53] F7 16-event capture."); }
-        if (GetAsyncKeyState(VK_F8)&1) { InterlockedExchange(&g_proxyBudget,64); Log("[PROXY53] F8 64-event capture."); }
+        if (GetAsyncKeyState(VK_F6)&1) { InterlockedExchange(&g_proxyBudget,0); InterlockedExchange(&g_proxyAutoFirst,0); Log("[PROXY54] F6: quiet; startup auto capture stopped."); }
+        if (GetAsyncKeyState(VK_F7)&1) { InterlockedExchange(&g_proxyBudget,16); Log("[PROXY54] F7 16-event capture."); }
+        if (GetAsyncKeyState(VK_F8)&1) { InterlockedExchange(&g_proxyBudget,64); Log("[PROXY54] F8 64-event capture."); }
         if (GetAsyncKeyState(VK_F9)&1) ProxyDumpLatest();
         Sleep(50);
     }
@@ -450,7 +541,7 @@ static DWORD WINAPI ProxyHotkeyThread(LPVOID)
 static bool StartProxyHotkeys()
 {
     HANDLE t=CreateThread(nullptr,0,ProxyHotkeyThread,nullptr,0,nullptr);
-    if (!t) { Log("[FAIL] PROXY53 hotkey thread creation."); return false; }
+    if (!t) { Log("[FAIL] PROXY54 hotkey thread creation."); return false; }
     CloseHandle(t);
     return true;
 }
