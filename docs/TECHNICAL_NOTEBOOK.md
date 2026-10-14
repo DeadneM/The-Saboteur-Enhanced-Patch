@@ -3391,3 +3391,48 @@ Detailed test and rollback procedure: docs/ASI_0_51_RUNTIME_AUDIT.md.
 - Local ZIP verified good CRCs and **flat root** with exactly:
   `dinput8.dll`, `README.txt`, `SaboteurEnhanced.asi`, `SaboteurEnhanced.ini`.
 - This validates **build and packaging only**, not in-game operation or the red-prop material cause. Do not promote to main/release before user's log/visual tests.
+
+
+## ASI 0.52 TEST: native context follow-up from user-validated 0.51 log
+
+**State (14 October 2026): COMPILED + PUBLISHED AS PRERELEASE, awaiting in-game validation.**
+
+The supplied 0.51 log proved that the x86 CALL at RVA 0x00092F38
+reached native target RVA 0x00588B30. It recorded 22 completed calls,
+including 16 automatic full captures, and a clean ASI unload.
+All captured EAX values were zero. That is not proof of a null
+material/object: zero might be status/void residue. The actual
+memory mutations occurred in ECX (+04,+08,+18,+1C,+34) and ARG0 (+48).
+ARG1 and EDI did not change in the first 256 bytes.
+
+0.52 keeps the 0.51 fast-path instrumentation and native behavior,
+adding *read-only, guarded* 64-byte before/after samples around:
+- ECX+0x207C deep candidate field, with no assumption of its meaning;
+- ECX[+0x08] and ECX[+0x1C] child pointers, with distinct-object
+  transitions identified (never compare two allocations as same object);
+- EBX -> [EBX+0x1384] owner -> [owner+0x2DC] template, including
+  snapshots of the same owner/template pointers before/after the call.
+
+No change to EXE, shaders, materials, props, graphics, HUD, pool
+capacities, LOD or streaming. The previous broad fallback suppression
+hook is **not enabled**. All the first 16 calls are captured without F8;
+F6 quiet; F7 next 16; F8 next 64; F9 latest + total.
+
+Code source SHA: 7b9cc6d4e7f74d92f9e80c6b7f749601cfef29f8.
+Core 1 + ASI 0.45 remains the canonical validated baseline.
+0.52 publication: https://github.com/DeadneM/The-Saboteur-Enhanced-Patch/releases/tag/ASI-0.52-TEST
+Download: https://github.com/DeadneM/The-Saboteur-Enhanced-Patch/releases/download/ASI-0.52-TEST/SaboteurEnhanced_ASI_0.52_NATIVE_STRUCTURE_CONTEXT_TEST_x86.zip
+
+Windows x86 GitHub Actions run #254 SUCCESS:
+https://github.com/DeadneM/The-Saboteur-Enhanced-Patch/actions/runs/38542535779
+ASI SHA-256 DAF2F41645C6DB7B6A0F1D4DB232E704EDC21863CBF3D4B1E9936CBE46FE14E4.
+dinput8.dll SHA-256 393F19DFBEE81E66027CBA6402D93388CEA4D4D3BD9432679E6863D832CF7506.
+Prerelease ZIP 186042 bytes; SHA-256
+4bfe9c14d072f8fae5ec34ed918576c7ad9ff0d191cb6ab5bc38359cc1c47208.
+Flat ZIP with exactly ASI, dinput8.dll, INI and README.
+GitHub Actions artifact ID 11883181080, SHA-256
+f88932e25e6fb79391fde023c884f3f57e576e512a74f9356c477cd7e84eb581.
+
+Next test: reproduce red prop and F8/F9, send SaboteurEnhanced.log;
+report red visibility and accessory retention. Do not declare visual
+fix until controlled in-game testing proves it.
