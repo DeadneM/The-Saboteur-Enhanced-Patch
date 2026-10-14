@@ -698,3 +698,56 @@ f88932e25e6fb79391fde023c884f3f57e576e512a74f9356c477cd7e84eb581.
 Next test: reproduce red prop and F8/F9, send SaboteurEnhanced.log;
 report red visibility and accessory retention. Do not declare visual
 fix until controlled in-game testing proves it.
+
+
+## ASI 0.52 user runtime result / ASI 0.53 tested compilation (14 October 2026)
+
+0.52 `SaboteurEnhanced(3).log` confirmed: [OK] native hook;
+24 calls counted; 16 automatically verbose and #24 captured after F8;
+F9 replayed #24. No [SKIP]/[FAIL] messages. No ASI-unload
+line; this file alone cannot establish exit conditions or a crash.
+User did not report whether red texture persisted visually.
+
+Crucial 0.52 insight: EBX as observed *at the native CALL* cannot be
+assumed the WSHumanSpore actor, since owner[EBX+1384]
+returned 0, 0xDDDDDDDD, 0x00010001 or other unreadable/invalid values.
+ECX+0x207C changed on #5, #6, #7, #24, often float-like values;
+this does NOT prove a color/material field. ECX child pointers changed
+identities; same-object comparison must not cross pointer transitions.
+EAX remains zero; a successful real proxy creation has NOT been proven
+solely by completed native calls.
+
+0.53 pivots from speculative field offsets to passive two-site
+**temporal correlation**. New exact-signature-verified fallback gate at
+RVA 0x00092E03 faithfully replays native TEST EBX / JE behavior,
+without ever suppressing the fallback. It snapshots the gate's own EBX,
+owner and template if readable, and per-thread sequence/timestamp.
+The existing native CALL hook at RVA 0x00092F38 still captures 0.52
+data, but labels its own EBX as unverified and attaches last
+same-thread fallback sequence/age. A new 1-second proximity counter
+is diagnostic only and NEVER proves identical object ownership.
+F9 logs both call and fallback counters. No EXE/HUD/engine/material
+parameters changed. Stable baseline remains Core 1 + ASI 0.45.
+
+**CI build SUCCESS** GitHub Actions #255 (Windows MSVC x86):
+https://github.com/DeadneM/The-Saboteur-Enhanced-Patch/actions/runs/38607768693
+Source code commit `3b0f02eea1ccf2f96db8ff25f444e51e6370281f`.
+ASI SHA-256:
+`A6140FA767B3F33AB34986856B0DAB636520B1580ED542067AF6373CF33800BE`
+Loader SHA-256:
+`6C5CFF053270EEC5F33C2B96A2DB46A568B2AB32DED371C6E769351A9F7A6266`
+Prerelase tag `ASI-0.53-TEST`:
+https://github.com/DeadneM/The-Saboteur-Enhanced-Patch/releases/tag/ASI-0.53-TEST
+Direct flat-root test ZIP:
+https://github.com/DeadneM/The-Saboteur-Enhanced-Patch/releases/download/ASI-0.53-TEST/SaboteurEnhanced_ASI_0.53_FALLBACK_NATIVE_CORRELATION_TEST_x86.zip
+ZIP size 187609 bytes, SHA-256
+`9909fdb9190e054ff17a9574ad32ac0adab41d3c0d992d28ad36539fe2f064f2`.
+CI artifact ID 11915733861, digest
+`5204d7cd487977111cc1eaac6f752d0f5628ac768a72e9c7a5b0c9a9cdf61d9c`.
+Flat ZIP verified at build time by ZIP entry-name comparison;
+exact root members: dinput8.dll, SaboteurEnhanced.asi,
+SaboteurEnhanced.ini, README.txt.
+
+Do not promote 0.53 to main/stable before the user tests game
+startup, red occupied zone, pedestrian-held accessories, and
+fallback/native logs. Roll back to stable 0.45 ASI + INI on issues.
