@@ -34,11 +34,8 @@ struct ProxyCapture
     DWORD childBeforePtr[2], childAfterPtr[2];
     DWORD childBefore[2][16], childAfter[2][16];
     bool childBeforeOK[2], childAfterOK[2];
-    // EBX is the candidate actor; owner+1384 and template+2DC are only
-    // meaningful when every hop was read through guarded access.
-    DWORD ebx, ownerBeforePtr, ownerAfterPtr, templateBeforePtr, templateAfterPtr;
-    DWORD ownerBefore[16], ownerAfter[16], templateBefore[16], templateAfter[16];
-    bool ownerBeforeOK, ownerAfterOK, templateBeforeOK, templateAfterOK;
+    // The discredited native-EBX owner-guess fields from 0.52/0.53
+    // are deliberately removed; only verified gate ownership is sampled.
     FallbackVisit fallback;
     DWORD fallbackAgeMs;
     bool fallbackFresh, fallbackRecent, verifiedActor, verifiedTemplate, verifiedBoth, firstTemplate;
@@ -235,13 +232,8 @@ static void ProxyLogCapture(const ProxyCapture& f)
         ProxyLogDiff64(name,f.childBeforePtr[i],f.childAfterPtr[i],
             f.childBefore[i],f.childBeforeOK[i],f.childAfter[i],f.childAfterOK[i]);
     }
-    Log("[PROXY54] RAW_CALL_EBX_UNVERIFIED=%08X guessed_owner[+1384] %08X->%08X guessed_template[+2DC] %08X->%08X",
-        f.ebx,f.ownerBeforePtr,f.ownerAfterPtr,
-        f.templateBeforePtr,f.templateAfterPtr);
-    ProxyLogDiff64("EBX owner",f.ownerBeforePtr,f.ownerBeforePtr,
-        f.ownerBefore,f.ownerBeforeOK,f.ownerAfter,f.ownerAfterOK);
-    ProxyLogDiff64("EBX template",f.templateBeforePtr,f.templateBeforePtr,
-        f.templateBefore,f.templateBeforeOK,f.templateAfter,f.templateAfterOK);
+    Log("[PROXY54] native EBX=%08X; no guessed nativeEBX+1384 owner dereferences.",
+        f.regs[4]);
 
     Log("[PROXY54] MATCH actor_plus_D78=%u ARG0_eq_template=%u FULL_OWNER_LINK=%u gateEBX=%08X nativeEBX=%08X owner=%08X template=%08X",
         f.verifiedActor?1u:0u,f.verifiedTemplate?1u:0u,f.verifiedBoth?1u:0u,
@@ -353,11 +345,6 @@ static void __cdecl ProxyBefore(const DWORD* regs)
     ProxyReadU32(static_cast<uintptr_t>(ecx)+0x1C,&f.childBeforePtr[1]);
     for(unsigned i=0;i<2;++i)
         f.childBeforeOK[i]=ProxyCopy(f.childBeforePtr[i],f.childBefore[i],16);
-    f.ebx=f.regs[4];
-    ProxyReadU32(static_cast<uintptr_t>(f.ebx)+0x1384,&f.ownerBeforePtr);
-    ProxyReadU32(static_cast<uintptr_t>(f.ownerBeforePtr)+0x2DC,&f.templateBeforePtr);
-    f.ownerBeforeOK=ProxyCopy(f.ownerBeforePtr,f.ownerBefore,16);
-    f.templateBeforeOK=ProxyCopy(f.templateBeforePtr,f.templateBefore,16);
 }
 static void __cdecl ProxyAfter(const DWORD* regs)
 {
@@ -389,12 +376,6 @@ static void __cdecl ProxyAfter(const DWORD* regs)
             f.verifiedTemplateReadAfter=ProxyCopy(f.fallback.templ,f.verifiedTemplateAfter,64);
         }
     }
-    ProxyReadU32(static_cast<uintptr_t>(f.ebx)+0x1384,&f.ownerAfterPtr);
-    ProxyReadU32(static_cast<uintptr_t>(f.ownerBeforePtr)+0x2DC,&f.templateAfterPtr);
-    // Compare the same original object addresses; pointer movements are
-    // logged separately above rather than comparing two unrelated objects.
-    f.ownerAfterOK=ProxyCopy(f.ownerBeforePtr,f.ownerAfter,16);
-    f.templateAfterOK=ProxyCopy(f.templateBeforePtr,f.templateAfter,16);
     AcquireSRWLockExclusive(&g_proxyLastLock);
     g_proxyLast=f;
     InterlockedExchange(&g_proxyHasLast,1);
