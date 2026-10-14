@@ -289,3 +289,47 @@ SaboteurEnhanced.ini, README.txt.
 Do not promote 0.53 to main/stable before the user tests game
 startup, red occupied zone, pedestrian-held accessories, and
 fallback/native logs. Roll back to stable 0.45 ASI + INI on issues.
+
+
+## ASI 0.53 user log verified -> 0.54 native ownership probe (14 October 2026)
+
+User log `SaboteurEnhanced(4).log` (770 lines):
+- Two exact hooks installed: fallback gate RVA 0x00092E03,
+  native creator CALL RVA 0x00092F38 -> 0x00588B30.
+- Gate count 78, with 77 nonzero EBX; native call count 16.
+  All 16 native calls correlate with a fresh same-thread gate.
+- **100% of 16 call events** have
+  nativeEBX = fallbackGateEBX + **0xD78** AND
+  nativeArg0 = fallbackGateTemplate.
+  This is strongly corroborated by gate owner+template and the
+  immediate call arguments, not proof of a rendered/material object.
+- Exactly two distinct templates appeared among the 16 native
+  calls: template 0x0B842520 linked to owner 0x0C60A960,
+  and template 0x0B82DA50 linked to owner 0x0C5165A0.
+  These absolute addresses are session-specific, not stable offsets.
+- F8 arrived after native #16; F9 replayed #16. Normal
+  ASI unload; visual red accessory outcome not reported.
+- The previously guessed owner dereference nativeEBX+0x1384
+  is invalid (it reads an interior address); RETIRED in 0.54.
+
+0.54 observes guarded 256-byte before/after native-call snapshots
+from precisely gate-proven owner and template, requiring per-event
+actor +0xD78 AND template==ARG0 identities. It logs first-seen
+template prefixes and link match/mismatch counts; does not
+write them back, touch materials/shaders, change props or affect
+EXE/graphics/HUD/LOD/engine limits. It preserves the normal
+fallback and native CALL semantics. Only tested by compilation,
+**not yet validated in-game or as a red-bug correction**.
+Rollback: validated Core 1 + ASI 0.45 with matching INI.
+
+Published TEST prerelease ASI-0.54-TEST:
+https://github.com/DeadneM/The-Saboteur-Enhanced-Patch/releases/tag/ASI-0.54-TEST
+Direct flat ZIP:
+https://github.com/DeadneM/The-Saboteur-Enhanced-Patch/releases/download/ASI-0.54-TEST/SaboteurEnhanced_ASI_0.54_VERIFIED_OWNER_TEMPLATE_TEST_x86.zip
+SHA-256 ZIP: ade596c6e4545f3e99efe0fb6d981bb6d8e5545139f950ceebd3b3ae8e885649
+ASIx86: FF1CABD6FB575EA632403FBB6ED1497394F6F5185899F6595CEE44389180F276
+Loaderx86: AD099393F655C10C1B3DFF80D7D9B551C8AA6FCFAB973DA152EA540F9E9020EC
+GitHub CI #256: https://github.com/DeadneM/The-Saboteur-Enhanced-Patch/actions/runs/38634986820
+CI artifact ID 11926664618, SHA-256 c4f7ee9e835153c8b6710405dc546d6ea32539fc2bd363266be7c914ee9e6343.
+Flat ZIP validated by CI: dinput8.dll, SaboteurEnhanced.asi,
+SaboteurEnhanced.ini, README.txt directly at the archive root.
