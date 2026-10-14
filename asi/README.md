@@ -1,6 +1,24 @@
 # SaboteurEnhanced ASI
 
-## Current experimental test: ASI 0.53 (fallback/native sequence correlation)
+## Current experimental test: ASI 0.54 (verified fallback owner/template)
+
+**0.53 actual user log, 14 Oct 2026:** 78 gate entries (77 EBX nonzero),
+16 native calls, 16/16 same-thread/fresh proximity matches, and a normal
+ASI unload. Independently parsing all 16 completed native calls proves
+exactly **native EBX = gate EBX + 0xD78** and
+**native stack ARG0 = the gate's template** for all 16.
+The earlier native EBX owner guess was at the wrong offset.
+Owner/template classes remain unknown, and there is no proof of the
+specific red-material cause yet.
+
+**0.54 diagnostic:** At each sampled native call the two exact pointer
+identities must match before 256-byte owner and template memory is
+sampled safely before/after the real function. It logs changes, pointer
+replacement, a full first-seen snapshot of each template and
+match/mismatch counters. No object suppression, renderer change or
+EXE edits. Stable baseline is still Core 1 + ASI 0.45.
+
+## Historical experimental test: ASI 0.53 (fallback/native sequence correlation)
 
 0.52 runtime log (2026-10-14): native hook OK, 24 calls, 16 startup
 captures plus #24; F9 replays #24. The same ECX/ARG0 counters
