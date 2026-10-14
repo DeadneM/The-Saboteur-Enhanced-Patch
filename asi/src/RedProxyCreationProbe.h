@@ -1,4 +1,4 @@
-// 0.51: passive before/after memory delta at the verified native CALL (x86 only).
+// 0.52: passive before/after nested-pointer and EBX provenance audit at the verified native CALL (x86 only).
 // No red-proxy suppression, model changes, renderer changes or hot patches outside
 // the single callsite. A mismatch leaves the original CALL untouched.
 static uintptr_t g_proxyNative = 0;
@@ -14,6 +14,19 @@ struct ProxyCapture
     // 0: ECX; 1: stack arg0 / observed ESI; 2: stack arg1 / EDX; 3: EDI.
     DWORD candidates[4], before[4][64], after[4][64];
     bool beforeOK[4], afterOK[4];
+    // ECX+207C: this is a *candidate* deep field from the 0.51 follow-up.
+    DWORD farBefore[16], farAfter[16];
+    bool farBeforeOK, farAfterOK;
+    // Fields +08 and +1C of ECX are runtime pointer-like values. They
+    // may be changing object identities; never diff two different pointees.
+    DWORD childBeforePtr[2], childAfterPtr[2];
+    DWORD childBefore[2][16], childAfter[2][16];
+    bool childBeforeOK[2], childAfterOK[2];
+    // EBX is the candidate actor; owner+1384 and template+2DC are only
+    // meaningful when every hop was read through guarded access.
+    DWORD ebx, ownerBeforePtr, ownerAfterPtr, templateBeforePtr, templateAfterPtr;
+    DWORD ownerBefore[16], ownerAfter[16], templateBefore[16], templateAfter[16];
+    bool ownerBeforeOK, ownerAfterOK, templateBeforeOK, templateAfterOK;
     bool objectOK, ecxOK, arg0OK, inspect;
 };
 static ProxyCapture g_proxyLast = {};
@@ -38,20 +51,57 @@ static bool ProxyCopy(uintptr_t address, DWORD* out, size_t words)
 
 static void ProxyLogWords(const char* name, const DWORD* data, size_t words)
 {
-    Log("[PROXY51] %s", name);
+    Log("[PROXY52] %s", name);
     for (size_t i = 0; i + 3 < words; i += 4)
-        Log("[PROXY51]   +%03X: %08X %08X %08X %08X",
+        Log("[PROXY52]   +%03X: %08X %08X %08X %08X",
             static_cast<unsigned>(i * 4), data[i], data[i+1], data[i+2], data[i+3]);
 }
+
+static bool ProxyReadU32(uintptr_t address, DWORD* out)
+{
+    DWORD v=0;
+    if (!ProxyCopy(address,&v,1)) { if(out) *out=0; return false; }
+    if(out) *out=v;
+    return true;
+}
+static void ProxyLogDiff64(const char* name, DWORD ptrBefore, DWORD ptrAfter,
+                           const DWORD* before, bool beforeOK,
+                           const DWORD* after, bool afterOK)
+{
+    if (!beforeOK || !afterOK)
+    {
+        Log("[PROXY52] %s read before=%u after=%u at %08X / %08X",
+            name,beforeOK?1u:0u,afterOK?1u:0u,ptrBefore,ptrAfter);
+        return;
+    }
+    if(ptrBefore!=ptrAfter)
+    {
+        Log("[PROXY52] %s pointer transition %08X -> %08X (separate objects; not a same-object diff)",
+            name,ptrBefore,ptrAfter);
+        ProxyLogWords("old object prefix",before,16);
+        ProxyLogWords("new object prefix",after,16);
+        return;
+    }
+    unsigned changes=0;
+    for(unsigned i=0;i<16;++i)
+    {
+        if(before[i]==after[i]) continue;
+        Log("[PROXY52] DELTA %s=%08X +%02X: %08X -> %08X",
+            name,ptrBefore,i*4,before[i],after[i]);
+        ++changes;
+    }
+    Log("[PROXY52] DELTA_SUM %s=%08X changed=%u/16 dwords",name,ptrBefore,changes);
+}
+
 static void ProxyLogCapture(const ProxyCapture& f)
 {
-    Log("[PROXY51] completed #%u thread=%u native return EAX=%08X (candidate pointer, type unverified)",
+    Log("[PROXY52] completed #%u thread=%u native return EAX=%08X (candidate pointer, type unverified)",
         f.id, f.tid, f.result);
-    Log("[PROXY51] input EDI=%08X ESI=%08X EBP=%08X EBX=%08X EDX=%08X ECX=%08X EAX=%08X",
+    Log("[PROXY52] input EDI=%08X ESI=%08X EBP=%08X EBX=%08X EDX=%08X ECX=%08X EAX=%08X",
         f.regs[0],f.regs[1],f.regs[2],f.regs[4],f.regs[5],f.regs[6],f.regs[7]);
     ProxyLogWords("eight raw caller stack arguments", f.args, 8);
     if (f.objectOK) ProxyLogWords("returned EAX object candidate (192 bytes)", f.object, 48);
-    else Log("[PROXY51] returned EAX does not have 192 readable bytes.");
+    else Log("[PROXY52] returned EAX does not have 192 readable bytes.");
     if (f.ecxOK) ProxyLogWords("entry ECX pointee (64 bytes)", f.ecx, 16);
     if (f.arg0OK) ProxyLogWords("entry first-stack-argument pointee (64 bytes)", f.arg0, 16);
     const char* const labels[4]={"ECX","ARG0/ESI","ARG1/EDX","EDI"};
@@ -59,7 +109,7 @@ static void ProxyLogCapture(const ProxyCapture& f)
     {
         if (!f.beforeOK[c] || !f.afterOK[c])
         {
-            Log("[PROXY51] %s=%08X before readable=%u after readable=%u (cannot diff)",
+            Log("[PROXY52] %s=%08X before readable=%u after readable=%u (cannot diff)",
                 labels[c],f.candidates[c],f.beforeOK[c]?1u:0u,f.afterOK[c]?1u:0u);
             continue;
         }
@@ -68,13 +118,32 @@ static void ProxyLogCapture(const ProxyCapture& f)
         {
             if (f.before[c][w]==f.after[c][w]) continue;
             if (changed<20)
-                Log("[PROXY51] DELTA %s=%08X +%03X: %08X -> %08X",
+                Log("[PROXY52] DELTA %s=%08X +%03X: %08X -> %08X",
                     labels[c],f.candidates[c],w*4,f.before[c][w],f.after[c][w]);
             ++changed;
         }
-        Log("[PROXY51] DELTA_SUM %s=%08X changed=%u/64 dwords (first 20 differences logged)",
+        Log("[PROXY52] DELTA_SUM %s=%08X changed=%u/64 dwords (first 20 differences logged)",
             labels[c],f.candidates[c],changed);
     }
+    const DWORD farBeforeAddress=f.regs[6]+0x207C;
+    const DWORD farAfterAddress=f.regs[6]+0x207C;
+    ProxyLogDiff64("ECX+207C",farBeforeAddress,farAfterAddress,
+        f.farBefore,f.farBeforeOK,f.farAfter,f.farAfterOK);
+    for(int i=0;i<2;++i)
+    {
+        const char* name=i==0?"ECX[+08] child":"ECX[+1C] child";
+        Log("[PROXY52] %s pointer BEFORE=%08X AFTER=%08X",
+            name,f.childBeforePtr[i],f.childAfterPtr[i]);
+        ProxyLogDiff64(name,f.childBeforePtr[i],f.childAfterPtr[i],
+            f.childBefore[i],f.childBeforeOK[i],f.childAfter[i],f.childAfterOK[i]);
+    }
+    Log("[PROXY52] EBX=%08X owner[EBX+1384] %08X->%08X template[owner+2DC] %08X->%08X",
+        f.ebx,f.ownerBeforePtr,f.ownerAfterPtr,
+        f.templateBeforePtr,f.templateAfterPtr);
+    ProxyLogDiff64("EBX owner",f.ownerBeforePtr,f.ownerBeforePtr,
+        f.ownerBefore,f.ownerBeforeOK,f.ownerAfter,f.ownerAfterOK);
+    ProxyLogDiff64("EBX template",f.templateBeforePtr,f.templateBeforePtr,
+        f.templateBefore,f.templateBeforeOK,f.templateAfter,f.templateAfterOK);
 }
 static void __cdecl ProxyBefore(const DWORD* regs)
 {
@@ -96,6 +165,19 @@ static void __cdecl ProxyBefore(const DWORD* regs)
     f.candidates[3]=f.regs[0]; // EDI
     for (unsigned c=0;c<4;++c)
         f.beforeOK[c]=ProxyCopy(f.candidates[c],f.before[c],64);
+    // Save all initial data while caller pointers still refer to this event.
+    f.farBeforeOK=ProxyCopy(static_cast<uintptr_t>(f.regs[6])+0x207C,
+                            f.farBefore,16);
+    const DWORD ecx=f.regs[6];
+    ProxyReadU32(static_cast<uintptr_t>(ecx)+0x08,&f.childBeforePtr[0]);
+    ProxyReadU32(static_cast<uintptr_t>(ecx)+0x1C,&f.childBeforePtr[1]);
+    for(unsigned i=0;i<2;++i)
+        f.childBeforeOK[i]=ProxyCopy(f.childBeforePtr[i],f.childBefore[i],16);
+    f.ebx=f.regs[4];
+    ProxyReadU32(static_cast<uintptr_t>(f.ebx)+0x1384,&f.ownerBeforePtr);
+    ProxyReadU32(static_cast<uintptr_t>(f.ownerBeforePtr)+0x2DC,&f.templateBeforePtr);
+    f.ownerBeforeOK=ProxyCopy(f.ownerBeforePtr,f.ownerBefore,16);
+    f.templateBeforeOK=ProxyCopy(f.templateBeforePtr,f.templateBefore,16);
 }
 static void __cdecl ProxyAfter(const DWORD* regs)
 {
@@ -110,6 +192,19 @@ static void __cdecl ProxyAfter(const DWORD* regs)
     f.arg0OK=ProxyCopy(f.args[0],f.arg0,16);
     for (unsigned c=0;c<4;++c)
         f.afterOK[c]=ProxyCopy(f.candidates[c],f.after[c],64);
+    f.farAfterOK=ProxyCopy(static_cast<uintptr_t>(f.regs[6])+0x207C,
+                           f.farAfter,16);
+    const DWORD ecx=f.regs[6];
+    ProxyReadU32(static_cast<uintptr_t>(ecx)+0x08,&f.childAfterPtr[0]);
+    ProxyReadU32(static_cast<uintptr_t>(ecx)+0x1C,&f.childAfterPtr[1]);
+    for(unsigned i=0;i<2;++i)
+        f.childAfterOK[i]=ProxyCopy(f.childAfterPtr[i],f.childAfter[i],16);
+    ProxyReadU32(static_cast<uintptr_t>(f.ebx)+0x1384,&f.ownerAfterPtr);
+    ProxyReadU32(static_cast<uintptr_t>(f.ownerBeforePtr)+0x2DC,&f.templateAfterPtr);
+    // Compare the same original object addresses; pointer movements are
+    // logged separately above rather than comparing two unrelated objects.
+    f.ownerAfterOK=ProxyCopy(f.ownerBeforePtr,f.ownerAfter,16);
+    f.templateAfterOK=ProxyCopy(f.templateBeforePtr,f.templateAfter,16);
     AcquireSRWLockExclusive(&g_proxyLastLock);
     g_proxyLast=f;
     InterlockedExchange(&g_proxyHasLast,1);
@@ -119,7 +214,7 @@ static void __cdecl ProxyAfter(const DWORD* regs)
     if (budget || (f.id<=16 && InterlockedCompareExchange(&g_proxyAutoFirst,0,0)>0))
         ProxyLogCapture(f);
     else if (f.id%256==0)
-        Log("[PROXY51] native completed #%u EAX=%08X (F7/F8 to capture more)",f.id,f.result);
+        Log("[PROXY52] native completed #%u EAX=%08X (F7/F8 to capture more)",f.id,f.result);
 }
 __declspec(naked) static void ProxyAfterThunk()
 {
@@ -162,12 +257,12 @@ static bool InstallProxyNativeCreationProbe(HMODULE exe)
     auto* callsite=reinterpret_cast<uint8_t*>(base+kCall);
     if (!code.begin || base+kCall<begin || base+kCall+5>begin+code.size)
     {
-        Log("[SKIP] PROXY51 callsite not inside .text.");
+        Log("[SKIP] PROXY52 callsite not inside .text.");
         return false;
     }
     if (callsite[0]!=0xE8)
     {
-        Log("[SKIP] PROXY51 RVA 00092F38 not a direct CALL (opcode %02X).",callsite[0]);
+        Log("[SKIP] PROXY52 RVA 00092F38 not a direct CALL (opcode %02X).",callsite[0]);
         return false;
     }
     int32_t displacement=0;
@@ -176,14 +271,14 @@ static bool InstallProxyNativeCreationProbe(HMODULE exe)
         static_cast<intptr_t>(displacement);
     if (destination!=base+kCallee)
     {
-        Log("[SKIP] PROXY51 target %08X instead of verified expected %08X.",
+        Log("[SKIP] PROXY52 target %08X instead of verified expected %08X.",
             static_cast<unsigned>(destination), static_cast<unsigned>(base+kCallee));
         return false;
     }
     // WSCivilianProp valid-result path: log read-only bytes, no guessed hook.
     DWORD realEntry[4]={};
     if (ProxyCopy(base+0x00092DD5,realEntry,4))
-        Log("[PROXY51] real WSCivilianProp branch +92DD5 raw bytes: %08X %08X %08X %08X",
+        Log("[PROXY52] real WSCivilianProp branch +92DD5 raw bytes: %08X %08X %08X %08X",
             realEntry[0],realEntry[1],realEntry[2],realEntry[3]);
     DWORD callerTail[8]={},calleeHead[16]={};
     if (ProxyCopy(base+kCall+5,callerTail,8))
@@ -194,7 +289,7 @@ static bool InstallProxyNativeCreationProbe(HMODULE exe)
         reinterpret_cast<intptr_t>(callsite+5);
     if (diff<INT32_MIN || diff>INT32_MAX)
     {
-        Log("[SKIP] PROXY51 hook not rel32-reachable.");
+        Log("[SKIP] PROXY52 hook not rel32-reachable.");
         return false;
     }
     uint8_t patch[5]={0xE8,0,0,0,0};
@@ -204,37 +299,38 @@ static bool InstallProxyNativeCreationProbe(HMODULE exe)
     g_proxyContinue=reinterpret_cast<uintptr_t>(callsite+5);
     if (!WriteBytes(callsite,patch,sizeof(patch)))
     {
-        Log("[FAIL] PROXY51 native CALL write failed.");
+        Log("[FAIL] PROXY52 native CALL write failed.");
         return false;
     }
-    Log("[OK] PROXY51 hooked native creator CALL RVA 00092F38 -> 00588B30; post-return EAX capture.");
-    Log("[PROXY51] read-only diagnostics; no fallback suppression and no material edits.");
+    Log("[OK] PROXY52 hooked native creator CALL RVA 00092F38 -> 00588B30; post-return EAX capture.");
+    Log("[PROXY52] guarded reads of ECX+207C, ECX[+08]/[+1C] pointees and EBX+1384 -> owner+2DC.");
+    Log("[PROXY52] read-only diagnostics; no fallback suppression and no material edits.");
     return true;
 }
 static void ProxyDumpLatest()
 {
     if (!InterlockedCompareExchange(&g_proxyHasLast,0,0))
     {
-        Log("[PROXY51] F9: no native create return observed.");
+        Log("[PROXY52] F9: no native create return observed.");
         return;
     }
     ProxyCapture snap={};
     AcquireSRWLockShared(&g_proxyLastLock);
     snap=g_proxyLast;
     ReleaseSRWLockShared(&g_proxyLastLock);
-    Log("[PROXY51] F9: total native calls=%u. Latest captured snapshot below (no stale live pointer dereference).",
+    Log("[PROXY52] F9: total native calls=%u. Latest captured snapshot below (no stale live pointer dereference).",
         static_cast<unsigned>(InterlockedCompareExchange(&g_proxyEvents,0,0)));
     ProxyLogCapture(snap);
 }
 static DWORD WINAPI ProxyHotkeyThread(LPVOID)
 {
     InterlockedExchange(&g_redAuditThreadRun,1);
-    Log("[PROXY51] AUTO capture first 16 completed creates from startup; F6 stops AUTO; F7 next 16; F8 next 64; F9 latest snapshot.");
+    Log("[PROXY52] AUTO captures first 16 completed calls; F6 quiet, F7 next 16, F8 next 64, F9 latest.");
     while (InterlockedCompareExchange(&g_redAuditThreadRun,0,0))
     {
-        if (GetAsyncKeyState(VK_F6)&1) { InterlockedExchange(&g_proxyBudget,0); InterlockedExchange(&g_proxyAutoFirst,0); Log("[PROXY51] F6: quiet; startup auto capture stopped."); }
-        if (GetAsyncKeyState(VK_F7)&1) { InterlockedExchange(&g_proxyBudget,16); Log("[PROXY51] F7 16-event capture."); }
-        if (GetAsyncKeyState(VK_F8)&1) { InterlockedExchange(&g_proxyBudget,64); Log("[PROXY51] F8 64-event capture."); }
+        if (GetAsyncKeyState(VK_F6)&1) { InterlockedExchange(&g_proxyBudget,0); InterlockedExchange(&g_proxyAutoFirst,0); Log("[PROXY52] F6: quiet; startup auto capture stopped."); }
+        if (GetAsyncKeyState(VK_F7)&1) { InterlockedExchange(&g_proxyBudget,16); Log("[PROXY52] F7 16-event capture."); }
+        if (GetAsyncKeyState(VK_F8)&1) { InterlockedExchange(&g_proxyBudget,64); Log("[PROXY52] F8 64-event capture."); }
         if (GetAsyncKeyState(VK_F9)&1) ProxyDumpLatest();
         Sleep(50);
     }
@@ -243,7 +339,7 @@ static DWORD WINAPI ProxyHotkeyThread(LPVOID)
 static bool StartProxyHotkeys()
 {
     HANDLE t=CreateThread(nullptr,0,ProxyHotkeyThread,nullptr,0,nullptr);
-    if (!t) { Log("[FAIL] PROXY51 hotkey thread creation."); return false; }
+    if (!t) { Log("[FAIL] PROXY52 hotkey thread creation."); return false; }
     CloseHandle(t);
     return true;
 }

@@ -1,6 +1,16 @@
 # SaboteurEnhanced ASI
 
-## Current experimental test: ASI 0.51 (native proxy memory-delta audit)
+## Current experimental test: ASI 0.52 (native proxy object-context audit)
+0.52 adds read-only guarded before/after captures for ECX+0x207C,
+for the two pointer-like fields ECX+0x08 and ECX+0x1C, and for
+EBX+0x1384 -> owner+0x2DC (fallback template).
+The latter is not trusted as a material or proxy object without runtime
+evidence; child-pointer identity transitions are logged and never diffed
+as though two different allocations were one object.
+The previous 0.51 first-16-call capture stays active.
+No visual or EXE change. Test only; Core1 + 0.45 stays canonical.
+
+## Historical notes: ASI 0.51 (native proxy memory-delta audit)
 
 Canonical validated baseline remains Core 1 + ASI 0.45. The earlier 0.14
 heading and historical experiments below are preserved as archive.

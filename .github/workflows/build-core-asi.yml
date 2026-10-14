@@ -3,7 +3,7 @@ name: Build Core ASI x86
 on:
   workflow_dispatch:
   push:
-    branches: [main, "dev/asi-0.50-proxy-creation-capture", "dev/asi-0.51-proxy-outparams-diff"]
+    branches: [main, "dev/asi-0.50-proxy-creation-capture", "dev/asi-0.51-proxy-outparams-diff", "dev/asi-0.52-runtime-structure-observation"]
     paths:
       - "asi/**"
       - ".github/workflows/build-core-asi.yml"
@@ -12,7 +12,7 @@ jobs:
   build:
     runs-on: windows-latest
     permissions:
-      contents: read
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -46,7 +46,33 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SaboteurEnhanced_ASI_0.51_PROXY_NATIVE_OUTPARAM_DELTA_x86
+          name: SaboteurEnhanced_ASI_0.52_NATIVE_STRUCTURE_CONTEXT_x86
           path: dist/*
           if-no-files-found: error
           compression-level: 0
+
+      - name: Package one flat ZIP for ASI 0.52 prerelease
+        if: github.ref == 'refs/heads/dev/asi-0.52-runtime-structure-observation'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist\* -DestinationPath SaboteurEnhanced_ASI_0.52_NATIVE_STRUCTURE_CONTEXT_TEST_x86.zip -Force
+          Add-Type -AssemblyName System.IO.Compression
+          $zip = [System.IO.Compression.ZipFile]::OpenRead("$PWD/SaboteurEnhanced_ASI_0.52_NATIVE_STRUCTURE_CONTEXT_TEST_x86.zip")
+          try {
+            $items=@($zip.Entries | ForEach-Object { $_.FullName })
+            $expected=@('SaboteurEnhanced.asi','dinput8.dll','SaboteurEnhanced.ini','README.txt')
+            if (@(Compare-Object $items $expected).Count -ne 0) { throw "Unexpected ZIP layout: $($items -join ', ')" }
+          } finally { $zip.Dispose() }
+
+      - name: Publish ASI 0.52 TEST prerelease
+        if: github.ref == 'refs/heads/dev/asi-0.52-runtime-structure-observation'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag="ASI-0.52-TEST"
+          if (gh release view $tag --repo $env:GITHUB_REPOSITORY 2>$null) {
+            gh release upload $tag SaboteurEnhanced_ASI_0.52_NATIVE_STRUCTURE_CONTEXT_TEST_x86.zip --clobber --repo $env:GITHUB_REPOSITORY
+          } else {
+            gh release create $tag SaboteurEnhanced_ASI_0.52_NATIVE_STRUCTURE_CONTEXT_TEST_x86.zip --target $env:GITHUB_SHA --prerelease --title "ASI 0.52 - Native Structure Context TEST" --notes-file docs/ASI_0_52_RUNTIME_RESULT.md --repo $env:GITHUB_REPOSITORY
+          }
