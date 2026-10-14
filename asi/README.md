@@ -1,6 +1,25 @@
 # SaboteurEnhanced ASI
 
-## Current experimental test: ASI 0.52 (native proxy object-context audit)
+## Current experimental test: ASI 0.53 (fallback/native sequence correlation)
+
+0.52 runtime log (2026-10-14): native hook OK, 24 calls, 16 startup
+captures plus #24; F9 replays #24. The same ECX/ARG0 counters
+changed, ECX+0x207C changed on #5/#6/#7/#24, and child pointers
+were verified to change identity. The native-call EBX path frequently
+produced null, 0xDDDDDDDD or invalid addresses at +0x1384. Thus
+**native-call EBX cannot be assumed to be the fallback actor**.
+
+0.53 keeps the real native CALL hook and adds a second, strictly
+signature-checked passive gate at RVA 0x00092E03. The original
+`test ebx,ebx / je` is faithfully replayed, never suppressed.
+The **correct EBX at the fallback gate** is now copied with optional
+guarded owner/template pointers, per-thread sequence and elapsed
+time, allowing same-thread timeline correlation with subsequent
+native CALL events. Same-thread proximity is evidence of sequence
+only, not proof of the same object. F9 prints gate/native counters.
+Do not edit materials or EXE. Stable baseline is 0.45.
+
+## Historical experimental test: ASI 0.52 (native proxy object-context audit)
 0.52 adds read-only guarded before/after captures for ECX+0x207C,
 for the two pointer-like fields ECX+0x08 and ECX+0x1C, and for
 EBX+0x1384 -> owner+0x2DC (fallback template).
