@@ -1,6 +1,31 @@
 # SaboteurEnhanced ASI
 
-## Current experimental test: ASI 0.54 (verified fallback owner/template)
+## Current experimental test: ASI 0.55 (real lookup vs fallback)
+
+0.54 user validation (14 Oct 2026): **the red bug is STILL visible.**
+Log verified 15/15 exact actor +0xD78 and native ARG0 == gate
+template relationships, all owner and template pointer identities stable.
+All 15 first 256-byte owner snapshots showed zero change; all
+15 template snapshots changed ONLY +0x48 by +1 (likely a
+reference/use counter, not evidence of red material).
+The two distinct template snapshots contain condition strings
+`!Is_LowWtf`, `!Is_Raining`, and `Is_Raining`. These are
+condition identifiers, **not proven material parameters**.
+ASI unloaded normally at 23:04:32.176, no F9 was recorded.
+
+0.55 is a **more decisive read-only control-flow experiment**:
+it observes the original normal civilian-prop lookup at
+RVA 0x00092DD5, reconstructing the original
+`mov ecx,ebp / test ecx,ecx / je +0x28` exactly.
+It counts null result, unreadable node, empty entry and
+populated entry, snapshots the first 64 bytes of a populated
+target when readable, and correlates lookups with subsequent
+fallback gate events by SAME ACTOR, not mere proximity.
+F9 now reports normal/fallback/native counters together.
+No prop suppression, no rendering or EXE change.
+Stable canonical baseline: Core1 + 0.45.
+
+## Historical experimental test: ASI 0.54 (verified fallback owner/template)
 
 **0.53 actual user log, 14 Oct 2026:** 78 gate entries (77 EBX nonzero),
 16 native calls, 16/16 same-thread/fresh proximity matches, and a normal
