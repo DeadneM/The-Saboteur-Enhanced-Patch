@@ -1152,3 +1152,60 @@ GitHub CI #256: https://github.com/DeadneM/The-Saboteur-Enhanced-Patch/actions/r
 CI artifact ID 11926664618, SHA-256 c4f7ee9e835153c8b6710405dc546d6ea32539fc2bd363266be7c914ee9e6343.
 Flat ZIP validated by CI: dinput8.dll, SaboteurEnhanced.asi,
 SaboteurEnhanced.ini, README.txt directly at the archive root.
+
+
+## ASI 0.54 verified player log / 0.55 x86 published prerelease (2026-10-14)
+
+Player confirmed **red textures still visible** using 0.54. User log
+`SaboteurEnhanced(5).log`: 15 distinct native completions,
+15/15 gate+0xD78 matches, 15/15 template equals native ARG0,
+15/15 valid/unchanged owner and template pointer identity.
+Owner first 256 bytes: **0/15 modified**. Template first
+256 bytes: **only +0x48 incremented, all 15/15**.
+Two process-local template pointers, family A 0x0B8E2520
+(5 events) and B 0x0B8CDA50 (10 events). Templates contain
+literal strings `!Is_LowWtf` and `!Is_Raining` /
+`Is_Raining`. Their meaning here is UNPROVEN, and these
+are not discovered red-material offsets.
+Normal ASI unload at 23:04:32.176; no F9 entry in this log.
+Nothing in 0.54 modifies rendering, so persistent red is
+consistent with being an observational build, not surprising
+evidence of incorrect 0.54 instrumentation.
+
+**0.55 pivots to a DIFFERENT original native path**:
+`RVA 0x00092DD5` where original read-only runtime bytes
+were `8B CD 85 C9 74 28 83 39 00 74 23`.
+Verified hook uses 6 bytes (E9 rel32 + NOP) and faithfully
+replays `mov ecx,ebp; test ecx,ecx; je 0x92E03`;
+non-null falls through to original `cmp [ecx],0` at
+`RVA 0x00092DDB`. Logs whether the **normal** table
+lookup is null/unreadable/empty/populated, copies a
+populated resource header when safely readable, and
+correlates fallback gate entries with last same-thread,
+same-actor lookup. F9 summarizes normal lookup classes
+plus old fallback/native counts. No fixes, material edits,
+false skipping of props or changes to graphics, EXE,
+LOD, HUD or engine limits.
+
+0.55 build Windows MSVC x86, GitHub Actions #257 SUCCESS:
+https://github.com/DeadneM/The-Saboteur-Enhanced-Patch/actions/runs/38637887900
+Build source commit `8d17f253c21c32798e72909b739a311588c4cbc8`.
+ASI SHA-256:
+`3B2CD2B026902C0177F339BF6F3CF300704F7562091CE4A2F1028174206568AE`.
+Loader SHA-256:
+`595F0D21B0186EC64D03BABC377F66B628C7E19001811C53451D8AD9B6D6F694`.
+Experimental prerelease:
+https://github.com/DeadneM/The-Saboteur-Enhanced-Patch/releases/tag/ASI-0.55-TEST
+Direct root-level ZIP:
+https://github.com/DeadneM/The-Saboteur-Enhanced-Patch/releases/download/ASI-0.55-TEST/SaboteurEnhanced_ASI_0.55_NORMAL_LOOKUP_VS_FALLBACK_TEST_x86.zip
+Size 190090 bytes; SHA-256
+`b80930a2c6f35cc255aaf2780b3c7fcad501f6efcbd3a9927ef09c53150de982`.
+Artifact ID 11928048765, sha256
+`eed5c4b94833b1cd49c07828375f0fd2a430710d80410866322abfd49684c26c`.
+CI verified flat ZIP exactly dinput8.dll, SaboteurEnhanced.asi,
+SaboteurEnhanced.ini, README.txt in root.
+Version 0.55 is untested in-game; Core1 + 0.45
+remains validated baseline, and **main untouched**.
+Test: red district, F8 BEFORE new props load, F9 for
+normal-vs-fallback totals, send log; confirm visible red
+and normal held prop behavior, rollback 0.45 on issue.
